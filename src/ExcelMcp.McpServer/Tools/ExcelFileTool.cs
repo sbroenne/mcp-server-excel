@@ -1,10 +1,8 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -18,9 +16,9 @@ public static partial class ExcelFileTool
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal shutdown closes saved owned workbooks and leaves unsaved ones open and visible without saving or discarding. Attached workbooks stay untouched.
-    /// Protected files require show:true for authentication; Excel determines editing rights.
-    /// Open accepts direct SharePoint/OneDrive for Business HTTPS workbook URLs, including ?web=1.
-    /// URL opening requires show:true; browser pages, sharing links and arbitrary web URLs are not supported.
+    /// Protected files may need visible authentication; Excel determines editing rights.
+    /// Open passes Windows paths and URLs to Excel, which determines supported formats and access.
+    /// URL parameters are passed unchanged. Use show:true when you need to answer Excel sign-in or permission prompts.
     /// Open and attach preserve and report AutoSave. If enabled, Excel may save edits automatically; close without saving cannot undo already-saved edits.
     /// Explicitly change AutoSave with workbook set-auto-save enabled. Enabling can immediately save pending edits.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
@@ -36,7 +34,7 @@ public static partial class ExcelFileTool
     /// Company restrictions remain in force. Approval arguments are explicit opt-ins, not a built-in user confirmation dialog.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="file_path">Full Windows workbook path, or a direct SharePoint/OneDrive for Business HTTPS workbook URL for open. URLs support .xlsx/.xlsm/.xlsb/.xls and optional ?web=1 or ?web=0. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear.</param>
+    /// <param name="file_path">Full Windows path or URL for open. Excel determines what it can open. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="workbook_session_id">Session ID returned by open/create/attach or listed by this server. Required for close, save, enable-editing, enable-connections, and enable-macros.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
@@ -89,12 +87,12 @@ public static partial class ExcelFileTool
     /// Inspect canOpen, isIrmProtected, willOpenReadOnly, and requiresVisibleSession.
     /// willOpenReadOnly:false does not guarantee editing rights; inspect workbook_read get-info readOnly after opening.
     /// Test does not bypass authentication.
-    /// SharePoint URLs return an interactive-validation requirement without opening Excel.
+    /// URLs report unavailable local file details without opening Excel; use open to check access.
     /// Remote existence, size and IRM protection cannot be established by local preflight;
     /// false exists/isIrmProtected values do not prove absence or lack of protection.
     /// </remarks>
     /// <param name="action">Discover already-open workbooks, list sessions, test whether a workbook can be opened, or inspect a selected session's opening notices.</param>
-    /// <param name="file_path">Full Windows workbook path or direct SharePoint/OneDrive for Business HTTPS workbook URL. Required for test.</param>
+    /// <param name="file_path">Full Windows path or URL. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled.</param>
     /// <param name="fields">Result field paths. Errors, restrictions and incomplete-result information are always retained.</param>
@@ -164,26 +162,12 @@ public static partial class ExcelFileTool
             if (action == FileAction.Attach && string.IsNullOrWhiteSpace(open_workbook_id))
                 throw new ArgumentException("open_workbook_id from file_read discover is required for attach.");
 
-            var isRemoteOpen = action == FileAction.Open
-                && FilePathValidation.IsRemoteWorkbook(file_path!);
-            if (action is FileAction.Open or FileAction.Create && !isRemoteOpen)
+            if (action == FileAction.Create)
             {
                 var pathError = ExcelToolsBase.ValidateWindowsPath(file_path);
                 if (pathError is not null)
                     return pathError;
             }
-            if (action == FileAction.Open && !isRemoteOpen && !File.Exists(file_path))
-            {
-                return JsonSerializer.Serialize(new
-                {
-                    success = false,
-                    errorMessage = $"File not found: {file_path}",
-                    errorCategory = "NotFound",
-                    filePath = file_path,
-                    isError = true
-                }, ExcelToolsBase.JsonOptions);
-            }
-
             var response = action switch
             {
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),

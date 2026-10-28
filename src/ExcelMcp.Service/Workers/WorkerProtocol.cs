@@ -73,6 +73,7 @@ internal sealed record WorkerSnapshot(
     ServiceResponse SessionList,
     string? PendingOperation,
     string? PendingCommand,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> OwnershipKeys,
     string? StatusError = null,
     bool Releasing = false,
     long Revision = 0);

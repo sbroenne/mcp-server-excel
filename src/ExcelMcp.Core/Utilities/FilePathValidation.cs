@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Utilities;
 public static class FilePathValidation
 {
     /// <summary>
-    /// Normalizes an existing workbook's Windows path or direct SharePoint HTTPS URL.
+    /// Normalizes a workbook's Windows path or URL for tracking, excluding URL credentials and parameters.
     /// </summary>
     public static string NormalizeWorkbookLocation(string location) => WorkbookLocation.Normalize(location);
 

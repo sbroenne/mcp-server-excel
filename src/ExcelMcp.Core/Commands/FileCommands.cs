@@ -19,17 +19,15 @@ public class FileCommands : IFileCommands
             {
                 FilePath = filePath,
                 Extension = WorkbookLocation.GetExtension(filePath),
-                RequiresVisibleSession = true,
-                Message = "SharePoint workbook existence, size and IRM/AIP protection cannot be determined by local preflight. " +
-                    "Open with show=true for Excel authentication, then inspect workbook readOnly before editing. " +
-                    "A false preflight exists/isIrmProtected value does not establish absence or lack of protection."
+                Message = "Remote file existence, size and IRM/AIP protection cannot be checked locally. " +
+                    "Open in Excel to check access. Use show=true if you need to answer authentication prompts. " +
+                    "False exists/isIrmProtected values do not prove that the file is missing or unprotected."
             };
         }
 
         bool exists = File.Exists(filePath);
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
-        bool isValidExtension = extension is ".xlsx" or ".xlsm" or ".xlsb" or ".xls";
-        bool isIrmProtected = exists && isValidExtension && FileAccessValidator.IsIrmProtected(filePath);
+        bool isIrmProtected = exists && FileAccessValidator.IsIrmProtected(filePath);
         bool isValid = false;
         bool canOpen = false;
 
@@ -45,28 +43,21 @@ public class FileCommands : IFileCommands
 
         string? message = !exists
             ? $"File not found: {filePath}"
-            : !isValidExtension ? $"Invalid file extension. Expected .xlsx, .xlsm, .xlsb or .xls, got {extension}" : null;
+            : null;
 
-        if (exists && isValidExtension)
+        if (exists && isIrmProtected)
         {
             try
             {
-                if (isIrmProtected)
-                {
-                    using var readTest = new FileStream(
-                        filePath,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.ReadWrite);
-                    message =
-                        "IRM/AIP protection detected. Container validity and openability require " +
-                        "an interactive Excel open; use show=true. Excel determines editing permissions " +
-                        "after authentication; inspect readOnly using workbook get-info.";
-                }
-                else
-                {
-                    FileAccessValidator.ValidateFileNotLocked(filePath);
-                }
+                using var readTest = new FileStream(
+                    filePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite);
+                message =
+                    "IRM/AIP protection detected. Container validity and openability require " +
+                    "an interactive Excel open; use show=true. Excel determines editing permissions " +
+                    "after authentication; inspect readOnly using workbook get-info.";
             }
             catch (InvalidOperationException ex)
             {

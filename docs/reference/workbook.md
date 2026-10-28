@@ -6,28 +6,20 @@ is separate; see [session and saving guidance](behavioral-rules.md#sessions-and-
 
 Current commands and supported inputs come from CLI help or MCP tool descriptions.
 
-## Opening a SharePoint workbook
+## Opening a file or web address
 
-Open accepts a direct SharePoint or OneDrive for Business HTTPS file URL ending
-in `.xlsx`, `.xlsm`, `.xlsb`, or `.xls`. An optional `?web=1` or `?web=0` is
-removed before opening and session matching. Spaces and their percent-encoded
-forms identify the same workbook. Folder URLs, browser pages such as `Doc.aspx`,
-sharing links, other query parameters, arbitrary websites, and OneDrive personal
-consumer links are not supported.
+Open accepts an absolute Windows path or a URL. Excel determines whether it can
+open the supplied location and format, including text imports, templates, and
+cloud workbooks. ExcelMcp does not restrict web hosts or file extensions, reject
+formats Excel has opened, or remove URL parameters before opening.
+Excel also decides whether a file can be opened read-only or requires a prompt;
+opening does not first demand exclusive write access to the file.
+An address that opens a browser page rather than the intended workbook is not
+converted into a workbook link; inspect the opened workbook before editing.
 
-For an unsupported link, open the file in desktop Excel and use
-**File > Info > Copy Path** to obtain its direct workbook URL, or supply the
-path to an existing local workbook. ExcelMcp does not register a Microsoft app
-or resolve opaque sharing links.
-
-Before publishing a session for a `.xlsx`, `.xlsm`, `.xlsb`, or `.xls` location,
-ExcelMcp checks Excel's actual file format. A sign-in page, browser response, or
-text import is not accepted as a successful workbook open, even if Excel can
-display it as a worksheet.
-
-Use MCP `file(action: 'open', file_path: '<direct-url>', show: true)` or
-`excelcli session open "<direct-url>" --show`. The visible session is required
-so Office sign-in and rights-management prompts remain accessible. Excel uses
+Use MCP `file(action: 'open', file_path: '<url>', show: true)` or
+`excelcli session open "<url>" --show` when you need to answer sign-in or
+permission prompts. Web addresses do not require a visible session. Excel uses
 the signed-in Office account; ExcelMcp neither supplies credentials nor bypasses
 IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
 `excelcli workbook get-info` for `readOnly` and the live `autoSaveOn` status before
@@ -39,8 +31,8 @@ Excel versions without the AutoSave property report AutoSave as unavailable
 Only known unavailable-member errors are treated this way. Other AutoSave read
 or write failures remain errors.
 
-`file_read` action `test` and `excelcli session test` report that URL validation
-requires interactive opening. They do not download the workbook or probe a local
+`file_read` action `test` and `excelcli session test` report that local file
+details are unavailable for URLs. Use open to check access. Test does not download the workbook or probe a local
 file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
 remote metadata, not evidence of a missing or unprotected workbook.
 
@@ -75,9 +67,13 @@ All Sessions still close the selected sessions, including attachments.
 Attachment preserves the existing
 AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
 edits automatically, even without an explicit save.
-For already-open remote workbooks, discovery reports the HTTPS location without
-URL credentials, query parameters, or fragments. This does not change which URLs
-are allowed when opening a workbook through ExcelMcp.
+For remote workbooks, reported locations exclude URL credentials, query
+parameters, and fragments; the original address is passed to Excel when opening.
+Addresses with different values after `?` are still tracked separately,
+so opening one does not prevent Excel from opening the other.
+This includes personal OneDrive workbooks: Excel may report their web address
+after opening them through a synced Windows path. Discovery keeps the existing
+session, and attachment can reconnect to a workbook already open in Excel.
 Discovery also lists workbooks in Excel processes already used by this host.
 `sessionId` is included for workbooks already connected to a session; attaching
 one returns that existing session. Other workbooks in the same process can be

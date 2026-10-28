@@ -476,9 +476,11 @@ npx -y @sbroenne/mcp-server-excel@latest --version
 
 ### 3. "Workbook is locked" or "Cannot open file"
 
-**Solution:** Close all Excel windows before running ExcelMcp
-
-ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
+Use `file_read` action `discover` and `file` action `attach`, setting
+`open_workbook_id` to the returned `workbookId`, if the intended workbook is already open.
+For a new open, Excel handles file access and may open the file read-only.
+Check `workbook_read` action `get-info` for `readOnly` before editing, and
+respond to any prompts in Excel.
 
 ### 4. MCP Server Still Running Old Version
 

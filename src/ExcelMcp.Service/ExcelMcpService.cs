@@ -561,7 +561,7 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
-            var sessionId = _sessionManager.CreateSession(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            var sessionId = _sessionManager.CreateSession(args.FilePath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
             return CreateSessionOpenResponse(sessionId, fullPath, request.Command);
         }
@@ -667,7 +667,6 @@ public sealed class ExcelMcpService : IDisposable
         {
             var result = _fileCommands.Test(args.FilePath);
             if (result.Exists
-                && result.Extension is ".xlsx" or ".xlsm" or ".xlsb" or ".xls"
                 && !result.IsIrmProtected
                 && result.Message == null)
             {

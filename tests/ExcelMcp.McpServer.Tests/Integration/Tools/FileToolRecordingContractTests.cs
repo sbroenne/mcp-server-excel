@@ -211,18 +211,22 @@ public sealed class FileToolRecordingContractTests(
                 .GetProperty("message").GetString());
     }
 
-    [Fact]
-    public async Task Open_SharePointUrl_DispatchesWithoutLocalFileExistenceCheck()
+    [Theory]
+    [InlineData("https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx?web=1", true)]
+    [InlineData("https://d.docs.live.net/123/Documents/Test.xlsx?download=1", false)]
+    [InlineData("http://example.com:8080/Test.csv?download=1#data", false)]
+    [InlineData("https://contoso.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc=test", false)]
+    [InlineData(@"C:\Imports\Test.txt", false)]
+    public async Task Open_ForwardsOriginalLocationAndVisibilityWithoutOpeningRules(string url, bool show)
     {
-        const string url = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx?web=1";
-        const string normalizedUrl = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx";
+        const string openedPath = @"C:\Opened\Test.xlsx";
         var call = await _fixture.CallToolAsync(
             "file",
             new Dictionary<string, object?>
             {
                 ["action"] = "open",
                 ["file_path"] = url,
-                ["show"] = true
+                ["show"] = show
             },
             new ServiceResponse
             {
@@ -231,7 +235,7 @@ public sealed class FileToolRecordingContractTests(
                 {
                     success = true,
                     sessionId = "sharepoint-session",
-                    filePath = normalizedUrl
+                    filePath = openedPath
                 }, ServiceProtocol.JsonOptions)
             },
             "session.open",
@@ -239,14 +243,14 @@ public sealed class FileToolRecordingContractTests(
             expectedArgsJson: JsonSerializer.Serialize(new
             {
                 filePath = url,
-                show = true,
+                show,
                 timeoutSeconds = 120
             }, ServiceProtocol.JsonOptions));
 
         using var result = JsonDocument.Parse(call.JsonResult);
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("sharepoint-session", result.RootElement.GetProperty("workbook_session_id").GetString());
-        Assert.Equal(normalizedUrl, result.RootElement.GetProperty("filePath").GetString());
+        Assert.Equal(openedPath, result.RootElement.GetProperty("filePath").GetString());
     }
 
     [Fact]

@@ -111,15 +111,16 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
-    public void CreateSession_NonExistentFile_ThrowsFileNotFoundException()
+    public void CreateSession_NonExistentFile_PreservesExcelOpenFailure()
     {
         using var manager = new SessionManager();
         var nonExistentFile = Path.Combine(_tempDir, "nonexistent.xlsx");
 
-        var ex = Assert.Throws<FileNotFoundException>(
+        var ex = Assert.Throws<InvalidOperationException>(
             () => manager.CreateSession(nonExistentFile));
 
-        Assert.Contains("Excel file not found", ex.Message);
+        Assert.IsType<System.Runtime.InteropServices.COMException>(ex.InnerException);
+        Assert.Contains(Path.GetFileName(nonExistentFile), ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, manager.ActiveSessionCount);
         Assert.Empty(manager.ActiveSessionIds);
         Assert.False(File.Exists(nonExistentFile));
@@ -524,10 +525,10 @@ public class SessionManagerTests : IDisposable
         using (var fileLock = new FileStream(testFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
             var ex = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(testFile));
-            Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.IsType<System.Runtime.InteropServices.COMException>(ex.InnerException);
         }
 
-        owned.AssertAllExited(expectProcess: false);
+        owned.AssertAllExited();
         Assert.Equal(0, manager.ActiveSessionCount);
         var recovered = manager.CreateSession(testFile);
         SessionWorkbookAssertions.AssertIdentity(Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(recovered)), testFile);

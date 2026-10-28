@@ -12,14 +12,15 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
-    [InlineData(false, false, false, false)]
-    [InlineData(true, false, false, false)]
-    [InlineData(false, true, false, false)]
-    [InlineData(true, true, false, false)]
-    [InlineData(false, true, true, false)]
-    [InlineData(false, true, false, true)]
+    [InlineData(false, false, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, true, false, false, false)]
+    [InlineData(false, true, true, false, false)]
+    [InlineData(false, true, false, true, false)]
+    [InlineData(false, true, false, true, true)]
     public async Task TemporaryBatch_CompletedCrossFileCall_ClosesOnlyOnSuccess(
-        bool move, bool failSave, bool readOnlySource, bool renameTarget)
+        bool move, bool failSave, bool readOnlySource, bool renameTarget, bool usePathAliases)
     {
         var directory = Path.GetFullPath(Path.Join(AppContext.BaseDirectory,
             "..", "..", "..", "..", "..", "artifacts", $"tb-{Guid.NewGuid():N}"));
@@ -56,7 +57,12 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var response = await service.ProcessAsync(new ServiceRequest
             {
                 Command = move ? "sheet.move-to-file" : "sheet.copy-to-file",
-                Args = JsonSerializer.Serialize(new { sourceFile = source, targetFile = target, sourceSheet = "Sheet1" })
+                Args = JsonSerializer.Serialize(new
+                {
+                    sourceFile = usePathAliases ? Path.Join(directory, ".", "source.xlsx") : source,
+                    targetFile = usePathAliases ? Path.Join(directory, ".", "target.xlsx") : target,
+                    sourceSheet = "Sheet1"
+                })
             });
             ExcelShutdownService.BeforeSaveHookForTests = null;
             if (failSave)
@@ -269,6 +275,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             Assert.Equal(command, response.Command);
             var retained = Assert.Single(service.SessionManager.ActiveSessionIds);
             Assert.Equal(retained, response.SessionId);
+            var snapshot = await worker.ReadSnapshotAsync();
+            Assert.Equal(new[] { source, target }, snapshot.OwnershipKeys[retained]);
             using (var partial = JsonDocument.Parse(response.PartialState!))
             {
                 Assert.True(partial.RootElement.GetProperty("retained").GetBoolean());

@@ -52,9 +52,7 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
     {
         var path = location is null
             ? name
-            : WorkbookLocation.IsRemote(location)
-                ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(location)
-                : WorkbookLocation.Normalize(location);
+            : WorkbookLocation.Normalize(location);
         lock (LocationSyncRoot)
         {
             if (!string.Equals(_path, path, StringComparison.Ordinal)
