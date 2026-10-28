@@ -34,7 +34,7 @@ camel-case names, not CLI flags; for example, `--timeout-seconds` becomes
 flag, the exit status, and expected command count. Use `--stop-on-error`;
 otherwise errors do not stop later commands. Keep save/close outside the batch.
 
-### Reading results and choosing fields
+### Reading results
 
 Individual CLI operations and batch items use the same JSON object:
 
@@ -56,44 +56,26 @@ validation and, for individual commands, connection/startup. It excludes writing
 the output. Batch timing excludes shared startup and earlier items. A feature's
 own `data.durationMs` remains separate because it can measure different work.
 
-Every list/read operation accepts CLI `--fields` with comma-separated,
-case-sensitive business paths. Action-specific `--help` lists the generated
-paths. MCP uses a `fields` array; batch input uses `args.fields`:
-
-```cli
-excelcli powerquery list --session $sessionId --fields queries.name,queries.loadMode
-```
-
-```json
-{"command":"powerquery.list","sessionId":"SESSION_ID","args":{"fields":["queries.name","queries.loadMode"]}}
-```
-
-MCP example: `powerquery_read` with `action:"list"`,
-`workbook_session_id:"SESSION_ID"`, and `fields:["queries.name","queries.loadMode"]`.
 MCP keeps its existing business-object result rather than the CLI outer object;
 its actual tool error flag reports failures, and text and structured results
 agree.
 
-Choosing a parent path keeps the whole object. Choosing nested fields keeps
-every array position in its original order, including empty arrays. Warnings,
+Results keep every array position in its original order, including empty arrays. Warnings,
 cell errors, skipped reasons, partial results, inspection limits, dimensions,
 and continuation details remain visible. Exact cell reads never shorten a
-requested grid. Invalid paths are rejected before contacting Excel, even when
-the result would be empty.
+requested grid. General result-field selection is not supported.
 
-For a scalar read, such as a chart axis number-format string, the accepted
-path is `result`; it keeps the complete value under CLI `data` or MCP `result`.
+For a scalar read, such as a chart axis number-format string, the complete
+value is under CLI `data` or MCP `result`.
 
-Screenshot selection does not change the capture. MCP still returns the native
+MCP screenshots return the native
 image with its actual format and captured bounds; CLI `--output` still writes
 the complete image. Capture limits and warnings remain visible.
 
-Without `fields`, reads return full business data, except `powerquery.list`
-omits formula previews. Select `queries.formulaPreview` to include its existing
-80-character preview, or use `powerquery.view` for full M code. Use existing
+Reads return full business data, except `powerquery.list` omits formula previews.
+Use `powerquery view` (MCP: `powerquery_read` action `view`) for full M code. Use existing
 bounded reads such as `workbook.inspect` and existing paging options when less
-data is needed. Choosing fields changes output only; it does not skip checks or
-promise faster Excel work.
+data is needed.
 
 Operation output is JSON even without `--quiet` or redirection. Diagnostics go
 to standard error; help and version output remain human-readable. Scripts using

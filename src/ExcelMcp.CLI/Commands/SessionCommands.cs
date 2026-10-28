@@ -14,9 +14,9 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 // SESSION COMMANDS
 // ============================================================================
 
-internal sealed class SessionDiscoverCommand : AsyncCommand<ReadSelectionSettings>
+internal sealed class SessionDiscoverCommand : AsyncCommand
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var request = new ServiceRequest { Command = "session.discover" };
@@ -246,9 +246,9 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
     }
 }
 
-internal sealed class SessionListCommand : AsyncCommand<ReadSelectionSettings>
+internal sealed class SessionListCommand : AsyncCommand
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var daemonConnection = CliCommandRuntime.Current.DaemonConnection;
@@ -382,7 +382,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         return CliResultOutput.Write(response, request.Command);
     }
 
-    internal sealed class Settings : ReadSelectionSettings
+    internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<FILE>")]
         [Description("Absolute Windows path or direct SharePoint HTTPS workbook URL; remote URLs report an interactive validation requirement")]

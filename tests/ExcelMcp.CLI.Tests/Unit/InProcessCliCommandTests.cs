@@ -17,6 +17,30 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Theory]
+    [InlineData("powerquery", "list", "queries.name")]
+    [InlineData("session", "list", "sessions.workbookName")]
+    [InlineData("service", "status", "running")]
+    public async Task RemovedFieldsOption_IsRejectedWithoutConnecting(string category, string action, string field)
+    {
+        var response = new ServiceResponse { Success = true, Result = """{"success":true,"queries":[],"sessions":[]}""" };
+        var factory = new RecordingClientFactory(response);
+        var daemon = new RecordingDaemonConnection(response,
+            new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
+        var output = new StringWriter();
+        string[] arguments = category == "powerquery"
+            ? [category, action, "--session", "target", "--fields", field]
+            : [category, action, "--fields", field];
+        var exit = await Program.RunAsync(
+            arguments, CreateRuntime(factory, output, new StringWriter(), daemonConnection: daemon));
+        Assert.NotEqual(0, exit);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(daemon.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("fields", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
     [Fact]
     public async Task SessionClose_PreservesActualOutcomeRatherThanInventingSavedState()
     {
@@ -57,7 +81,7 @@ public sealed class InProcessCliCommandTests
     }
 
     [Fact]
-    public async Task OutputFile_ImageStillWrittenWhenFieldsSelectOnlyMetadata()
+    public async Task OutputFile_ImageKeepsCompleteBytesAndMetadata()
     {
         var path = Path.Combine(Path.GetTempPath(), $"excelcli-image-{Guid.NewGuid():N}.png");
         var factory = new RecordingClientFactory(new ServiceResponse
@@ -70,7 +94,7 @@ public sealed class InProcessCliCommandTests
         {
             var exit = await Program.RunAsync(
                 ["--quiet", "screenshot", "capture", "--session", "target", "--sheet-name", "Data",
-                    "--range-address", "A1", "--fields", "sheetName", "--output", path],
+                    "--range-address", "A1", "--output", path],
                 CreateRuntime(factory, output, new StringWriter()));
             Assert.Equal(0, exit);
             Assert.Equal(new byte[] { 1, 2, 3 }, await File.ReadAllBytesAsync(path));
@@ -154,19 +178,24 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
-    [InlineData("session", "list", "sessions")]
-    [InlineData("service", "status", "running")]
-    public async Task ManualReadHelp_ListsAcceptedFields(string category, string action, string field)
+    [InlineData("powerquery", "list")]
+    [InlineData("range", "get-values")]
+    [InlineData("chartconfig", "get-axis-number-format")]
+    [InlineData("session", "discover")]
+    [InlineData("session", "list")]
+    [InlineData("service", "status")]
+    public async Task ReadHelp_OmitsRemovedFieldsOption(string category, string action)
     {
+        var factory = new RecordingClientFactory();
         var output = new StringWriter();
-        var runtime = CreateRuntime(new RecordingClientFactory(), output, new StringWriter());
-        Assert.Equal(0, await Program.RunAsync([category, action, "--help"], runtime));
-        Assert.Contains("Result fields for --fields", output.ToString());
-        Assert.Contains(field, output.ToString());
+        Assert.Equal(0, await Program.RunAsync(
+            [category, action, "--help"], CreateRuntime(factory, output, new StringWriter())));
+        Assert.Empty(factory.Requests);
+        Assert.DoesNotContain("--fields", output.ToString());
     }
 
     [Fact]
-    public async Task ManualRead_FieldsPreserveSessionIdentity()
+    public async Task ManualRead_KeepsSessionIdentityAndRecoveryDetails()
     {
         var daemon = new RecordingDaemonConnection(new ServiceResponse
         {
@@ -175,7 +204,7 @@ public sealed class InProcessCliCommandTests
         }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
         var output = new StringWriter();
         Assert.Equal(0, await Program.RunAsync(
-            ["session", "list", "--fields", "sessions.workbookName"],
+            ["session", "list"],
             CreateRuntime(new RecordingClientFactory(), output, new StringWriter(), daemonConnection: daemon)));
         using var result = JsonDocument.Parse(output.ToString());
         var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
@@ -183,41 +212,27 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("Selected", session.GetProperty("workbookName").GetString());
         Assert.False(session.GetProperty("canClose").GetBoolean());
         Assert.True(session.GetProperty("operationPending").GetBoolean());
-        Assert.False(session.TryGetProperty("filePath", out _));
+        Assert.Equal("omitted.xlsx", session.GetProperty("filePath").GetString());
     }
 
-    [Fact]
-    public async Task ReadFields_SelectsNestedQueryMetadata()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QueryList_OmitsPreviewAndKeepsMetadata(bool batch)
     {
         const string payload = """{"success":true,"queries":[{"name":"Source","formulaPreview":"let x = 1 in x","loadMode":"connection-only"}]}""";
         var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = payload });
         var output = new StringWriter();
         var exit = await Program.RunAsync(
-            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.name,queries.loadMode"],
-            CreateRuntime(factory, output, new StringWriter()));
+            batch ? ["batch", "--session", "target"] : ["--quiet", "powerquery", "list", "--session", "target"],
+            CreateRuntime(factory, output, new StringWriter(), """{"command":"powerquery.list"}"""));
         Assert.Equal(0, exit);
         using var result = JsonDocument.Parse(output.ToString());
         var query = Assert.Single(result.RootElement.GetProperty("data").GetProperty("queries").EnumerateArray());
         Assert.Equal("Source", query.GetProperty("name").GetString());
         Assert.Equal("connection-only", query.GetProperty("loadMode").GetString());
         Assert.False(query.TryGetProperty("formulaPreview", out _));
-        using var args = JsonDocument.Parse(Assert.Single(factory.Requests).Args!);
-        Assert.Equal(2, args.RootElement.GetProperty("fields").GetArrayLength());
-    }
-
-    [Fact]
-    public async Task ReadFields_RejectsUnknownPathsBeforeConnecting()
-    {
-        var factory = new RecordingClientFactory(new ServiceResponse { Success = true });
-        var output = new StringWriter();
-        var exit = await Program.RunAsync(
-            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.unknown"],
-            CreateRuntime(factory, output, new StringWriter()));
-        Assert.Equal(1, exit);
-        Assert.Empty(factory.Requests);
-        using var result = JsonDocument.Parse(output.ToString());
-        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("queries.name", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+        Assert.Null(Assert.Single(factory.Requests).Args);
     }
 
     [Theory]
@@ -1135,7 +1150,7 @@ public sealed class InProcessCliCommandTests
             new StringWriter(),
             daemonConnection: daemonConnection));
 
-        var exitCode = await new SessionListCommand().ExecuteAsync(null!, new ReadSelectionSettings(), CancellationToken.None);
+        var exitCode = await new SessionListCommand().ExecuteAsync(null!, CancellationToken.None);
 
         Assert.Equal(0, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);

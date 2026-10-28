@@ -1,6 +1,4 @@
 using System.Reflection;
-using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -93,15 +91,6 @@ internal sealed class Program
         {
             return 0;
         }
-        try
-        {
-            filteredArgs = ExtractManualFields(filteredArgs);
-        }
-        catch (ArgumentException ex)
-        {
-            return CliErrorOutput.WriteException(ex, "InvalidInput");
-        }
-
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
         // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
         if (filteredArgs.Length >= 2
@@ -200,7 +189,6 @@ internal sealed class Program
                     filteredArgs,
                     () => app.RunAsync(filteredArgs),
                     telemetryObserver));
-            ActionHelp.WriteManualResultFields(filteredArgs);
             return exitCode;
         }
         catch (CommandRuntimeException ex)
@@ -242,33 +230,6 @@ internal sealed class Program
         }
 
         return [.. normalized];
-    }
-
-    private static string[] ExtractManualFields(string[] args)
-    {
-        CliCommandRuntime.Current.ResultFields = null;
-        if (args.Length < 2 || args[0] is not ("session" or "service"))
-            return args;
-        var result = new List<string>();
-        for (var index = 0; index < args.Length; index++)
-        {
-            var argument = args[index];
-            if (argument == "--fields" || argument.StartsWith("--fields=", StringComparison.Ordinal))
-            {
-                if (CliCommandRuntime.Current.ResultFields is not null)
-                    throw new ArgumentException("Supply --fields only once.");
-                var fields = argument == "--fields"
-                    ? ++index < args.Length ? args[index] : throw new ArgumentException("--fields requires result field paths.")
-                    : argument["--fields=".Length..];
-                CliCommandRuntime.Current.ResultFields = ResultJson.ParseFields(fields);
-                ResultJson.ValidateFields(CliCommandRuntime.Current.CommandName,
-                    CliCommandRuntime.Current.ResultFields,
-                    ServiceRegistry.GetResultContract(CliCommandRuntime.Current.CommandName));
-            }
-            else
-                result.Add(argument);
-        }
-        return [.. result];
     }
 
     private static void RenderHeader()

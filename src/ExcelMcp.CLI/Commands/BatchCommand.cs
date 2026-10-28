@@ -1,11 +1,9 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
@@ -80,8 +78,6 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var validationStopwatch = Stopwatch.StartNew();
             try
             {
-                ResultJson.ValidateFields(cmd.Command, ResultJson.ReadFields(argsJson),
-                    ServiceRegistry.GetResultContract(cmd.Command));
                 ServiceRegistry.ValidateCommandArguments(cmd.Command, argsJson);
             }
             catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
@@ -136,21 +132,12 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
                 ? cmd.Args.Value.GetRawText()
                 : null;
-            var fields = ResultJson.ReadFields(argsJson);
-            var serviceArgs = argsJson;
-            if (fields is not null && cmd.Command.StartsWith("session.", StringComparison.OrdinalIgnoreCase))
-            {
-                var args = JsonNode.Parse(argsJson!)!.AsObject();
-                args.Remove("fields");
-                serviceArgs = args.ToJsonString(ServiceProtocol.JsonOptions);
-            }
-
             // Build the service request
             var request = new ServiceRequest
             {
                 Command = cmd.Command,
                 SessionId = sessionId,
-                Args = serviceArgs,
+                Args = argsJson,
                 Source = "cli-batch"
             };
 
@@ -196,7 +183,6 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
             // Output result as NDJSON line. A delivered result reporting success:false
             // is a failed item, matching single-command exit codes and MCP isError.
-            outcome.Select(cmd.Command, fields, ServiceRegistry.GetResultContract(cmd.Command));
             var itemSucceeded = outcome.Success;
             CliResultOutput.Write(outcome, cmd.Command, itemTimer.ElapsedMilliseconds + validationDurations[i], i);
             await CliCommandRuntime.Current.Output.FlushAsync(CancellationToken.None);

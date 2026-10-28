@@ -6,13 +6,11 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 public sealed class SessionListResult : ResultBase
 {
     /// <summary>CLI daemon state when inspected by the command-line entry point.</summary>
-    [ResultContext]
     public string? DaemonState { get; set; }
     /// <summary>Sessions known to the current host.</summary>
     public List<SessionListEntry> Sessions { get; set; } = [];
 
     /// <summary>Number of sessions in the complete listing.</summary>
-    [ResultContext]
     public int Count => Sessions.Count;
 }
 
@@ -20,7 +18,6 @@ public sealed class SessionListResult : ResultBase
 public sealed class SessionNoticesResult : ResultBase
 {
     /// <summary>Restrictions, unknown states, and guidance that must remain visible.</summary>
-    [ResultContext]
     public WorkbookNoticeStatus? Notices { get; set; }
 }
 
@@ -28,7 +25,6 @@ public sealed class SessionNoticesResult : ResultBase
 public sealed class SessionListEntry
 {
     /// <summary>Session identifier for subsequent operations.</summary>
-    [ResultContext]
     public string SessionId { get; init; } = "";
     /// <summary>Current workbook location.</summary>
     public string? FilePath { get; init; }
@@ -41,24 +37,17 @@ public sealed class SessionListEntry
     /// <summary>Whether Excel is visible.</summary>
     public bool IsExcelVisible { get; init; }
     /// <summary>Number of active operations.</summary>
-    [ResultContext]
     public int ActiveOperations { get; init; }
     /// <summary>Whether Excel execution remains pending.</summary>
-    [ResultContext]
     public bool OperationPending { get; init; }
     /// <summary>Whether the owner can currently close the workbook.</summary>
-    [ResultContext]
     public bool CanClose { get; init; }
     /// <summary>Current Excel readiness state.</summary>
-    [ResultContext]
     public string ExcelState { get; init; } = "";
     /// <summary>Reason the workbook cannot currently be used or closed.</summary>
-    [ResultContext]
     public string? BlockingReason { get; init; }
     /// <summary>Visible blocking context, when readable.</summary>
-    [ResultContext]
     public string? BlockingMessage { get; init; }
     /// <summary>Pending or retained operation state.</summary>
-    [ResultContext]
     public ExcelOperationStatus? Operation { get; init; }
 }

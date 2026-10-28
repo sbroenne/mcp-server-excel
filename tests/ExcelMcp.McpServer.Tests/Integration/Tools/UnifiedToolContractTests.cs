@@ -7,7 +7,6 @@ using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
@@ -288,8 +287,6 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                     ?? Regex.Replace(source.Method.Name, "(?<!^)[A-Z]", "-$0").ToLowerInvariant();
                 return (tool == sourceTool || tool == $"{sourceTool}_read") && action == sourceAction;
             });
-        if (ServiceRegistry.GetResultContract(ServiceRegistry.GetMcpCommand(tool, action)) is { ReadOnly: true })
-            names.Add("fields");
         foreach (var parameter in source.Method.GetParameters())
         {
             if (parameter.ParameterType.Name == "IExcelBatch")

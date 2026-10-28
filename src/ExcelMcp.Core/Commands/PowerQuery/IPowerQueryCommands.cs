@@ -29,8 +29,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// TARGET CELL: targetCellAddress places tables without clearing sheet.
 /// TIMEOUT: Create, load-to, and update-with-refresh use a 30-minute wait; refresh accepts an override. Expiry ends the caller wait, not Excel execution.
-/// READS: list returns compact metadata and exact load state. Select
-/// queries.formulaPreview with fields for an M preview of at most 80 characters.
+/// READS: list returns compact metadata and exact load state without formula previews.
 /// Use view for one query's full M code.
 /// DIAGNOSTICS: Loads/refreshes report durationMs and verified rowsLoaded,
 /// worksheetRowsLoaded and modelRowsLoaded where available. Null/omitted counts
@@ -47,8 +46,7 @@ public interface IPowerQueryCommands
 {
     /// <summary>
     /// Lists compact metadata for all Power Queries, including exact worksheet/Data Model
-    /// load state. Formula previews are omitted unless fields selects queries.formulaPreview
-    /// (CLI: --fields queries.name,queries.formulaPreview). Previews are bounded to 80 characters;
+    /// load state. Formula previews are omitted from CLI and MCP output;
     /// use view for a single query's complete formula. Inspection failures fail the action
     /// rather than silently omitting a query.
     /// </summary>

@@ -191,9 +191,9 @@ internal sealed class ServiceStopCommand : AsyncCommand
 /// Shows ExcelMCP CLI Service status including PID, session count, and uptime.
 /// Surfaces actual error details instead of silently masking connection failures.
 /// </summary>
-internal sealed class ServiceStatusCommand : AsyncCommand<ReadSelectionSettings>
+internal sealed class ServiceStatusCommand : AsyncCommand
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var request = new ServiceRequest { Command = "service.status" };

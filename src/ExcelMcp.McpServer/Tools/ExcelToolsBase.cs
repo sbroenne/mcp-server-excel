@@ -24,17 +24,11 @@ public static class ExcelToolsBase
         string command,
         string? sessionId,
         object? args,
-        CancellationToken cancellationToken,
-        string[]? fields = null,
-        string[]? requiredResultFields = null)
+        CancellationToken cancellationToken)
     {
-        var contract = ServiceRegistry.GetResultContract(command);
-        ResultJson.ValidateFields(command, fields, contract);
         var response = await bridge.SendAsync(command, sessionId,
-            ResultJson.WithFields(args, fields), cancellationToken: cancellationToken);
+            args, cancellationToken: cancellationToken);
         var result = ReadServiceResponse(response, command);
-        result.Select(command,
-            fields is null ? null : [.. fields, .. requiredResultFields ?? []], contract);
         return result.ToToolJson();
     }
 
@@ -54,14 +48,6 @@ public static class ExcelToolsBase
         if (filePath is not null && result.Error is not null)
             result.Error["filePath"] = filePath;
         return result.ToToolJson();
-    }
-
-    internal static CallToolResult SelectToolResult(CallToolResult toolResult, string command, string[]? fields)
-    {
-        var json = toolResult.Content.OfType<TextContentBlock>().Single().Text;
-        var result = ResultJson.Read(json, command, contract: ServiceRegistry.GetResultContract(command));
-        result.Select(command, fields, ServiceRegistry.GetResultContract(command));
-        return CreateToolResult(result.ToToolJson(), !result.Success);
     }
 
     public static Task<CallToolResult> ExecuteToolActionAsync(

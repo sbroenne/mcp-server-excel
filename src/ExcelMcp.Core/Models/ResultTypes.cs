@@ -15,7 +15,6 @@ public abstract class ResultBase
     /// <summary>
     /// Indicates whether the operation was successful
     /// </summary>
-    [ResultContext]
     public bool Success
     {
         get => _success && string.IsNullOrEmpty(ErrorMessage);
@@ -26,7 +25,6 @@ public abstract class ResultBase
     /// Error message if operation failed
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? ErrorMessage { get; set; }
 
     /// <summary>
@@ -51,7 +49,6 @@ public class OperationResult : ResultBase
     /// Success message describing what was done
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? Message { get; set; }
 }
 
@@ -213,7 +210,6 @@ public class SheetProtectionResult : ResultBase
     /// <summary>Native permission flags; only effective while their protection is enabled.</summary>
     public Sbroenne.ExcelMcp.Core.Commands.SheetProtectionOptions Permissions { get; set; } = new();
     /// <summary>Runtime-only protection must be explicitly requested again after reopening.</summary>
-    [ResultContext]
     public string RuntimeOnlyCoverage { get; } = "UserInterfaceOnly is not persisted after reopening.";
 }
 
@@ -399,13 +395,11 @@ public class WorksheetDataResult : ResultBase
     /// <summary>
     /// Number of rows
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -808,7 +802,6 @@ public class PowerQueryValidationResult : ResultBase
     /// <summary>
     /// Validation errors (if any)
     /// </summary>
-    [ResultContext]
     public List<string> ValidationErrors { get; set; } = [];
 
     /// <summary>
@@ -865,7 +858,6 @@ public class NamedRangeInfo
     /// Reason the value preview was omitted, when the list operation skips value materialization
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? ValueOmittedReason { get; set; }
 }
 
@@ -989,7 +981,6 @@ public class VbaSearchResult : ResultBase
     /// <summary>Located matches in module and source order.</summary>
     public List<VbaSearchMatch> Matches { get; set; } = [];
     /// <summary>Whether additional matches were omitted; narrow the search to inspect them.</summary>
-    [ResultContext]
     public bool HasMore { get; set; }
 }
 
@@ -1045,22 +1036,17 @@ public class VbaReadResult : ResultBase
     /// <summary>Name of the VBA module.</summary>
     public string ModuleName { get; set; } = string.Empty;
     /// <summary>First line of the selected source in the module.</summary>
-    [ResultContext]
     public int StartLine { get; set; }
     /// <summary>Number of lines in the full selection.</summary>
-    [ResultContext]
     public int TotalLineCount { get; set; }
     /// <summary>Number of lines returned in Code.</summary>
-    [ResultContext]
     public int ReturnedLineCount { get; set; }
     /// <summary>Selected source text returned by this read.</summary>
     public string Code { get; set; } = string.Empty;
     /// <summary>Whether more lines remain in the selected procedure.</summary>
-    [ResultContext]
     public bool HasMore { get; set; }
     /// <summary>First line to request to continue, when more lines remain.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public int? NextStartLine { get; set; }
     /// <summary>Fingerprint of the full procedure or selected line range.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -1171,7 +1157,6 @@ public class FileValidationInfo
     /// Whether Excel successfully opened the workbook during validation.
     /// IRM/AIP containers require interactive Excel validation and report false.
     /// </summary>
-    [ResultContext]
     public bool IsValid { get; set; }
 
     /// <summary>
@@ -1179,7 +1164,6 @@ public class FileValidationInfo
     /// mode. IRM/AIP openability requires
     /// interactive authentication and reports false during preflight.
     /// </summary>
-    [ResultContext]
     public bool CanOpen { get; set; }
 
     /// <summary>
@@ -1188,27 +1172,23 @@ public class FileValidationInfo
     /// Excel determines the signed-in user's editing permissions; protection alone
     /// does not force read-only access.
     /// </summary>
-    [ResultContext]
     public bool IsIrmProtected { get; set; }
 
     /// <summary>
     /// Whether normal opening forces read-only access. False does not guarantee
     /// editing rights; inspect workbook readOnly after Excel opens it.
     /// </summary>
-    [ResultContext]
     public bool WillOpenReadOnly { get; set; }
 
     /// <summary>
     /// Whether opening requires a visible Excel session for authentication
     /// </summary>
-    [ResultContext]
     public bool RequiresVisibleSession { get; set; }
 
     /// <summary>
     /// Optional message describing validation outcome (missing file, invalid extension, etc.)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? Message { get; set; }
 
 }
@@ -1249,13 +1229,11 @@ public class RangeValueResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [ResultContext]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [ResultContext]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
@@ -1263,7 +1241,6 @@ public class RangeValueResult : ResultBase
     /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
     /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
     /// </summary>
-    [ResultContext]
     public List<RangeCellError> CellErrors { get; set; } = [];
 
     /// <summary>
@@ -1275,13 +1252,11 @@ public class RangeValueResult : ResultBase
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -1293,13 +1268,11 @@ public class RangeFormulaResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [ResultContext]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [ResultContext]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
@@ -1307,7 +1280,6 @@ public class RangeFormulaResult : ResultBase
     /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
     /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
     /// </summary>
-    [ResultContext]
     public List<RangeCellError> CellErrors { get; set; } = [];
 
     /// <summary>
@@ -1324,13 +1296,11 @@ public class RangeFormulaResult : ResultBase
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 
 }
@@ -1434,14 +1404,12 @@ public class RangeFormulaValidationResult : ResultBase
     /// Detailed validation errors by cell
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public List<FormulaValidationError>? Errors { get; set; }
 
     /// <summary>
     /// Warnings for formulas that are technically valid but potentially problematic
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public List<FormulaValidationWarning>? Warnings { get; set; }
 }
 
@@ -1541,19 +1509,16 @@ public class RangeFindResult : ResultBase
     /// <summary>
     /// Exact number of matching cells in the searched range.
     /// </summary>
-    [ResultContext]
     public long TotalCount { get; set; }
 
     /// <summary>
     /// Number of matching cells included in this response.
     /// </summary>
-    [ResultContext]
     public int ReturnedCount => MatchingCells.Count;
 
     /// <summary>
     /// Whether matching cells were omitted because of the return limit.
     /// </summary>
-    [ResultContext]
     public bool Truncated => TotalCount > ReturnedCount;
 }
 
@@ -1602,13 +1567,11 @@ public class RangeInfoResult : ResultBase
     /// <summary>
     /// Number of rows (Excel COM: range.Rows.Count)
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns (Excel COM: range.Columns.Count)
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 
     /// <summary>
@@ -2054,13 +2017,11 @@ public class PowerQueryEvaluateResult : ResultBase
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -2451,7 +2412,6 @@ public class DataModelValidationResult : ResultBase
     /// Validation error message (if not valid)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? ValidationError { get; set; }
 
     /// <summary>
@@ -2563,13 +2523,11 @@ public class DaxEvaluateResult : ResultBase
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -2596,13 +2554,11 @@ public class DmvQueryResult : ResultBase
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -2695,13 +2651,11 @@ public class TableInfo
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 
     /// <summary>
@@ -2738,13 +2692,11 @@ public class TableDataResult : ResultBase
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -2874,13 +2826,11 @@ public class TableStructuredReferenceResult : ResultBase
     /// <summary>
     /// Number of rows in the region
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the region
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 
@@ -3017,13 +2967,11 @@ public class RangeNumberFormatResult : ResultBase
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [ResultContext]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [ResultContext]
     public int ColumnCount { get; set; }
 }
 

@@ -233,13 +233,10 @@ Read business fields under `data` and failure details under `error.message`
 and `error.category`. This also applies without quiet mode or redirection.
 Help and version output remain human-readable.
 
-List/read commands accept `--fields` with comma-separated business paths, such
-as `queries.name,queries.loadMode`. Batch input uses `args.fields` as an array.
-Warnings, errors, partial state, and inspection boundaries cannot be hidden.
-Power Query lists omit formula previews by default; explicitly select
-`queries.formulaPreview` for its bounded preview or use `powerquery view`
-for full M code. Choosing fields reduces returned data, not Excel's checks.
-See [result details and migration examples](../../docs/reference/workflows.md#reading-results-and-choosing-fields).
+Results retain warnings, errors, partial state, and inspection boundaries.
+Power Query lists omit formula previews; use `powerquery view` for full M code.
+Use bounded reads and paging options when less data is needed.
+See [result details and migration examples](../../docs/reference/workflows.md#reading-results).
 
 ### CI/CD Integration
 

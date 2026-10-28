@@ -74,7 +74,6 @@ internal sealed class CliCommandRuntime
 
     internal ICliRequestClientFactory ClientFactory { get; }
     internal string CommandName { get; set; } = "invocation";
-    internal string[]? ResultFields { get; set; }
     internal System.Diagnostics.Stopwatch OperationTimer { get; } = System.Diagnostics.Stopwatch.StartNew();
     internal TextReader Input { get; }
     internal TextWriter Output { get; }

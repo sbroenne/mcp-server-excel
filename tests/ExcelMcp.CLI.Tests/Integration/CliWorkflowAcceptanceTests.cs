@@ -36,12 +36,12 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
             "--range-address", "A1:D1", "--values", "[[424242,false,0,null]]");
         await SendAsync("range", "set-formulas", "--session", Session, "--sheet-name", "Data",
             "--range-address", "A2", "--formulas", """[["=1/0"]]""");
-        var selected = await SendAsync("range", "get-values", "--session", Session, "--sheet-name", "Data",
-            "--range-address", "A1:D2", "--fields", "values");
-        var selectedData = selected.GetProperty("data");
-        Assert.Equal(2, selectedData.GetProperty("rowCount").GetInt32());
-        Assert.Equal(4, selectedData.GetProperty("columnCount").GetInt32());
-        var values = selectedData.GetProperty("values");
+        var read = await SendAsync("range", "get-values", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A1:D2");
+        var data = read.GetProperty("data");
+        Assert.Equal(2, data.GetProperty("rowCount").GetInt32());
+        Assert.Equal(4, data.GetProperty("columnCount").GetInt32());
+        var values = data.GetProperty("values");
         Assert.Equal(2, values.GetArrayLength());
         Assert.Equal(4, values[0].GetArrayLength());
         Assert.Equal(4, values[1].GetArrayLength());
@@ -50,7 +50,7 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
         Assert.Equal(0, values[0][2].GetInt32());
         Assert.Equal(JsonValueKind.Null, values[0][3].ValueKind);
         Assert.Equal("#DIV/0!", values[1][0].GetString());
-        Assert.Single(selectedData.GetProperty("cellErrors").EnumerateArray());
+        Assert.Single(data.GetProperty("cellErrors").EnumerateArray());
         await SendAsync("session", "close", "--session", Session, "--save");
         _session = null;
         var reopened = await SendAsync("session", "open", _workbook);
