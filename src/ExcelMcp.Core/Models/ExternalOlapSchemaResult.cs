@@ -136,13 +136,11 @@ public sealed class ExternalOlapMemberSearchResult : ResultBase
     /// Opaque token for the next page, or null when there are no more members.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? ContinuationToken { get; set; }
 
     /// <summary>
     /// Number of members returned in this page.
     /// </summary>
-    [ResultContext]
     public int ReturnedCount { get; set; }
 
     /// <summary>
@@ -151,13 +149,11 @@ public sealed class ExternalOlapMemberSearchResult : ResultBase
     /// members actually returned; use ContinuationToken to determine whether more pages exist.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public long? TotalCount { get; set; }
 
     /// <summary>
     /// Number of provider rows read to establish the bounded, consistently ordered member list for this page.
     /// </summary>
-    [ResultContext]
     public int ScannedCount { get; set; }
 }
 

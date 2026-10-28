@@ -371,7 +371,6 @@ public class PivotTableInfo
     /// Read/list can succeed while reporting this failure; field changes are not rolled back.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? LayoutError { get; set; }
 
     /// <summary>
@@ -445,38 +444,30 @@ public class PivotTableInfoResult : ResultBase
     public bool IsOlap { get; set; }
 
     /// <summary>Whether Excel's cache type could be read.</summary>
-    [ResultContext]
     public bool IsOlapAvailable { get; set; }
 
     /// <summary>Why Excel's cache type could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? IsOlapError { get; set; }
 
     /// <summary>Whether the placed-field selection snapshot was read successfully.</summary>
-    [ResultContext]
     public bool FieldSelectionsAvailable { get; set; }
 
     /// <summary>Why the placed-field selection snapshot could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? FieldSelectionsError { get; set; }
 
     /// <summary>Whether native settings for all displayed Values fields were read.</summary>
-    [ResultContext]
     public bool ValueFieldsAvailable { get; set; }
 
     /// <summary>Why native settings for displayed Values fields could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? ValueFieldsError { get; set; }
 
     /// <summary>The caller's maximum returned selected members across all fields.</summary>
-    [ResultContext]
     public int MaxSelectedMembers { get; set; }
 
     /// <summary>False when any selection/filter state is unavailable or member names were truncated.</summary>
-    [ResultContext]
     public bool SnapshotComplete { get; set; }
 }
 
@@ -491,21 +482,17 @@ public sealed class PivotFieldSelectionSnapshot
     public string? Caption { get; set; }
 
     /// <summary>Whether a semantic field name was read successfully.</summary>
-    [ResultContext]
     public bool FieldIdentityAvailable { get; set; }
 
     /// <summary>Why a semantic field name could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? IdentityError { get; set; }
 
     /// <summary>Whether field area and position were read successfully.</summary>
-    [ResultContext]
     public bool LayoutAvailable { get; set; }
 
     /// <summary>Why field area or position could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? LayoutError { get; set; }
 
     /// <summary>Current field location and position.</summary>
@@ -515,7 +502,6 @@ public sealed class PivotFieldSelectionSnapshot
     public int Position { get; set; }
 
     /// <summary>Whether Excel's exact member selection state was read successfully.</summary>
-    [ResultContext]
     public bool SelectionStateAvailable { get; set; }
 
     /// <summary>True when all members are selected; null when unavailable.</summary>
@@ -534,16 +520,13 @@ public sealed class PivotFieldSelectionSnapshot
     public int? SelectedMemberCount { get; set; }
 
     /// <summary>True when selected member names were omitted to honor the requested output bound.</summary>
-    [ResultContext]
     public bool MembersTruncated { get; set; }
 
     /// <summary>Why Excel's selection state could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? SelectionError { get; set; }
 
     /// <summary>Whether native label/value filters were read successfully.</summary>
-    [ResultContext]
     public bool FiltersAvailable { get; set; }
 
     /// <summary>Native label/value filters, without unstable collection indexes.</summary>
@@ -551,7 +534,6 @@ public sealed class PivotFieldSelectionSnapshot
 
     /// <summary>Why native filters could not be read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? FiltersError { get; set; }
 }
 
@@ -917,7 +899,6 @@ public class PivotReportFilterResult : ResultBase
     public bool ShowAll { get; set; }
 
     /// <summary>Whether exact selected-member state was read successfully; false means the state is unknown.</summary>
-    [ResultContext]
     public bool SelectionStateAvailable { get; set; }
 
     /// <summary>Whether Excel currently allows multiple page items for this hierarchy.</summary>

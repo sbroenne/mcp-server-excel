@@ -16,19 +16,16 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("RequiresExcel", "false")]
 public sealed class ScreenshotToolProtocolTests(RecordingProgramTransportFixture fixture)
 {
-    [Theory]
-    [InlineData("sheetName")]
-    [InlineData("imageBase64")]
-    public async Task Capture_SelectedMetadata_PreservesNativeImageAndItsActualFormat(string field)
+    [Fact]
+    public async Task Capture_KeepsNativeImageAndCompleteDiagnostics()
     {
         var call = await fixture.CallToolAsync("screenshot", new()
         {
             ["action"] = "capture",
-            ["workbook_session_id"] = "session-1",
-            ["fields"] = new[] { field }
+            ["workbook_session_id"] = "session-1"
         }, RecordingToolTest.Success(
             """{"success":true,"imageBase64":"AQID","mimeType":"image/png","width":120,"height":80,"sheetName":"Summary","rangeAddress":"$A$1:$B$2","message":"Truncated to the top-left portion.","warnings":["Inspect the captured scope."],"partialState":{"captured":true}}"""),
-            "screenshot.capture", JsonSerializer.Serialize(new { fields = new[] { field } }));
+            "screenshot.capture", "{}");
 
         Assert.False(call.Result.IsError == true);
         var image = Assert.Single(call.Result.Content.OfType<ImageContentBlock>());

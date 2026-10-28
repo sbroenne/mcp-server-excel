@@ -46,13 +46,11 @@ public class PythonInExcelResult : ResultBase
     /// <summary>
     /// True if the Python code itself raised an error (surfaces in Excel as #PYTHON!).
     /// </summary>
-    [ResultContext]
     public bool IsPythonError { get; set; }
 
     /// <summary>
     /// Informational message (e.g. explaining Python Object limitations or polling timeout).
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [ResultContext]
     public string? Message { get; set; }
 }

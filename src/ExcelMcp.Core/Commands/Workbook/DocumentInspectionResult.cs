@@ -6,7 +6,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 public sealed class DocumentInspectionResult : ResultBase
 {
     /// <summary>Coverage boundaries of Excel's callable inspector collection.</summary>
-    [ResultContext]
     public string ReadLimitations { get; set; } =
         "Only modules exposed by Excel's DocumentInspectors collection are checked. " +
         "Comments/revisions and document properties are not included. " +
@@ -41,7 +40,7 @@ public sealed record DocumentInspectorOutcome(int StatusCode, string Results)
 /// <param name="StatusCode">Native inspection status.</param>
 /// <param name="Results">Native localized inspection results.</param>
 public sealed record DocumentInspectorFinding(int Index, string Name,
-    [property: ResultContext] int StatusCode, [property: ResultContext] string Results)
+    int StatusCode, string Results)
 {
     /// <summary>Stable status label, independent of Excel's display language.</summary>
     public string Status => new DocumentInspectorOutcome(StatusCode, Results).Status;

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -23,7 +22,6 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// Gets the action from settings.
     /// </summary>
     protected abstract string? GetAction(TSettings settings);
-    protected virtual string[]? GetFields(TSettings settings) => null;
 
     /// <summary>
     /// Gets the valid actions for this command.
@@ -74,8 +72,6 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         try
         {
             (command, args) = Route(settings, action);
-            ResultJson.ValidateFields(command, GetFields(settings), ServiceRegistry.GetResultContract(command));
-            args = ResultJson.WithFields(args, GetFields(settings));
         }
         catch (ArgumentException ex)
         {
@@ -104,7 +100,6 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         {
             var outcome = CliResultOutput.Read(response, command);
             var originalData = outcome.Data as System.Text.Json.Nodes.JsonObject;
-            outcome.Select(command, GetFields(settings), ServiceRegistry.GetResultContract(command));
             var durationMs = CliCommandRuntime.Current.OperationTimer.ElapsedMilliseconds;
             if (!outcome.Success)
                 return CliResultOutput.Write(outcome, command);

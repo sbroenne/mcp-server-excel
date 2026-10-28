@@ -101,11 +101,7 @@ Operation JSON has `command`, `success`, `durationMs`, and optional `data`,
 `warnings`, `error`, and `partialState`. Read workbook fields under `data`,
 including `data.sessionId` after open/attach. Batch items use the same shape
 and add only `index`. For failures, read `error.message` and `error.category`.
-List/read commands accept `--fields` with comma-separated, case-sensitive
-business paths; batch input uses `args.fields` as an array. Action-specific
-help lists generated paths. Field selection never hides warnings, errors,
-partial state, or inspection boundaries and does not skip Excel checks.
-Power Query lists omit formula previews unless `queries.formulaPreview`
-is selected; use `powerquery view` for full M code.
+Results keep warnings, errors, partial state, and inspection boundaries.
+Power Query lists omit formula previews; use `powerquery view` for full M code.
 Load `excel-cli-report-formatting` only for requested report presentation, not
 ordinary Excel reads or targeted updates.

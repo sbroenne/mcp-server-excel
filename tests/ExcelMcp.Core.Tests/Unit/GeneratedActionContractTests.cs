@@ -208,9 +208,29 @@ public sealed class GeneratedActionContractTests
     [InlineData("connection.refresh", """{"connectionName":"Probe","timeoutSeconds":60}""")]
     [InlineData("datamodel.refresh", """{"timeoutSeconds":60}""")]
     [InlineData("pivottable.refresh", """{"pivotTableName":"Probe","timeoutSeconds":60}""")]
-    public void RawCommandValidation_AcceptsCliGroupAndParameterNames(string command, string argsJson)
+    [InlineData("service.status", "{}")]
+    [InlineData("service.shutdown", "{}")]
+    [InlineData("service.ping", "{}")]
+    [InlineData("service.status", null)]
+    [InlineData("service.shutdown", null)]
+    [InlineData("service.ping", null)]
+    public void RawCommandValidation_AcceptsCliGroupAndParameterNames(string command, string? argsJson)
     {
         ServiceRegistry.ValidateCommandArguments(command, argsJson);
+    }
+
+    [Theory]
+    [InlineData("service.status")]
+    [InlineData("service.shutdown")]
+    [InlineData("service.ping")]
+    public void RawCommandValidation_RejectsArgumentsForParameterlessServiceCommands(string command)
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.ValidateCommandArguments(command, """{"unexpected":null}"""));
+
+        Assert.Contains(command, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("unexpected", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("none", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

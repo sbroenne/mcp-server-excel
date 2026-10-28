@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Trace;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -56,6 +57,67 @@ public sealed class EntryPointTelemetryTests : IDisposable
         Assert.Equal(0, identityReads);
         Assert.False(reporter.IsReady);
         Assert.Equal(0, daemonRuns);
+    }
+
+    [Theory]
+    [InlineData("--fields running", "--fields")]
+    [InlineData("--fields=running", "--fields=running")]
+    [InlineData("--pipe-name test-pipe --fields running", "--fields")]
+    [InlineData("--pipe-name", "--pipe-name")]
+    [InlineData("--pipe-name --fields", "--pipe-name")]
+    [InlineData("--pipe-name -h", "--pipe-name")]
+    [InlineData("--unknown", "--unknown")]
+    public async Task RunEntryPointAsync_InvalidDaemonArguments_DoesNotStartHostOrReporting(
+        string arguments, string invalidArgument)
+    {
+        var identityReads = 0;
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
+        {
+            Interlocked.Increment(ref identityReads);
+            return TelemetryUserIdentityStore.CreateProcessOnly();
+        });
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
+        var daemonRuns = 0;
+        var runtime = CreateRuntime(_ => { daemonRuns++; return 0; });
+
+        var exitCode = await Program.RunEntryPointAsync(
+            ["service", "run", .. arguments.Split(' ')], runtime);
+        await reporter.Initialization;
+
+        Assert.Equal(0, daemonRuns);
+        Assert.NotEqual(0, exitCode);
+        Assert.Equal(0, identityReads);
+        using var output = JsonDocument.Parse(Assert.IsType<StringWriter>(runtime.Output).ToString());
+        Assert.False(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", output.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Contains(invalidArgument, output.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("", null)]
+    [InlineData("--pipe-name test-pipe", "test-pipe")]
+    [InlineData("--PIPE-NAME test-pipe", "test-pipe")]
+    [InlineData("--pipe-name -", "-")]
+    public async Task RunEntryPointAsync_ValidDaemonArguments_PreservePipeAndExitCode(
+        string arguments, string? expectedPipeName)
+    {
+        var reporter = new UsageTelemetry("ExcelMcp.Test", TelemetryUserIdentityStore.CreateProcessOnly);
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
+        var daemonRuns = 0;
+        var runtime = CreateRuntime(pipeName =>
+        {
+            daemonRuns++;
+            Assert.Equal(expectedPipeName, pipeName);
+            return 7;
+        });
+
+        var exitCode = await Program.RunEntryPointAsync(
+            ["service", "run", .. arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)], runtime);
+        await reporter.Initialization;
+
+        Assert.Equal(1, daemonRuns);
+        Assert.Equal(7, exitCode);
+        Assert.Empty(Assert.IsType<StringWriter>(runtime.Output).ToString());
     }
 
     [Fact]

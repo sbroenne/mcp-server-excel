@@ -243,35 +243,28 @@ public sealed class PowerQueryTraceIssue
 public sealed class PowerQueryTraceSummaryResult : ResultBase
 {
     /// <summary>Excel process ID used to filter entries, when a filter was given.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ProcessId { get; set; }
 
     /// <summary>Activity identifier used to filter entries, when a filter was given.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActivityId { get; set; }
 
     /// <summary>Start of the summarized time window in UTC.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTime? WindowStartUtc { get; set; }
 
     /// <summary>End of the summarized time window in UTC.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTime? WindowEndUtc { get; set; }
 
     /// <summary>Number of trace files read.</summary>
-    [ResultContext]
     public int FilesRead { get; set; }
 
     /// <summary>Number of trace entries that matched the filters.</summary>
-    [ResultContext]
     public int EntriesMatched { get; set; }
 
     /// <summary>Number of lines that could not be read as trace entries.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int UnreadableLines { get; set; }
 
@@ -314,7 +307,6 @@ public sealed class PowerQueryTraceSummaryResult : ResultBase
     public List<PowerQueryTraceCommand>? SlowestCommands { get; set; }
 
     /// <summary>Warnings and errors, most frequent first.</summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<PowerQueryTraceIssue>? Issues { get; set; }
 
@@ -322,7 +314,6 @@ public sealed class PowerQueryTraceSummaryResult : ResultBase
     /// End time of the newest matched entry in UTC (ISO 8601). Pass it as since on the next
     /// summarize call to read only newer activity.
     /// </summary>
-    [ResultContext]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TraceCursor { get; set; }
 }

@@ -16,12 +16,10 @@ internal static class CliResultOutput
 
     internal static int Write(
         ServiceResponse response, string? command = null, long? durationMs = null,
-        string[]? fields = null, int? index = null)
+        int? index = null)
     {
         command ??= response.Command ?? CliCommandRuntime.Current.CommandName;
-        fields ??= CliCommandRuntime.Current.ResultFields;
         var result = Read(response, command);
-        result.Select(command, fields, ServiceRegistry.GetResultContract(command));
         return Write(result, command, durationMs, index);
     }
 
