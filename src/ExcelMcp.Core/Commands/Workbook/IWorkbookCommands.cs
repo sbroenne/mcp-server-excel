@@ -136,7 +136,7 @@ public interface IWorkbookCommands
     [ServiceAction("get-cell-style")]
     CellStyleResult GetCellStyle(IExcelBatch batch, [RequiredParameter] string styleName);
 
-    /// <summary>Creates a custom cell style from exactly one visible source cell's stored formatting, without modifying that cell. Temporarily activates its worksheet and restores the prior view; hidden sheets are rejected without changing visibility. Existing names are rejected. Apply it separately with range_format set-style.</summary>
+    /// <summary>Creates a custom cell style from exactly one visible source cell's stored formatting, without modifying that cell. Temporarily activates its worksheet and restores the prior view; hidden sheets are rejected without changing visibility. Existing names are rejected. Apply it separately with range_format set-style (CLI: rangeformat set-style).</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="styleName">New custom cell-style name; must not already exist.</param>
     /// <param name="sourceSheetName">Visible source worksheet name.</param>

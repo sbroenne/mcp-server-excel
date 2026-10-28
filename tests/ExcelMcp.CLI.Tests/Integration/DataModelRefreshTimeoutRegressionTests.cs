@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;
@@ -99,21 +100,36 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         private readonly DaemonHost _work;
         private readonly DaemonHost _control;
         private readonly Task _runTask;
+        private readonly TaskCompletionSource _workListening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _controlListening = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public EchoDaemon(string pipeName)
         {
             _pipeName = pipeName;
             var target = new EchoRpcTarget();
-            _work = new DaemonHost(target.ProcessCommandAsync);
-            _control = new DaemonHost(target.ProcessCommandAsync);
+            _work = new DaemonHost(target.ProcessCommandAsync,
+                serverFactory: name => CreateServer(name, _workListening));
+            _control = new DaemonHost(target.ProcessCommandAsync,
+                serverFactory: name => CreateServer(name, _controlListening));
             _runTask = Task.WhenAll(_work.RunAsync(pipeName),
                 _control.RunAsync(ServiceClient.GetControlPipeName(pipeName)));
         }
 
         public async Task StartAsync()
         {
+            await Task.WhenAll(_workListening.Task, _controlListening.Task)
+                .WaitAsync(ServiceClient.DefaultConnectTimeout);
             using var client = new ServiceClient(_pipeName, useControlEndpoint: true);
-            Assert.True(await client.PingAsync(), "The test controller did not become ready.");
+            var response = await client.SendAsync(new ServiceRequest { Command = "service.ping" });
+            Assert.True(response.Success,
+                $"The test controller did not become ready: {response.ErrorCategory}: {response.ErrorMessage} ({response.ExceptionType}).");
+        }
+
+        private static NamedPipeServerStream CreateServer(string pipeName, TaskCompletionSource listening)
+        {
+            var server = ServiceSecurity.CreateSecureServer(pipeName);
+            listening.TrySetResult();
+            return server;
         }
 
         public async ValueTask DisposeAsync()

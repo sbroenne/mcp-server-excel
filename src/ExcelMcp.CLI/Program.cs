@@ -157,9 +157,9 @@ internal sealed class Program
                 branch.AddCommand<SessionOpenCommand>("open")
                     .WithDescription("Open an Excel file with VBA macros disabled and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionNoticesCommand>("notices")
-                    .WithDescription("Inspect workbook restrictions without enabling content. Reports Protected View, read-only access, known VBA opening state, and inspection gaps.");
+                    .WithDescription("Inspect workbook restrictions without enabling content. Reports Protected View, read-only access, known VBA opening state, and data connections. complete:false and unknown states mean inspection is limited: not every notification bar is readable. A connection or VBA project does not prove that content can run.");
                 branch.AddCommand<SessionSecurityCommand>("enable-editing")
-                    .WithDescription("Leave Protected View only with --approved and --allow-remembered-trust. Excel can remember trust for this file. Does not enable VBA macros.");
+                    .WithDescription("Leave Protected View only with --approved and --allow-remembered-trust. Excel can remember trust for this file. Does not enable VBA macros or update external links.");
                 branch.AddCommand<SessionSecurityCommand>("enable-connections")
                     .WithDescription("Enable all workbook data connections with --approved and --allow-remembered-trust. Can contact data sources or start refresh; completion is not established.");
                 branch.AddCommand<SessionSecurityCommand>("enable-macros")
@@ -169,7 +169,7 @@ internal sealed class Program
                 branch.AddCommand<SessionSaveCommand>("save")
                     .WithDescription("Save the current workbook without closing its session. Excel must be ready.");
                 branch.AddCommand<SessionListCommand>("list")
-                    .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. Confirmed blocking dialogs automatically reveal Excel and include readable dialog text in blockingMessage; partial or unavailable reads are reported. Ask the user to respond in Excel. Dialog types are not identified and input values are not read.");
+                    .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. A pending operation is not a completed or failed operation. activeOperations:0 does not prove Excel has finished. After a timeout, check the operation's outcome and inspect the workbook before repeating a change. Confirmed blocking dialogs automatically reveal Excel and include readable dialog text in blockingMessage; partial or unavailable reads are reported. Ask the user to respond in Excel. Dialog types are not identified and input values are not read.");
                 branch.AddCommand<SessionTestCommand>("test")
                     .WithDescription("Test file existence, validity, openability, and IRM/AIP read-only requirements.");
             });

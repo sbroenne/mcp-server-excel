@@ -36,6 +36,12 @@ internal static class ActionHelp
         var batchMappings = new List<(string Option, string Parameter)>();
         output.AppendLine(CultureInfo.InvariantCulture, $"Usage: excelcli {arguments[0]} {arguments[1]} [OPTIONS]");
         output.AppendLine();
+        var actionDescription = _CliCategoryMetadata.ActionDescriptionsByCommand[arguments[0]][arguments[1]];
+        if (!string.IsNullOrWhiteSpace(actionDescription))
+        {
+            output.AppendLine(actionDescription);
+            output.AppendLine();
+        }
         output.AppendLine("Options:");
         foreach (var parameterName in parameterNames)
         {

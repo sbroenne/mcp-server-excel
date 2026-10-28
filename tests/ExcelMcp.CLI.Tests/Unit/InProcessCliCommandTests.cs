@@ -958,6 +958,130 @@ public sealed class InProcessCliCommandTests
     }
 
     [Fact]
+    public async Task ActionHelp_ShowsEveryGeneratedActionDescription()
+    {
+        foreach (var (command, actions) in _CliCategoryMetadata.ValidActionsByCommand)
+        {
+            foreach (var action in actions)
+            {
+                var factory = new RecordingClientFactory();
+                var output = new StringWriter();
+                var error = new StringWriter();
+
+                var exitCode = await Program.RunAsync(
+                    ["--quiet", command, action, "--help"],
+                    CreateRuntime(factory, output, error));
+
+                Assert.Equal(0, exitCode);
+                Assert.Empty(factory.Requests);
+                Assert.Empty(error.ToString());
+                var description = _CliCategoryMetadata.ActionDescriptionsByCommand[command][action];
+                Assert.False(string.IsNullOrWhiteSpace(description), $"{command} {action} has no description.");
+                var beforeOptions = output.ToString().Split("Options:", StringSplitOptions.None)[0];
+                Assert.Contains(description, beforeOptions, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Feature", "GeneratedContracts")]
+    public async Task ActionHelp_ShowsCliAlternativesForSharedCommandReferences()
+    {
+        foreach (var (command, action, targetCommand, targetAction) in new[]
+                 {
+                     ("workbook", "create-cell-style", "rangeformat", "set-style"),
+                     ("chartconfig", "add-series", "pivottablefield", "add-value-field"),
+                     ("chartconfig", "remove-series", "pivottablefield", "remove-field")
+                 })
+        {
+            var factory = new RecordingClientFactory();
+            var output = new StringWriter();
+            var error = new StringWriter();
+
+            var exitCode = await Program.RunAsync(
+                ["--quiet", command, action, "--help"],
+                CreateRuntime(factory, output, error));
+
+            Assert.Equal(0, exitCode);
+            Assert.Empty(factory.Requests);
+            Assert.Empty(error.ToString());
+            var description = output.ToString().Split("Options:", StringSplitOptions.None)[0];
+            Assert.Contains($"CLI: {targetCommand} {targetAction}", description, StringComparison.Ordinal);
+            Assert.Contains(targetAction, _CliCategoryMetadata.ValidActionsByCommand[targetCommand]);
+        }
+    }
+
+    [Fact]
+    [Trait("Feature", "GeneratedContracts")]
+    public async Task ActionHelp_ShowsCliFlagForSharedParameterReference()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "chartconfig", "set-style", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        var help = output.ToString().Split("Options:", StringSplitOptions.None);
+        Assert.Contains("CLI: --style-id", help[0], StringComparison.Ordinal);
+        Assert.Contains("--style-id", help[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ActionHelp_ShowsActionDescriptionBeforeOptions()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        var description = output.ToString().Split("Options:", StringSplitOptions.None)[0];
+        Assert.Contains("Sets values in a range from 2D array or file.", description, StringComparison.Ordinal);
+        Assert.Contains("restoration can fail without failing the write.", description, StringComparison.Ordinal);
+        Assert.Contains("[[1,2],[3,4]]", description, StringComparison.Ordinal);
+        Assert.Contains("\"2025-01-15\"", description, StringComparison.Ordinal);
+        Assert.DoesNotContain("Gets values from a range", description, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("session", "list", "not a completed or failed operation")]
+    [InlineData("session", "list", "activeOperations:0")]
+    [InlineData("session", "list", "before repeating")]
+    [InlineData("session", "notices", "complete:false")]
+    [InlineData("session", "notices", "does not prove")]
+    [InlineData("session", "enable-editing", "not confirmation prompts")]
+    [InlineData("session", "enable-connections", "not confirmation prompts")]
+    [InlineData("session", "enable-macros", "not confirmation prompts")]
+    [InlineData("session", "enable-editing", "company policy")]
+    [InlineData("session", "enable-connections", "company policy")]
+    [InlineData("session", "enable-macros", "company policy")]
+    public async Task CommandHelp_ExplainsResultLimitsAndApprovalWithoutConnecting(
+        string command, string action, string guidance)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", command, action, "--help"], CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        var help = Regex.Replace(output.ToString(), @"\s+", " ");
+        Assert.Contains(guidance, help, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ActionHelp_PreservesJsonArrayExamples()
     {
         var factory = new RecordingClientFactory();
