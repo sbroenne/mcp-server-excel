@@ -161,8 +161,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         using (var listed = JsonDocument.Parse(listSessionsResult))
         {
             var session = Assert.Single(listed.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.Equal(sessionId, session.GetProperty("workbook_session_id").GetString());
-            Assert.False(session.TryGetProperty("sessionId", out _));
+            Assert.Equal(sessionId, session.GetProperty("sessionId").GetString());
+            Assert.False(session.TryGetProperty("workbook_session_id", out _));
             Assert.True(session.GetProperty("canClose").GetBoolean());
         }
         await CallSuccessfulToolAsync("worksheet", new()
@@ -179,6 +179,24 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["range_address"] = "A1",
             ["values"] = new List<List<string>> { new() { "persisted-smoke-value" } }
         });
+        var selected = await CallToolAsync("range_read", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["workbook_session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1:B2",
+            ["fields"] = new List<string> { "values" }
+        });
+        AssertSuccess(selected, "Field-selected cell read");
+        using (var read = JsonDocument.Parse(selected))
+        {
+            var root = read.RootElement;
+            Assert.Equal(2, root.GetProperty("rowCount").GetInt32());
+            Assert.Equal(2, root.GetProperty("columnCount").GetInt32());
+            Assert.Equal("persisted-smoke-value", root.GetProperty("values")[0][0].GetString());
+            Assert.Equal(JsonValueKind.Null, root.GetProperty("values")[1][1].ValueKind);
+            Assert.False(root.TryGetProperty("filePath", out _));
+        }
         await SaveAndVerifyAsync(sessionId, "persisted-smoke-value");
     }
 

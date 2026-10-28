@@ -707,21 +707,21 @@ public sealed class ExcelMcpService : IDisposable
             {
                 var validation = _sessionManager.ValidateClose(s.SessionId);
                 var operation = _sessionManager.GetOperationStatus(s.SessionId, reconcilePaths: false);
-                return new
+                return new SessionListEntry
                 {
-                    sessionId = s.SessionId,
-                    filePath = s.FilePath,
-                    filePaths = _sessionManager.GetOwnedFilePaths(s.SessionId),
-                    workbookName = s.WorkbookName,
-                    isAttached = s.IsAttached,
-                    isExcelVisible = validation.IsExcelVisible,
-                    activeOperations = validation.ActiveOperationCount,
-                    operationPending = validation.OperationPending || operation?.ExecutionPending == true,
-                    canClose = validation.CanClose,
-                    excelState = validation.ExcelState,
-                    blockingReason = validation.BlockingReason,
-                    blockingMessage = validation.BlockingMessage,
-                    operation
+                    SessionId = s.SessionId,
+                    FilePath = s.FilePath,
+                    FilePaths = _sessionManager.GetOwnedFilePaths(s.SessionId),
+                    WorkbookName = s.WorkbookName,
+                    IsAttached = s.IsAttached,
+                    IsExcelVisible = validation.IsExcelVisible,
+                    ActiveOperations = validation.ActiveOperationCount,
+                    OperationPending = validation.OperationPending || operation?.ExecutionPending == true,
+                    CanClose = validation.CanClose,
+                    ExcelState = validation.ExcelState,
+                    BlockingReason = validation.BlockingReason,
+                    BlockingMessage = validation.BlockingMessage,
+                    Operation = operation
                 };
             })
             .ToList();
@@ -729,7 +729,7 @@ public sealed class ExcelMcpService : IDisposable
         return new ServiceResponse
         {
             Success = true,
-            Result = JsonSerializer.Serialize(new { success = true, sessions, count = sessions.Count }, ServiceProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(new SessionListResult { Success = true, Sessions = sessions }, ServiceProtocol.JsonOptions)
         };
     }
 

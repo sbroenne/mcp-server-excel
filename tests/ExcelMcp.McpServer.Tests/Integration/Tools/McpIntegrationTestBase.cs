@@ -250,7 +250,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         bool allowOptionalNonEmptyInnerError = false)
     {
         Assert.False(root.GetProperty("success").GetBoolean(), $"{operationName} unexpectedly succeeded.");
-        Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
+        Assert.False(root.TryGetProperty("isError", out _), $"{operationName} should not repeat the protocol error flag in JSON.");
         Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
 
         var errorMessage = root.GetProperty("errorMessage").GetString();

@@ -14,9 +14,9 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 // SESSION COMMANDS
 // ============================================================================
 
-internal sealed class SessionDiscoverCommand : AsyncCommand
+internal sealed class SessionDiscoverCommand : AsyncCommand<ReadSelectionSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
     {
         using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var request = new ServiceRequest { Command = "session.discover" };
@@ -24,8 +24,7 @@ internal sealed class SessionDiscoverCommand : AsyncCommand
             request, () => client.SendAsync(request, cancellationToken));
         if (!response.Success)
             return CliErrorOutput.WriteServiceError(response);
-        CliCommandRuntime.Current.Output.WriteLine(response.Result);
-        return 0;
+        return CliResultOutput.Write(response, request.Command);
     }
 }
 
@@ -48,8 +47,7 @@ internal sealed class SessionAttachCommand : AsyncCommand<SessionAttachCommand.S
             request, () => client.SendAsync(request, cancellationToken));
         if (!response.Success)
             return CliErrorOutput.WriteServiceError(response);
-        CliCommandRuntime.Current.Output.WriteLine(response.Result);
-        return 0;
+        return CliResultOutput.Write(response, request.Command);
     }
 
     internal sealed class Settings : CommandSettings
@@ -99,8 +97,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
 
         if (response.Success)
         {
-            CliCommandRuntime.Current.Output.WriteLine(response.Result);
-            return 0;
+            return CliResultOutput.Write(response, request.Command);
         }
         else
         {
@@ -164,8 +161,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
 
         if (response.Success)
         {
-            CliCommandRuntime.Current.Output.WriteLine(response.Result);
-            return 0;
+            return CliResultOutput.Write(response, request.Command);
         }
         else
         {
@@ -204,8 +200,7 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
         if (!response.Success)
             return CliErrorOutput.WriteServiceError(response);
 
-        CliCommandRuntime.Current.Output.WriteLine(response.Result);
-        return 0;
+        return CliResultOutput.Write(response, request.Command);
     }
 
     internal sealed class Settings : CommandSettings
@@ -236,17 +231,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
             request,
             () => client.SendAsync(request, cancellationToken));
 
-        if (response.Success)
-        {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                new { success = true, message = settings.Save ? "Session closed and saved." : "Session closed." },
-                ServiceProtocol.JsonOptions));
-            return 0;
-        }
-        else
-        {
-            return CliErrorOutput.WriteServiceError(response);
-        }
+        return CliResultOutput.Write(response, request.Command);
     }
 
     internal sealed class Settings : CommandSettings
@@ -261,9 +246,9 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
     }
 }
 
-internal sealed class SessionListCommand : AsyncCommand
+internal sealed class SessionListCommand : AsyncCommand<ReadSelectionSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var daemonConnection = CliCommandRuntime.Current.DaemonConnection;
@@ -289,8 +274,7 @@ internal sealed class SessionListCommand : AsyncCommand
                 throw;
             }
             result["daemonState"] = DaemonConnectionPolicy.RunningState;
-            CliCommandRuntime.Current.Output.WriteLine(result.ToJsonString(ServiceProtocol.JsonOptions));
-            return 0;
+            return CliResultOutput.WriteJson(result.ToJsonString(ServiceProtocol.JsonOptions));
         }
 
         if (response.Success)
@@ -316,14 +300,13 @@ internal sealed class SessionListCommand : AsyncCommand
 
     private static int WriteStoppedSessionList()
     {
-        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
+        return CliResultOutput.WriteJson(JsonSerializer.Serialize(new
         {
             success = true,
             daemonState = DaemonConnectionPolicy.StoppedState,
             sessions = Array.Empty<object>(),
             count = 0
         }, ServiceProtocol.JsonOptions));
-        return 0;
     }
 }
 
@@ -346,7 +329,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         }
         catch (ArgumentOutOfRangeException ex)
         {
-            return CliErrorOutput.WriteError(ex.Message);
+            return CliErrorOutput.WriteException(ex, "InvalidInput");
         }
 
         using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
@@ -392,15 +375,14 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
             return CliErrorOutput.WriteError("Service returned an invalid file test response.");
         }
 
-        CliCommandRuntime.Current.Output.WriteLine(response.Result);
         if (!result.CanOpen)
         {
             CliTelemetry.RecordExpectedNegative();
         }
-        return result.CanOpen ? 0 : 1;
+        return CliResultOutput.Write(response, request.Command);
     }
 
-    internal sealed class Settings : CommandSettings
+    internal sealed class Settings : ReadSelectionSettings
     {
         [CommandArgument(0, "<FILE>")]
         [Description("Absolute Windows path or direct SharePoint HTTPS workbook URL; remote URLs report an interactive validation requirement")]

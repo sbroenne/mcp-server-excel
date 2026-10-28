@@ -87,7 +87,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             }
 
             Assert.False(root.GetProperty("success").GetBoolean());
-            Assert.True(root.GetProperty("isError").GetBoolean());
+            Assert.False(root.TryGetProperty("isError", out _));
             Assert.Equal(unsupportedPath, root.GetProperty("filePath").GetString());
 
             var errorMessage = root.GetProperty("errorMessage").GetString();
@@ -125,8 +125,12 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
 
         Assert.True(serviceResponse.Success);
         Assert.NotNull(serviceResponse.Result);
-        Assert.Equal(serviceResponse.Result, toolResult);
+        using var serviceJson = JsonDocument.Parse(serviceResponse.Result);
         using var json = JsonDocument.Parse(toolResult);
+        foreach (var property in serviceJson.RootElement.EnumerateObject())
+            Assert.True(JsonElement.DeepEquals(property.Value, json.RootElement.GetProperty(property.Name)), property.Name);
+        Assert.Equal("OperationFailed", json.RootElement.GetProperty("errorCategory").GetString());
+        Assert.False(json.RootElement.TryGetProperty("isError", out _));
         Assert.False(json.RootElement.GetProperty("canOpen").GetBoolean());
         Assert.False(json.RootElement.GetProperty("willOpenReadOnly").GetBoolean());
         Assert.False(json.RootElement.GetProperty("requiresVisibleSession").GetBoolean());

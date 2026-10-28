@@ -75,7 +75,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
 
-        var error = json.RootElement.GetProperty("errorMessage").GetString();
+        var error = json.RootElement.GetProperty("error").GetProperty("message").GetString();
         Assert.NotNull(error);
         Assert.Contains("IRM/AIP-protected workbook", error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("show=true", error, StringComparison.OrdinalIgnoreCase);
@@ -117,13 +117,13 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
             if (result.ExitCode == 0)
             {
                 Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-                sessionId = json.RootElement.GetProperty("sessionId").GetString();
+                sessionId = json.RootElement.GetProperty("data").GetProperty("sessionId").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(sessionId));
             }
             else
             {
                 Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-                var error = json.RootElement.GetProperty("errorMessage").GetString();
+                var error = json.RootElement.GetProperty("error").GetProperty("message").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(error));
                 Assert.DoesNotContain("show=true", error, StringComparison.OrdinalIgnoreCase);
             }
@@ -168,7 +168,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
         using var document = JsonDocument.Parse(result.Stdout);
         Assert.True(document.RootElement.GetProperty("success").GetBoolean());
-        return document.RootElement.GetProperty("sessions").EnumerateArray()
+        return document.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray()
             .Select(session => session.GetProperty("sessionId").GetString()!)
             .Order(StringComparer.Ordinal).ToArray();
     }

@@ -89,10 +89,10 @@ public sealed class SmokeResponseAssertionTests
         var result = new CallToolResult
         {
             Content = [new TextContentBlock { Text = response }],
-            IsError = false
+            IsError = true
         };
 
-        Assert.Equal(response, McpResponseAssertions.ReadText(result, expectedError: false));
+        Assert.Equal(response, McpResponseAssertions.ReadText(result, expectedError: true));
         Assert.ThrowsAny<XunitException>(() => AssertSmokeSuccess(response, "Open workbook"));
     }
 
@@ -112,7 +112,7 @@ public sealed class SmokeResponseAssertionTests
     }
 
     [Fact]
-    public void ReadText_FileValidationDiagnostic_WithProtocolError_IsRejected()
+    public void ReadText_FileValidationDiagnostic_WithoutProtocolError_IsRejected()
     {
         var result = new CallToolResult
         {
@@ -120,7 +120,7 @@ public sealed class SmokeResponseAssertionTests
             {
                 Text = """{"success":false,"exists":false,"isValid":false,"canOpen":false,"isIrmProtected":false,"willOpenReadOnly":false,"requiresVisibleSession":false}"""
             }],
-            IsError = true
+            IsError = false
         };
 
         Assert.ThrowsAny<XunitException>(() => McpResponseAssertions.ReadText(result));

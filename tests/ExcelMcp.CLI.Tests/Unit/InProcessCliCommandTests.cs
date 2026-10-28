@@ -17,6 +17,241 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Fact]
+    public async Task SessionClose_PreservesActualOutcomeRatherThanInventingSavedState()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"message":"Session already closed.","warnings":["No save was performed."],"partialState":{"changed":false}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["session", "close", "--session", "target", "--save"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("Session already closed.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        Assert.Equal("No save was performed.", Assert.Single(result.RootElement.GetProperty("warnings").EnumerateArray()).GetString());
+        Assert.False(result.RootElement.GetProperty("partialState").GetProperty("changed").GetBoolean());
+        Assert.False(result.RootElement.GetProperty("data").TryGetProperty("saved", out _));
+    }
+
+    [Fact]
+    public async Task SessionClose_DeliveredNegativeOutcomeDoesNotReportSaved()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":false,"errorMessage":"Workbook remains open","partialState":{"open":true}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["session", "close", "--session", "target", "--save"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("Workbook remains open", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+        Assert.True(result.RootElement.GetProperty("partialState").GetProperty("open").GetBoolean());
+        Assert.False(result.RootElement.TryGetProperty("data", out _));
+    }
+
+    [Fact]
+    public async Task OutputFile_ImageStillWrittenWhenFieldsSelectOnlyMetadata()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"excelcli-image-{Guid.NewGuid():N}.png");
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"imageBase64":"AQID","sheetName":"Data","width":1,"height":3,"mimeType":"image/png","message":"Truncated to the top-left portion."}"""
+        });
+        var output = new StringWriter();
+        try
+        {
+            var exit = await Program.RunAsync(
+                ["--quiet", "screenshot", "capture", "--session", "target", "--sheet-name", "Data",
+                    "--range-address", "A1", "--fields", "sheetName", "--output", path],
+                CreateRuntime(factory, output, new StringWriter()));
+            Assert.Equal(0, exit);
+            Assert.Equal(new byte[] { 1, 2, 3 }, await File.ReadAllBytesAsync(path));
+            using var result = JsonDocument.Parse(output.ToString());
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(path, result.RootElement.GetProperty("data").GetProperty("outputPath").GetString());
+            Assert.Equal("Truncated to the top-left portion.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+            Assert.DoesNotContain("AQID", output.ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task OutputFile_WriteFailureRetainsCompletedOperation()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "result.json");
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"modifiedCells":3,"warnings":["Check retained state"],"partialState":{"changed":true}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--session", "target", "--sheet-name", "Data",
+                "--range-address", "A1:C1", "--values", "[[1,2,3]]", "--output", path],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Single(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        var root = result.RootElement;
+        Assert.Equal("OutputWriteFailed", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(3, root.GetProperty("data").GetProperty("modifiedCells").GetInt32());
+        Assert.True(root.GetProperty("partialState").GetProperty("operationCompleted").GetBoolean());
+        Assert.False(root.GetProperty("partialState").GetProperty("outputWriteCompleted").GetBoolean());
+        Assert.True(root.GetProperty("partialState").GetProperty("operationPartialState").GetProperty("changed").GetBoolean());
+        Assert.Equal("Check retained state", root.GetProperty("warnings")[0].GetString());
+    }
+
+    [Theory]
+    [InlineData("\"0.00%\"")]
+    [InlineData("null")]
+    [InlineData("[false,0,null]")]
+    public async Task OutputFile_WriteFailureKeepsOriginalDataShape(string data)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "result.json");
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = data });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "chartconfig", "get-axis-number-format", "--session", "target",
+                "--chart-name", "Revenue", "--axis", "Value", "--output", path],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Single(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("OutputWriteFailed", result.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(data, result.RootElement.GetProperty("data").GetRawText());
+        Assert.True(result.RootElement.GetProperty("partialState").GetProperty("operationCompleted").GetBoolean());
+        Assert.False(result.RootElement.GetProperty("partialState").GetProperty("outputWriteCompleted").GetBoolean());
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task NonRedirectedOperation_WritesOnlyJsonToStdout()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"message":"pong"}"""
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = new CliCommandRuntime(factory, new StringReader(""), output, error, isOutputRedirected: false);
+        Assert.Equal(0, await Program.RunAsync(["diag", "ping"], runtime));
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("diag.ping", result.RootElement.GetProperty("command").GetString());
+        Assert.Equal("pong", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        Assert.Contains("Excel", error.ToString());
+    }
+
+    [Theory]
+    [InlineData("session", "list", "sessions")]
+    [InlineData("service", "status", "running")]
+    public async Task ManualReadHelp_ListsAcceptedFields(string category, string action, string field)
+    {
+        var output = new StringWriter();
+        var runtime = CreateRuntime(new RecordingClientFactory(), output, new StringWriter());
+        Assert.Equal(0, await Program.RunAsync([category, action, "--help"], runtime));
+        Assert.Contains("Result fields for --fields", output.ToString());
+        Assert.Contains(field, output.ToString());
+    }
+
+    [Fact]
+    public async Task ManualRead_FieldsPreserveSessionIdentity()
+    {
+        var daemon = new RecordingDaemonConnection(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"count":1,"sessions":[{"sessionId":"target","workbookName":"Selected","filePath":"omitted.xlsx","canClose":false,"operationPending":true}]}"""
+        }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
+        var output = new StringWriter();
+        Assert.Equal(0, await Program.RunAsync(
+            ["session", "list", "--fields", "sessions.workbookName"],
+            CreateRuntime(new RecordingClientFactory(), output, new StringWriter(), daemonConnection: daemon)));
+        using var result = JsonDocument.Parse(output.ToString());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
+        Assert.Equal("target", session.GetProperty("sessionId").GetString());
+        Assert.Equal("Selected", session.GetProperty("workbookName").GetString());
+        Assert.False(session.GetProperty("canClose").GetBoolean());
+        Assert.True(session.GetProperty("operationPending").GetBoolean());
+        Assert.False(session.TryGetProperty("filePath", out _));
+    }
+
+    [Fact]
+    public async Task ReadFields_SelectsNestedQueryMetadata()
+    {
+        const string payload = """{"success":true,"queries":[{"name":"Source","formulaPreview":"let x = 1 in x","loadMode":"connection-only"}]}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = payload });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.name,queries.loadMode"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        var query = Assert.Single(result.RootElement.GetProperty("data").GetProperty("queries").EnumerateArray());
+        Assert.Equal("Source", query.GetProperty("name").GetString());
+        Assert.Equal("connection-only", query.GetProperty("loadMode").GetString());
+        Assert.False(query.TryGetProperty("formulaPreview", out _));
+        using var args = JsonDocument.Parse(Assert.Single(factory.Requests).Args!);
+        Assert.Equal(2, args.RootElement.GetProperty("fields").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ReadFields_RejectsUnknownPathsBeforeConnecting()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.unknown"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Empty(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("queries.name", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Results_UseOneEnvelopeAndPreserveMeaningfulValues(bool batch)
+    {
+        const string payload = """{"success":true,"filePath":"C:\\fixture.xlsx","values":[[false,0,null]],"rowCount":1,"columnCount":3}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = payload });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = CreateRuntime(factory, output, error,
+            """{"command":"range.get-values","sessionId":"target","args":{"sheetName":"Sheet1","rangeAddress":"A1:C1"}}""");
+        var exit = await Program.RunAsync(
+            batch ? ["--quiet", "batch"] :
+                ["--quiet", "range", "get-values", "--session", "target", "--sheet-name", "Sheet1", "--range-address", "A1:C1"],
+            runtime);
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        var root = result.RootElement;
+        Assert.Equal("range.get-values", root.GetProperty("command").GetString());
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("durationMs").GetInt64() >= 0);
+        Assert.Equal(batch, root.TryGetProperty("index", out _));
+        Assert.False(root.TryGetProperty("commandSummary", out _));
+        Assert.False(root.TryGetProperty("result", out _));
+        var data = root.GetProperty("data");
+        Assert.False(data.TryGetProperty("success", out _));
+        Assert.False(data.TryGetProperty("filePath", out _));
+        Assert.Equal("[[false,0,null]]", data.GetProperty("values").GetRawText());
+        Assert.Equal(1, data.GetProperty("rowCount").GetInt32());
+        Assert.Equal(3, data.GetProperty("columnCount").GetInt32());
+    }
+
     [Theory]
     [InlineData("enable-editing", "--allow-reopen")]
     [InlineData("enable-connections", "--allow-reopen")]
@@ -33,7 +268,7 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(factory.Requests);
         using var result = JsonDocument.Parse(output.ToString());
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("only for", result.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Contains("only for", result.RootElement.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
         Assert.Empty(error.ToString());
     }
 
@@ -69,7 +304,7 @@ public sealed class InProcessCliCommandTests
                 action == "enable-macros" ? "allowReopen" : "allowRememberedTrust").GetBoolean());
             Assert.Equal(2, args.RootElement.EnumerateObject().Count());
         }
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -92,7 +327,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("target", request.SessionId);
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal(enabled, args.RootElement.GetProperty("enabled").GetBoolean());
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -118,8 +353,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("Always", args.RootElement.GetProperty("interactiveLogin").GetString());
         Assert.Equal("CurrentUser", args.RootElement.GetProperty("identityMode").GetString());
         using var actual = JsonDocument.Parse(output.ToString());
-        Assert.True(actual.RootElement.GetProperty("changed").GetBoolean());
-        Assert.Equal("Always", actual.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.True(actual.RootElement.GetProperty("data").GetProperty("changed").GetBoolean());
+        Assert.Equal("Always", actual.RootElement.GetProperty("data").GetProperty("interactiveLogin").GetString());
         Assert.DoesNotContain("fixture-account", output.ToString(), StringComparison.Ordinal);
         Assert.Empty(error.ToString());
     }
@@ -144,7 +379,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("session.discover", discoverRequest.Command);
         Assert.Null(discoverRequest.SessionId);
         Assert.Null(discoverRequest.Args);
-        Assert.Equal(discoverResult, discoverOutput.ToString().Trim());
+        AssertResult(discoverResult, discoverOutput.ToString());
         Assert.Empty(discoverError.ToString());
 
         const string attachResult = """{"success":true,"sessionId":"attached-session","name":"Book1","warning":"Excel AutoSave is off."}""";
@@ -166,7 +401,7 @@ public sealed class InProcessCliCommandTests
         Assert.Null(attachRequest.SessionId);
         using var args = JsonDocument.Parse(attachRequest.Args!);
         Assert.Equal("open-workbook-123", args.RootElement.GetProperty("workbookId").GetString());
-        Assert.Equal(attachResult, attachOutput.ToString().Trim());
+        AssertResult(attachResult, attachOutput.ToString());
         Assert.Empty(attachError.ToString());
     }
 
@@ -188,10 +423,7 @@ public sealed class InProcessCliCommandTests
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal("Sales", args.RootElement.GetProperty("connectionName").GetString());
         Assert.Single(args.RootElement.EnumerateObject());
-        using var expected = JsonDocument.Parse(result);
-        using var actual = JsonDocument.Parse(output.ToString());
-        foreach (var property in expected.RootElement.EnumerateObject())
-            Assert.Equal(property.Value.GetRawText(), actual.RootElement.GetProperty(property.Name).GetRawText());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -224,8 +456,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(save, args.RootElement.GetProperty("save").GetBoolean());
         using var result = JsonDocument.Parse(output.ToString());
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Busy", result.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal(message, result.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("Busy", result.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(message, result.RootElement.GetProperty("error").GetProperty("message").GetString());
         Assert.False(result.RootElement.TryGetProperty("saved", out _));
         Assert.Empty(error.ToString());
     }
@@ -248,7 +480,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var result = JsonDocument.Parse(output.ToString());
-        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
         Assert.False(session.GetProperty("operationPending").GetBoolean());
         Assert.False(session.GetProperty("canClose").GetBoolean());
@@ -273,7 +505,7 @@ public sealed class InProcessCliCommandTests
 
         Assert.Equal(0, exitCode);
         using var result = JsonDocument.Parse(output.ToString());
-        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
         Assert.Equal("Check the Excel window and respond there.\nDialog text: The database is unavailable.", session.GetProperty("blockingMessage").GetString());
@@ -305,7 +537,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(url, args.RootElement.GetProperty("filePath").GetString());
         Assert.True(args.RootElement.GetProperty("show").GetBoolean());
         using var result = JsonDocument.Parse(output.ToString());
-        Assert.Equal("remote-session", result.RootElement.GetProperty("sessionId").GetString());
+        Assert.Equal("remote-session", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -347,7 +579,7 @@ public sealed class InProcessCliCommandTests
         Assert.True(returnedBeforeCompletion, "RunAsync blocked until the command completed.");
         Assert.Equal([("session.open", true, null)], telemetry);
         using var result = JsonDocument.Parse(output.ToString());
-        Assert.Equal("pending", result.RootElement.GetProperty("sessionId").GetString());
+        Assert.Equal("pending", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -370,28 +602,29 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedExitCode == 0, result.RootElement.GetProperty("success").GetBoolean());
         if (command == "range")
         {
-            Assert.Equal("range", result.RootElement.GetProperty("command").GetString());
-            Assert.Contains("get-values", result.RootElement.GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
+            Assert.Equal("list-actions", result.RootElement.GetProperty("command").GetString());
+            Assert.Equal("range", result.RootElement.GetProperty("data").GetProperty("command").GetString());
+            Assert.Contains("get-values", result.RootElement.GetProperty("data").GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
         }
         else if (command == "session")
         {
-            var actions = result.RootElement.GetProperty("actions").EnumerateArray()
+            var actions = result.RootElement.GetProperty("data").GetProperty("actions").EnumerateArray()
                 .Select(value => value.GetString()).ToArray();
             Assert.Contains("discover", actions);
             Assert.Contains("attach", actions);
         }
         else if (command == null)
         {
-            var actions = result.RootElement.GetProperty("commands").GetProperty("session")
+            var actions = result.RootElement.GetProperty("data").GetProperty("commands").GetProperty("session")
                 .EnumerateArray().Select(value => value.GetString()).ToArray();
             Assert.Contains("discover", actions);
             Assert.Contains("attach", actions);
-            Assert.Contains("session discover", result.RootElement.GetProperty("workflow").GetString());
-            Assert.Contains("session attach", result.RootElement.GetProperty("workflow").GetString());
+            Assert.Contains("session discover", result.RootElement.GetProperty("data").GetProperty("workflow").GetString());
+            Assert.Contains("session attach", result.RootElement.GetProperty("data").GetProperty("workflow").GetString());
         }
         else
         {
-            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("errorMessage").GetString());
+            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("error").GetProperty("message").GetString());
         }
         Assert.Empty(error.ToString());
     }
@@ -416,13 +649,13 @@ public sealed class InProcessCliCommandTests
             Assert.True(result.RootElement.GetProperty("success").GetBoolean());
             if (action == "status")
             {
-                Assert.Equal("stopped", result.RootElement.GetProperty("daemonState").GetString());
-                Assert.False(result.RootElement.GetProperty("running").GetBoolean());
-                Assert.Equal(0, result.RootElement.GetProperty("processId").GetInt32());
+                Assert.Equal("stopped", result.RootElement.GetProperty("data").GetProperty("daemonState").GetString());
+                Assert.False(result.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
+                Assert.Equal(0, result.RootElement.GetProperty("data").GetProperty("processId").GetInt32());
             }
             else
             {
-                Assert.Equal("Service not running.", result.RootElement.GetProperty("message").GetString());
+                Assert.Equal("Service not running.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
             }
             Assert.Empty(factory.Requests);
             Assert.Empty(error.ToString());
@@ -625,13 +858,13 @@ public sealed class InProcessCliCommandTests
         using var envelope = JsonDocument.Parse(output.ToString());
         var root = envelope.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.True(root.GetProperty("isError").GetBoolean());
+        Assert.False(root.TryGetProperty("isError", out _));
         Assert.Equal(
             "Workbook is already open; close the file and retry with exclusive access.",
-            root.GetProperty("errorMessage").GetString());
-        Assert.False(root.TryGetProperty("error", out _));
-        Assert.Equal("ComInterop", root.GetProperty("errorCategory").GetString());
-        Assert.Equal(nameof(IOException), root.GetProperty("exceptionType").GetString());
+            root.GetProperty("error").GetProperty("message").GetString());
+        Assert.False(root.TryGetProperty("errorMessage", out _));
+        Assert.Equal("ComInterop", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(nameof(IOException), root.GetProperty("error").GetProperty("exceptionType").GetString());
         Assert.Equal("session.open", root.GetProperty("command").GetString());
         Assert.Equal(string.Empty, error.ToString());
     }
@@ -867,19 +1100,20 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedState == "stopped" ? 0 : 1, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var envelope = JsonDocument.Parse(output.ToString());
-        Assert.Equal(expectedState, envelope.RootElement.GetProperty("daemonState").GetString());
+        var data = envelope.RootElement.GetProperty("data");
+        Assert.Equal(expectedState, data.GetProperty("daemonState").GetString());
         if (running)
         {
-            Assert.True(envelope.RootElement.GetProperty("running").GetBoolean());
+            Assert.True(data.GetProperty("running").GetBoolean());
             Assert.Equal(
                 "controlled transport failure",
-                envelope.RootElement.GetProperty("errorMessage").GetString());
+                envelope.RootElement.GetProperty("error").GetProperty("message").GetString());
         }
         else
         {
-            Assert.Equal(0, envelope.RootElement.GetProperty("count").GetInt32());
-            Assert.Empty(envelope.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.False(envelope.RootElement.TryGetProperty("running", out _));
+            Assert.Equal(0, data.GetProperty("count").GetInt32());
+            Assert.Empty(data.GetProperty("sessions").EnumerateArray());
+            Assert.False(data.TryGetProperty("running", out _));
         }
     }
 
@@ -901,15 +1135,15 @@ public sealed class InProcessCliCommandTests
             new StringWriter(),
             daemonConnection: daemonConnection));
 
-        var exitCode = await new SessionListCommand().ExecuteAsync(null!, CancellationToken.None);
+        var exitCode = await new SessionListCommand().ExecuteAsync(null!, new ReadSelectionSettings(), CancellationToken.None);
 
         Assert.Equal(0, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var json = JsonDocument.Parse(output.ToString());
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
-        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
-        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("stopped", json.RootElement.GetProperty("data").GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("data").GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
@@ -931,7 +1165,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(1, exitCode);
         Assert.Empty(error.ToString());
         Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         var tracked = Assert.Single(telemetry);
         Assert.False(tracked.Succeeded);
         Assert.False(tracked.ExpectedNegative);
@@ -953,7 +1187,7 @@ public sealed class InProcessCliCommandTests
 
             Assert.Equal(1, exitCode);
             Assert.False(File.Exists(outputPath));
-            Assert.Equal(result, output.ToString().Trim());
+            AssertResult(result, output.ToString());
         }
         finally
         {
@@ -985,10 +1219,10 @@ public sealed class InProcessCliCommandTests
         using var line = JsonDocument.Parse(Assert.Single(
             output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
         Assert.False(line.RootElement.GetProperty("success").GetBoolean());
-        Assert.False(line.RootElement.GetProperty("result").GetProperty("success").GetBoolean());
+        Assert.False(line.RootElement.TryGetProperty("result", out _));
         Assert.Equal(
             "1 of 1 queries failed to refresh: 'Broken'.",
-            line.RootElement.GetProperty("errorMessage").GetString());
+            line.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]
@@ -1016,8 +1250,8 @@ public sealed class InProcessCliCommandTests
         using (var first = JsonDocument.Parse(lines[0]))
         {
             Assert.False(first.RootElement.GetProperty("success").GetBoolean());
-            Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
-            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("errorMessage").GetString()));
+            Assert.False(first.RootElement.GetProperty("data").GetProperty("canOpen").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetProperty("message").GetString()));
         }
         using (var second = JsonDocument.Parse(lines[1]))
         {
@@ -1134,8 +1368,8 @@ public sealed class InProcessCliCommandTests
             Assert.False(args.RootElement.TryGetProperty("clearFirst", out _));
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.True(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("2026 Q2", returned.RootElement.GetProperty("selectedItems")[0].GetString());
-        Assert.Equal("RevenuePivot", returned.RootElement.GetProperty("connectedPivotTables")[0].GetString());
+        Assert.Equal("2026 Q2", returned.RootElement.GetProperty("data").GetProperty("selectedItems")[0].GetString());
+        Assert.Equal("RevenuePivot", returned.RootElement.GetProperty("data").GetProperty("connectedPivotTables")[0].GetString());
     }
 
     [Fact]
@@ -1161,8 +1395,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("slicer.set-slicer-selection", Assert.Single(factory.Requests).Command);
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Contains("missing", returned.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Contains("missing", returned.RootElement.GetProperty("error").GetProperty("message").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -1200,8 +1434,8 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(error.ToString());
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
-        string returnedMessage = returned.RootElement.GetProperty("errorMessage").GetString()!;
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("error").GetProperty("category").GetString());
+        string returnedMessage = returned.RootElement.GetProperty("error").GetProperty("message").GetString()!;
         Assert.Equal(message, returnedMessage);
         var returnedCandidates = JsonSerializer.Deserialize<string[]>(returnedMessage[
             (returnedMessage.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..(returnedMessage.LastIndexOf(']') + 1)])!;
@@ -1255,7 +1489,7 @@ public sealed class InProcessCliCommandTests
             using var first = JsonDocument.Parse(Assert.Single(
                 output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
             Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
-            Assert.Equal("first", first.RootElement.GetProperty("result").GetProperty("message").GetString());
+            Assert.Equal("first", first.RootElement.GetProperty("data").GetProperty("message").GetString());
             Assert.Contains("Batch 2/2: diag.echo", error.ToString());
         }
         finally
@@ -1264,6 +1498,27 @@ public sealed class InProcessCliCommandTests
             Assert.Equal(0, await run.WaitAsync(TimeSpan.FromSeconds(5)));
         }
         Assert.Equal(2, output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    private static void AssertResult(string serviceJson, string cliJson)
+    {
+        using var service = JsonDocument.Parse(serviceJson);
+        using var cli = JsonDocument.Parse(cliJson);
+        var root = cli.RootElement;
+        Assert.Equal(service.RootElement.GetProperty("success").GetBoolean(), root.GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("durationMs").GetInt64() >= 0);
+        foreach (var property in service.RootElement.EnumerateObject())
+        {
+            if (property.Name == "success")
+                continue;
+            if (property.Name is "errorMessage" or "errorCategory")
+                Assert.Equal(property.Value.GetString(),
+                    root.GetProperty("error").GetProperty(property.Name == "errorMessage" ? "message" : "category").GetString());
+            else if (property.Name == "warning")
+                Assert.Equal(property.Value.GetString(), Assert.Single(root.GetProperty("warnings").EnumerateArray()).GetString());
+            else
+                Assert.Equal(property.Value.GetRawText(), root.GetProperty("data").GetProperty(property.Name).GetRawText());
+        }
     }
 
     private static CliCommandRuntime CreateRuntime(

@@ -89,7 +89,7 @@ public sealed record TableStyleElementDefinition(string ElementType, int NativeT
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] CellFontFormat? Font,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] CellFillFormat? Fill,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] List<CellBorderFormat>? Borders,
-    List<string> UnsetOrUnavailableFields);
+    [property: ResultContext] List<string> UnsetOrUnavailableFields);
 
 /// <summary>Every native element of the selected style, including table/Pivot/slicer/timeline elements.</summary>
 public sealed record TableStyleDefinition(string Name, string NameLocal, bool BuiltIn,
@@ -110,6 +110,7 @@ public sealed class TableStyleResult : ResultBase
     /// <summary>Identity, availability, and all elements.</summary>
     public required TableStyleDefinition Style { get; init; }
     /// <summary>Native restrictions; unsupported state is never invented.</summary>
+    [ResultContext]
     public List<string> ReadLimitations { get; init; } =
         ["Table-style elements are differential formats: font name/size, subscript/superscript, alignment, number format and diagonal borders are not supported. Unset or unavailable properties remain null."];
 }

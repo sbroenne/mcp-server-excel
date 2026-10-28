@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -15,6 +16,9 @@ internal sealed class FileToolOutputSchema
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorMessage { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
@@ -48,7 +52,7 @@ internal sealed class FileToolOutputSchema
     public bool? Complete { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenWorkbookInfo>? Workbooks { get; set; }
+    public List<FileWorkbookOutputSchema>? Workbooks { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<WorkbookDiscoveryError>? Errors { get; set; }
@@ -60,23 +64,31 @@ internal sealed class FileToolOutputSchema
     public bool? AutoSaveOn { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Warning { get; set; }
+    public JsonElement? Warnings { get; set; }
 }
 
 internal sealed class FileSessionOutputSchema
 {
-    [JsonPropertyName("workbook_session_id")]
-    public string SessionId { get; set; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SessionId { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? FilePaths { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkbookName { get; set; }
-    public bool IsAttached { get; set; }
-    public bool IsExcelVisible { get; set; }
-    public int ActiveOperations { get; set; }
-    public bool OperationPending { get; set; }
-    public bool CanClose { get; set; }
-    public string ExcelState { get; set; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsAttached { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsExcelVisible { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ActiveOperations { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? OperationPending { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CanClose { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ExcelState { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Sbroenne.ExcelMcp.ComInterop.Session.ExcelOperationStatus? Operation { get; set; }
@@ -87,3 +99,13 @@ internal sealed class FileSessionOutputSchema
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BlockingMessage { get; set; }
 }
+
+internal sealed record FileWorkbookOutputSchema(
+    string? WorkbookId = null,
+    string? Name = null,
+    string? Location = null,
+    int? ProcessId = null,
+    bool? Saved = null,
+    bool? AutoSaveOn = null,
+    string? SessionId = null,
+    bool? ProtectedView = null);

@@ -66,6 +66,7 @@ public sealed class PivotFieldCalculationResult : ResultBase
     /// <summary>Whether the PivotTable uses an OLAP/Data Model cache.</summary>
     public bool IsOlap { get; set; }
     /// <summary>Whether the native base-field/item properties are available.</summary>
+    [ResultContext]
     public bool BaseSettingsAvailable { get; set; }
     /// <summary>Applicable base field; absent when the calculation does not use one.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

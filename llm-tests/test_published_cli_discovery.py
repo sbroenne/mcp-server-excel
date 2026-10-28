@@ -103,6 +103,7 @@ def assert_launcher_operations(result, launcher: Path, book: Path) -> None:
         and str(launcher).casefold() in str(call.arguments.get("command", "")).casefold()
     ]
     mutations = set()
+    opened = False
     closed = False
     for call in launcher_calls:
         command = call.arguments["command"]
@@ -112,15 +113,21 @@ def assert_launcher_operations(result, launcher: Path, book: Path) -> None:
         ]
         for output in outputs:
             if "success" in output:
-                assert output["success"] is True and not output.get("errorMessage"), (
+                assert output["success"] is True and not output.get("error"), (
                     f"Packaged launcher operation failed: {output}"
                 )
-            if output.get("filePath") and Path(output["filePath"]).resolve() == book.resolve():
-                if output.get("action") in ("set-values", "set-formulas") and output.get("success") is True:
-                    mutations.add(output["action"])
+            data = output.get("data", {})
+            if (output.get("command") in ("session.create", "session.open")
+                    and data.get("filePath") and Path(data["filePath"]).resolve() == book.resolve()
+                    and output.get("success") is True):
+                opened = True
+            if (opened and output.get("command") in ("range.set-values", "range.set-formulas")
+                    and output.get("success") is True):
+                mutations.add(output["command"].split(".", 1)[1])
             if (re.search(r"\bsession\s+close\b", command, re.IGNORECASE) and "--save" in command
-                    and output.get("success") is True and output.get("message") == "Session closed and saved."):
+                    and output.get("success") is True and output.get("command") == "session.close"):
                 closed = True
+    assert opened, "No successful packaged launcher open/create of the requested workbook"
     assert mutations == {"set-values", "set-formulas"}, "No successful packaged launcher workbook mutations"
     assert closed, "No successful packaged launcher save-and-close operation"
 
@@ -171,14 +178,18 @@ def test_launcher_checker_rejects_unproven_operations(tmp_path, mutation):
     calls = [
         SimpleNamespace(name="skill", arguments={"skill": "excel-cli"}, result="loaded",
                         success=True, evidence_complete=True),
+        SimpleNamespace(name="powershell", arguments={"command": f"& '{launcher}' session create '{book}'"},
+                        result=json.dumps({"command": "session.create", "success": True, "durationMs": 1,
+                                           "data": {"sessionId": "owned", "filePath": str(book)}}),
+                        success=True, evidence_complete=True),
         SimpleNamespace(name="powershell", arguments={"command": f"& '{launcher}' range set-values"},
-                        result=json.dumps({"success": True, "filePath": str(book), "action": "set-values"}),
+                        result=json.dumps({"command": "range.set-values", "success": True, "durationMs": 1}),
                         success=True, evidence_complete=True),
         SimpleNamespace(name="powershell", arguments={"command": f"& '{launcher}' range set-formulas"},
-                        result=json.dumps({"success": True, "filePath": str(book), "action": "set-formulas"}),
+                        result=json.dumps({"command": "range.set-formulas", "success": True, "durationMs": 1}),
                         success=True, evidence_complete=True),
         SimpleNamespace(name="powershell", arguments={"command": f"& '{launcher}' session close --save"},
-                        result=json.dumps({"success": True, "message": "Session closed and saved."}),
+                        result=json.dumps({"command": "session.close", "success": True, "durationMs": 1}),
                         success=True, evidence_complete=True),
     ]
     result = SimpleNamespace(all_tool_calls=calls)
@@ -186,13 +197,14 @@ def test_launcher_checker_rejects_unproven_operations(tmp_path, mutation):
     if mutation == "none":
         calls.clear()
     elif mutation == "help-only":
-        calls[1].result = "help"
+        calls[2].result = "help"
     elif mutation == "wrong-wrapper":
-        calls[1].arguments["command"] = "excelcli range set-values"
+        calls[2].arguments["command"] = "excelcli range set-values"
     elif mutation == "failed":
-        calls[1].result = json.dumps({"success": False, "action": "set-values", "filePath": str(book)})
+        calls[2].result = json.dumps({"command": "range.set-values", "success": False, "durationMs": 1,
+                                    "error": {"category": "ExcelError", "message": "Write failed."}})
     elif mutation == "incomplete":
-        calls[1].evidence_complete = False
+        calls[2].evidence_complete = False
     elif mutation == "no-skill":
         calls[0].arguments["skill"] = "excel-cli-report-formatting"
     else:
@@ -275,5 +287,7 @@ async def test_live_published_cli_discovery(copilot_eval, published_plugin, tmp_
         try:
             owned_workbook(book)
         finally:
-            if json.loads(owned_command(published_plugin, pipe, "service", "status").stdout)["running"]:
+            status = json.loads(owned_command(published_plugin, pipe, "service", "status").stdout)
+            assert status["success"] is True, status
+            if status["data"]["running"]:
                 owned_command(published_plugin, pipe, "service", "stop")

@@ -40,7 +40,7 @@ manage VBA modules need it too.
 ## Inspect before you run
 
 ```powershell
-$session = (excelcli -q session open C:\books\report.xlsm | ConvertFrom-Json).sessionId
+$session = (excelcli -q session open C:\books\report.xlsm | ConvertFrom-Json).data.sessionId
 
 excelcli -q vba list --session $session
 excelcli -q vba status --session $session

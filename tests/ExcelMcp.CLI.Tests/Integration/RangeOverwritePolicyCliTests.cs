@@ -70,8 +70,8 @@ public sealed class RangeOverwritePolicyCliTests
         Assert.Equal(1, result.ExitCode);
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal(category, json.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal(message, json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal(category, json.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(message, json.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]
@@ -92,8 +92,8 @@ public sealed class RangeOverwritePolicyCliTests
         Assert.Equal(1, result.ExitCode);
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Conflict", json.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal(message, json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("Conflict", json.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(message, json.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]

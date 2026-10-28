@@ -51,8 +51,8 @@ public sealed class RangeSpecialCellsContractCliTests
         Assert.Equal(cellKind, args.RootElement.GetProperty("cellKind").GetString(), ignoreCase: true);
         using var output = JsonDocument.Parse(result.Stdout);
         Assert.True(output.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal(32, output.RootElement.GetProperty("cellCount").GetInt64());
-        Assert.Equal(32, output.RootElement.GetProperty("areas").GetArrayLength());
+        Assert.Equal(32, output.RootElement.GetProperty("data").GetProperty("cellCount").GetInt64());
+        Assert.Equal(32, output.RootElement.GetProperty("data").GetProperty("areas").GetArrayLength());
     }
 
     [Theory]

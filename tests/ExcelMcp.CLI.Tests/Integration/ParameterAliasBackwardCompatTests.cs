@@ -35,7 +35,11 @@ public sealed class ParameterAliasBackwardCompatTests
         AssertJsonEqual(
             """{"sheetName":"AliasSheet","rangeAddress":"C7","values":[["BackwardCompat"]]}""",
             request.Args);
-        AssertJsonEqual("""{"success":true}""", result.Stdout);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("range.set-values", output.RootElement.GetProperty("command").GetString());
+        Assert.True(output.RootElement.GetProperty("durationMs").GetInt64() >= 0);
+        Assert.False(output.RootElement.TryGetProperty("data", out _));
     }
 
     [Fact]
@@ -56,9 +60,11 @@ public sealed class ParameterAliasBackwardCompatTests
         AssertJsonEqual(
             """{"sheetName":"AliasSheet","rangeAddress":"E9"}""",
             request.Args);
-        AssertJsonEqual(
-            """{"success":true,"values":[["ReadTest"]]}""",
-            result.Stdout);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("range.get-values", output.RootElement.GetProperty("command").GetString());
+        Assert.True(output.RootElement.GetProperty("durationMs").GetInt64() >= 0);
+        AssertJsonEqual("""{"values":[["ReadTest"]]}""", output.RootElement.GetProperty("data").GetRawText());
     }
 
     private static void AssertJsonEqual(string expectedJson, string? actualJson)

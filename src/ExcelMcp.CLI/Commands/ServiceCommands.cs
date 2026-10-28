@@ -24,13 +24,11 @@ internal sealed class ServiceStartCommand : AsyncCommand
         try
         {
             using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
-            return 0;
+            return CliResultOutput.Write(new ServiceResponse { Success = true });
         }
         catch (Exception ex)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteException(ex);
         }
     }
 }
@@ -93,7 +91,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
                         response.PartialState);
                 }
 
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+                CliResultOutput.WriteJson(JsonSerializer.Serialize(
                     new
                     {
                         success = false,
@@ -105,12 +103,11 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 return 1;
             }
 
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliResultOutput.Write(response);
         }
         catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+            CliResultOutput.WriteJson(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -122,7 +119,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
         }
         catch (Exception ex)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+            CliResultOutput.WriteJson(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -163,7 +160,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
             cancellationToken);
         if (!cleanupResult.Success)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+            CliResultOutput.WriteJson(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -175,7 +172,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
         }
 
         var retained = OwnedProcessCleanup.GetRetainedExcelProcesses(pipeName, serviceRunning: false);
-        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+        CliResultOutput.WriteJson(JsonSerializer.Serialize(
             new
             {
                 success = true,
@@ -194,9 +191,9 @@ internal sealed class ServiceStopCommand : AsyncCommand
 /// Shows ExcelMCP CLI Service status including PID, session count, and uptime.
 /// Surfaces actual error details instead of silently masking connection failures.
 /// </summary>
-internal sealed class ServiceStatusCommand : AsyncCommand
+internal sealed class ServiceStatusCommand : AsyncCommand<ReadSelectionSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, ReadSelectionSettings settings, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var request = new ServiceRequest { Command = "service.status" };
@@ -221,7 +218,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
             if (status != null)
             {
                 var (retained, retainedError) = ReadRetainedExcelProcesses(pipeName, serviceRunning: true);
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
+                CliResultOutput.WriteJson(JsonSerializer.Serialize(new
                 {
                     success = retainedError is null,
                     daemonState = DaemonConnectionPolicy.RunningState,
@@ -266,7 +263,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
     private static int WriteStoppedStatus(string pipeName)
     {
         var (retained, retainedError) = ReadRetainedExcelProcesses(pipeName, serviceRunning: false);
-        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
+        CliResultOutput.WriteJson(JsonSerializer.Serialize(new
         {
             success = retainedError is null,
             daemonState = DaemonConnectionPolicy.StoppedState,

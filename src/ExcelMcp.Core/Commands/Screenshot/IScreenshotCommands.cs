@@ -31,17 +31,21 @@ public class ScreenshotResult : OperationResult
     public string MimeType { get; set; } = "image/jpeg";
 
     /// <summary>Image width in pixels</summary>
+    [ResultContext]
     public int Width { get; set; }
 
     /// <summary>Image height in pixels</summary>
+    [ResultContext]
     public int Height { get; set; }
 
     /// <summary>Sheet name that was captured</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [ResultContext]
     public string? SheetName { get; set; }
 
     /// <summary>Range address that was captured (e.g., "A1:F20")</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [ResultContext]
     public string? RangeAddress { get; set; }
 }
 

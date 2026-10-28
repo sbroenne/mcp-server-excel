@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 
@@ -18,6 +19,8 @@ internal static class ScreenshotImageResult
         var metadata = $"Screenshot: {result.RangeAddress} on '{result.SheetName}' ({result.Width}x{result.Height}px)";
         if (!string.IsNullOrWhiteSpace(result.Message))
             metadata += $". {result.Message}";
+        var structured = JsonNode.Parse(jsonResponse)!.AsObject();
+        structured.Remove("imageBase64");
 
         return new CallToolResult
         {
@@ -26,16 +29,7 @@ internal static class ScreenshotImageResult
                 ImageContentBlock.FromBytes(Convert.FromBase64String(result.ImageBase64), result.MimeType),
                 new TextContentBlock { Text = metadata }
             ],
-            StructuredContent = JsonSerializer.SerializeToElement(new
-            {
-                Success = true,
-                result.Message,
-                result.SheetName,
-                result.RangeAddress,
-                result.Width,
-                result.Height,
-                result.MimeType
-            }, ExcelToolsBase.JsonOptions)
+            StructuredContent = JsonSerializer.SerializeToElement(structured, ExcelToolsBase.JsonOptions)
         };
     }
 }

@@ -61,10 +61,10 @@ public sealed class RangeFormatIssue585ContractCliTests
         using var document = JsonDocument.Parse(result.Stdout);
         var root = document.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.Equal(nameof(ArgumentException), root.GetProperty("exceptionType").GetString());
-        Assert.Equal("InvalidInput", root.GetProperty("errorCategory").GetString());
+        Assert.Equal(nameof(ArgumentException), root.GetProperty("error").GetProperty("exceptionType").GetString());
+        Assert.Equal("InvalidInput", root.GetProperty("error").GetProperty("category").GetString());
         Assert.Equal("rangeformat.format", root.GetProperty("command").GetString());
-        Assert.Equal("session-1", root.GetProperty("sessionId").GetString());
-        Assert.Contains("Invalid color format: not-a-color", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Equal("session-1", root.GetProperty("error").GetProperty("sessionId").GetString());
+        Assert.Contains("Invalid color format: not-a-color", root.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 }

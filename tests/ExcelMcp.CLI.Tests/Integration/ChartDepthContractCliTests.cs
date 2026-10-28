@@ -90,12 +90,9 @@ public sealed class ChartDepthContractCliTests
         using var json = JsonDocument.Parse(result.Stdout);
         var root = json.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        if (category is null)
-            Assert.False(root.TryGetProperty("errorCategory", out _));
-        else
-            Assert.Equal(category, root.GetProperty("errorCategory").GetString());
-        Assert.Equal(exception, root.GetProperty("exceptionType").GetString());
-        Assert.Equal(message, root.GetProperty("errorMessage").GetString());
-        Assert.False(root.TryGetProperty("filePath", out _));
+        Assert.Equal(category ?? "OperationFailed", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(exception, root.GetProperty("error").GetProperty("exceptionType").GetString());
+        Assert.Equal(message, root.GetProperty("error").GetProperty("message").GetString());
+        Assert.False(root.TryGetProperty("data", out _));
     }
 }

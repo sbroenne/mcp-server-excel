@@ -94,7 +94,7 @@ class SkillValueChecks(unittest.TestCase):
                          result="Written", completion_received=True, success=True),
                 ToolCall("excel_execute", {"args": "-q batch --input commands.json"},
                          result=json.dumps({"exit_code": 0, "stdout": json.dumps({
-                             "index": 0, "command": "session.close", "success": True, "result": None,
+                             "index": 0, "command": "session.close", "success": True, "durationMs": 1,
                          })}), completion_received=True, success=True),
             ]
             result = CopilotResult(turns=[Turn("assistant", "", calls)])
@@ -108,8 +108,9 @@ class SkillValueChecks(unittest.TestCase):
         calls = [
             ToolCall("excel_execute", {"args": "batch --commands '[]'"},
                      result=json.dumps({"exit_code": 1, "stdout": json.dumps({
-                         "success": False, "exceptionType": "CommandParseException",
-                         "error": "Unknown option 'commands'.",
+                         "command": "batch", "success": False, "durationMs": 1,
+                         "error": {"category": "InvalidInput", "exceptionType": "CommandParseException",
+                                   "message": "Unknown option 'commands'."},
                      })}), completion_received=True, success=True),
             ToolCall("excel_execute", {"args": "session close --session owned --save"},
                      result='{"exit_code":0,"stdout":"{\\"success\\":true}"}',
@@ -128,7 +129,9 @@ class SkillValueChecks(unittest.TestCase):
             ToolCall("excel_execute", {"args": "batch --input commands.json"},
                      result=json.dumps({"exit_code": 1, "stdout": json.dumps({
                          "index": 0, "command": command["command"], "success": False,
-                         "exceptionType": "CommandParseException",
+                         "durationMs": 1,
+                         "error": {"category": "InvalidInput", "exceptionType": "CommandParseException",
+                                   "message": "Invalid values."},
                      })}), completion_received=True, success=True),
         ]
         result = CopilotResult(turns=[Turn("assistant", "", calls)])
@@ -144,7 +147,9 @@ class SkillValueChecks(unittest.TestCase):
             call = ToolCall(
                 "excel_execute", {"args": "batch --commands '[]'"},
                 result=json.dumps({"exit_code": code, "stdout": json.dumps({
-                    "success": False, "exceptionType": "CommandParseException",
+                    "command": "batch", "success": False, "durationMs": 1,
+                    "error": {"category": "InvalidInput", "exceptionType": "CommandParseException",
+                              "message": "Unknown option 'commands'."},
                 })}), completion_received=True, success=True,
             )
             with self.subTest(code=code), self.assertRaises(AssertionError):

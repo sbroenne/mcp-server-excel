@@ -20,7 +20,7 @@ public sealed class CliWorkbookSessionFixture : IAsyncLifetime
         Assert.True(
             result.ExitCode == 0,
             $"CLI class session creation failed: {result.Stdout}{result.Stderr}");
-        SessionId = json.RootElement.GetProperty("sessionId").GetString() ?? string.Empty;
+        SessionId = json.RootElement.GetProperty("data").GetProperty("sessionId").GetString() ?? string.Empty;
         Assert.False(string.IsNullOrWhiteSpace(SessionId));
     }
 

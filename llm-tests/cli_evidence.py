@@ -50,7 +50,8 @@ def batch_steps(result: CopilotResult, call: ToolCall) -> list[dict[str, Any]]:
     if type(exit_code) is int and exit_code != 0 and len(lines) == 1:
         failure = json.loads(lines[0])
         if (isinstance(failure, dict) and failure.get("success") is False
-                and failure.get("exceptionType") == "CommandParseException"
+                and isinstance(failure.get("error"), dict)
+                and failure["error"].get("exceptionType") == "CommandParseException"
                 and "index" not in failure and "commandIndex" not in failure):
             return []
     input_path = None

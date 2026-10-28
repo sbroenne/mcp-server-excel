@@ -44,7 +44,7 @@ public sealed class DocumentInspectorContractCliTests
         else
             Assert.Null(captured.Args);
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.Equal("One finding", output.RootElement.GetProperty("inspectors")[0].GetProperty("results").GetString());
+        Assert.Equal("One finding", output.RootElement.GetProperty("data").GetProperty("inspectors")[0].GetProperty("results").GetString());
     }
 
     [Theory]
@@ -78,6 +78,6 @@ public sealed class DocumentInspectorContractCliTests
         Assert.NotEqual(0, result.ExitCode);
         using var output = JsonDocument.Parse(result.Stdout);
         Assert.False(output.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Native error", output.RootElement.GetProperty("inspectors")[0].GetProperty("results").GetString());
+        Assert.Equal("Native error", output.RootElement.GetProperty("data").GetProperty("inspectors")[0].GetProperty("results").GetString());
     }
 }

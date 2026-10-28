@@ -26,8 +26,10 @@ public sealed class WorkbookOverviewResult : ResultBase
 public sealed class WorkbookOverviewSheetSection
 {
     /// <summary>Number of worksheets in the selected scope.</summary>
+    [ResultContext]
     public int Count { get; set; }
     /// <summary>Number of worksheets not returned due to maxItems.</summary>
+    [ResultContext]
     public int OmittedCount { get; set; }
     /// <summary>Returned worksheets in workbook order.</summary>
     public List<WorkbookOverviewSheet> Items { get; set; } = [];
@@ -52,8 +54,10 @@ public sealed class WorkbookOverviewSheet
 public sealed class WorkbookOverviewTableSection
 {
     /// <summary>Number of tables in the selected scope.</summary>
+    [ResultContext]
     public int Count { get; set; }
     /// <summary>Number of tables not returned due to maxItems.</summary>
+    [ResultContext]
     public int OmittedCount { get; set; }
     /// <summary>Returned tables in workbook order.</summary>
     public List<WorkbookOverviewTable> Items { get; set; } = [];
@@ -74,8 +78,10 @@ public sealed class WorkbookOverviewTable
 public sealed class WorkbookOverviewNameSection
 {
     /// <summary>Number of visible user-defined names.</summary>
+    [ResultContext]
     public int Count { get; set; }
     /// <summary>Number of names not returned due to maxItems.</summary>
+    [ResultContext]
     public int OmittedCount { get; set; }
     /// <summary>Returned names in Excel order.</summary>
     public List<WorkbookOverviewName> Items { get; set; } = [];
@@ -94,20 +100,28 @@ public sealed class WorkbookOverviewName
 public sealed class WorkbookOverviewPreview
 {
     /// <summary>Worksheet containing the preview.</summary>
+    [ResultContext]
     public string SheetName { get; set; } = string.Empty;
     /// <summary>Actual range read by Excel.</summary>
+    [ResultContext]
     public string RangeAddress { get; set; } = string.Empty;
     /// <summary>Rows returned.</summary>
+    [ResultContext]
     public int RowCount { get; set; }
     /// <summary>Columns returned.</summary>
+    [ResultContext]
     public int ColumnCount { get; set; }
     /// <summary>Rows in the requested scope that were not read.</summary>
+    [ResultContext]
     public int OmittedRowCount { get; set; }
     /// <summary>Columns in the requested scope that were not read.</summary>
+    [ResultContext]
     public int OmittedColumnCount { get; set; }
     /// <summary>Text characters returned across values and formulas.</summary>
+    [ResultContext]
     public int TextCharactersReturned { get; set; }
     /// <summary>Number of text cells shortened by the per-cell or total character limit.</summary>
+    [ResultContext]
     public int TruncatedTextCellCount { get; set; }
     /// <summary>Cell values as a row-major matrix.</summary>
     public List<List<object?>> Values { get; set; } = [];

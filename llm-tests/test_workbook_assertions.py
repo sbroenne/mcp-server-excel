@@ -34,8 +34,10 @@ class SavedWorkbookChecks(unittest.TestCase):
             capture_output=True, text=True, encoding="utf-8", timeout=180, check=True,
         )
         data = json.loads(result.stdout)
-        self.assertIsNot(data.get("success"), False, data)
-        return data
+        self.assertIs(data["success"], True, data)
+        business_data = data.get("data", {})
+        self.assertIsInstance(business_data, dict, data)
+        return business_data
 
     def _command(self, group, action, *args):
         return self._cli(group, action, "--session", self.session, *args)
@@ -102,7 +104,8 @@ class SavedWorkbookChecks(unittest.TestCase):
     def test_documented_batch_saves_only_a_complete_job(self):
         guide = self.exe.parents[5] / "docs" / "reference" / "workflows.md"
         content = guide.read_text(encoding="utf-8")
-        recipe = content.split("```cli\n", 1)[1].split("\n```", 1)[0]
+        batch_section = content.split("### Running a batch job\n", 1)[1].split("\n### ", 1)[0]
+        recipe = batch_section.split("```cli\n", 1)[1].split("\n```", 1)[0]
         environment = {**self.env, "PATH": f"{self.exe.parent}{os.pathsep}{self.env['PATH']}"}
         script = Path(self.directory.name) / "batch-example.ps1"
         script.write_text("param([string]$path)\n" + recipe, encoding="utf-8")

@@ -51,6 +51,7 @@ public sealed class CellStyleResult : ResultBase
     /// <summary>Native definition and inclusion flags.</summary>
     public required CellStyleDefinition Style { get; init; }
     /// <summary>Native inspection limits; no unsupported state is invented.</summary>
+    [ResultContext]
     public List<string> ReadLimitations { get; init; } =
         ["Cell styles have no column-width/row-height settings or inside borders. Excel does not expose Style.MergeCells for inspection."];
 }

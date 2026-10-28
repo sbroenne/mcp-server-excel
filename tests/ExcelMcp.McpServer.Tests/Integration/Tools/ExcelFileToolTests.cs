@@ -34,8 +34,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
         Assert.Contains("Directory does not exist", errorMsg.GetString());
-        Assert.True(json.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
+        Assert.False(json.TryGetProperty("isError", out _));
     }
 
     [Fact]
@@ -52,8 +51,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
         Assert.Contains("not an absolute Windows path", errorMsg.GetString());
-        Assert.True(json.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
+        Assert.False(json.TryGetProperty("isError", out _));
     }
 
     [Fact]
