@@ -31,7 +31,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Adds hyperlink to a single cell.
-    /// Excel COM: Worksheet.Hyperlinks.Add()
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'A1')</param>
@@ -71,7 +70,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Removes hyperlink from a single cell or all hyperlinks from a range.
-    /// Excel COM: Range.Hyperlinks.Delete()
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address to remove hyperlinks from (e.g., 'A1:D10')</param>
@@ -80,7 +78,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Lists all hyperlinks in a worksheet.
-    /// Excel COM: Worksheet.Hyperlinks collection
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("list-hyperlinks")]
@@ -88,7 +85,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Gets hyperlink from a specific cell.
-    /// Excel COM: Range.Hyperlink
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'A1')</param>
@@ -99,7 +95,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Adds a top-level threaded comment to one cell.
-    /// Excel COM: Range.AddCommentThreaded().
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet containing the cell</param>
@@ -114,7 +109,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Lists a cell's top-level threaded comment and its replies.
-    /// Excel COM: Range.CommentThreaded and CommentThreaded.Replies.
     /// </summary>
     [ServiceAction("list-threaded-comments")]
     ThreadedCommentsResult ListThreadedComments(
@@ -124,7 +118,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Adds a reply to a cell's existing threaded comment.
-    /// Excel COM: CommentThreaded.AddReply().
     /// </summary>
     [ServiceAction("add-threaded-comment-reply")]
     OperationResult AddThreadedCommentReply(
@@ -135,7 +128,6 @@ public interface IRangeLinkCommands
 
     /// <summary>
     /// Deletes a cell's threaded comment and all replies.
-    /// Excel COM: CommentThreaded.Delete().
     /// </summary>
     [ServiceAction("delete-threaded-comment")]
     OperationResult DeleteThreadedComment(

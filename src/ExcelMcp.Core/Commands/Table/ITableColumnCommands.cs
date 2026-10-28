@@ -123,7 +123,6 @@ public interface ITableColumnCommands
 
     /// <summary>
     /// Gets number formats for a table column
-    /// Delegates to RangeCommands.GetNumberFormatsAsync() on column range
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Table name</param>
@@ -133,7 +132,6 @@ public interface ITableColumnCommands
 
     /// <summary>
     /// Sets uniform number format for entire table column
-    /// Delegates to RangeCommands.SetNumberFormatAsync() on column data range (excludes header)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Name of the Excel table</param>

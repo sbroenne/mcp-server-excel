@@ -26,14 +26,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("RangeEdit")]
 [McpTool("range_edit", Title = "Range Edit Operations", Destructive = true, Category = "data",
-    Description = "Insert/delete cells, rows, or columns; replace text; sort and clean data. " +
-        "remove-duplicates retains first records using explicit key_columns relative to the selected rectangle and has_headers, with exact blank-aware counts. Removed rows are cleared inside the selection, not shifted from below. " +
-        "text-to-columns parses one source column using native delimited/fixed-width options. destination_cell is one same-sheet anchor. Preflight protects the complete output including empty fields; source cells may be replaced in place, other occupied cells require overwrite_policy='allow'. Nested options use camelCase. " +
-        "FILTERS: apply-filter uses filter_options for native comparisons, AND/OR, values, date groups, top/bottom, colors, icons, and dynamic criteria; column_index is relative to an ordinary header-plus-data rectangle. Use table_column for tables. An active advanced row filter must be explicitly cleared before apply-filter; do not retry or clear it without authorization. clear-filters preserves dropdowns and unrelated AutoFilters; clear_advanced explicitly authorizes worksheet-wide advanced row-filter clearing when original criteria/scope cannot be read. " +
-        "advanced-filter uses criteria_range for InPlace or Copy mode, optionally unique_only. Copy preflight conservatively protects the full maximum output extent and returns checkedDestinationRange, not an actual result count. " +
-        "fill copies the source edge's contents and formatting through an unmerged rectangle. auto-fill uses native Excel patterns; destination_range includes source_range and extends it in exactly one direction on the same worksheet. create-series uses native DataSeries with step_value and optional stop_value; orientation selects rows or columns. " +
-        "Fill/series content destinations default to overwrite_policy='reject-nonempty', excluding source edges; formats-only AutoFill preserves content. Trend fitting can replace source values and requires allow. Stop-value preflight conservatively protects the entire selected extent. Never automatically retry with allow. Excel protection still applies. " +
-        "Cell movement uses insertShift (Down/Right) or deleteShift (Up/Left). Rows use a range like 5:10; columns use B:D. Replace modifies all matches by default (replace_options.replaceAll=true). Sort uses sortColumns, an array of {columnIndex, ascending}; indices are 1-based relative to the range.")]
+    Description = "Insert/delete cells, rows, or columns; replace text; sort, filter, fill, and clean data. Rows use a range like 5:10; columns use B:D. Nested options use camelCase. " +
+        "remove-duplicates keeps the first record by key_columns (relative to the selection) and has_headers; removed rows are cleared inside the selection, not shifted up from below. text-to-columns splits one source column into one same-sheet destination_cell anchor. " +
+        "FILTERS: apply-filter uses filter_options; column_index is relative to a header-plus-data rectangle. Use table_column for tables. An active advanced row filter must be explicitly cleared before apply-filter; do not retry or clear it without authorization. clear-filters keeps dropdowns and unrelated AutoFilters; clear_advanced authorizes clearing a worksheet-wide advanced row filter whose criteria cannot be read. advanced-filter uses criteria_range in InPlace or Copy mode, optionally unique_only. " +
+        "FILL: fill copies the source edge through an unmerged rectangle. auto-fill uses Excel patterns; destination_range includes source_range and extends it in exactly one direction. create-series uses step_value and optional stop_value. " +
+        "OVERWRITE POLICY: text-to-columns, advanced-filter Copy, fill, auto-fill, and create-series reject occupied output cells (source cells excluded) unless overwrite_policy='allow'; formats-only auto-fill keeps content. Trend fitting can replace source values and requires allow. Never automatically retry with allow.")]
 [McpReadOnlyActions("get-filters", "find")]
 public interface IRangeEditCommands
 {
@@ -167,7 +164,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Inserts blank cells, shifting existing cells down or right.
-    /// Excel COM: Range.Insert(shift)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -182,7 +178,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Deletes cells, shifting remaining cells up or left.
-    /// Excel COM: Range.Delete(shift)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -197,7 +192,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Inserts entire rows above the range.
-    /// Excel COM: Range.EntireRow.Insert()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -207,7 +201,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Deletes entire rows in the range.
-    /// Excel COM: Range.EntireRow.Delete()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -217,7 +210,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Inserts entire columns to the left of the range.
-    /// Excel COM: Range.EntireColumn.Insert()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -227,7 +219,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Deletes entire columns in the range.
-    /// Excel COM: Range.EntireColumn.Delete()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -241,7 +232,7 @@ public interface IRangeEditCommands
     /// Counts all matching cells and returns up to maxMatches cell details.
     /// Find returns exact totalCount, returnedCount, and truncated with optional case/cell matching.
     /// maxMatches (default: 10) bounds returned cell details, not search time.
-    /// Excel COM: Range.Find()/FindNext(). Exact counting traverses every match.
+    /// Exact counting traverses every match.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -254,7 +245,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Replaces text/values in range.
-    /// Excel COM: Range.Replace()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -269,7 +259,6 @@ public interface IRangeEditCommands
 
     /// <summary>
     /// Sorts range by one or more columns.
-    /// Excel COM: Range.Sort()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>

@@ -442,6 +442,19 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task ToolDescriptions_OmitDocumentationIndentationAndImplementationNotes()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+
+        foreach (var tool in tools)
+        {
+            var description = tool.Description ?? string.Empty;
+            Assert.False(description.Contains("  ", StringComparison.Ordinal), $"{tool.Name} description contains repeated spaces.");
+            Assert.False(description.Contains("Excel COM:", StringComparison.Ordinal), $"{tool.Name} description contains an implementation note.");
+        }
+    }
+
+    [Fact]
     public async Task FileList_ReturnsMatchingStructuredContent()
     {
         var result = await Client!.CallToolAsync("file_read", new Dictionary<string, object?>
