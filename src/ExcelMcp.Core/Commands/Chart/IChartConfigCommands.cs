@@ -107,7 +107,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Adds a data series to Regular Charts.
-    /// PivotCharts: Throws exception guiding to pivottable_field add-value-field.
+    /// PivotCharts: Throws exception guiding to pivottable_field add-value-field (CLI: pivottablefield add-value-field).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -124,7 +124,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Removes a data series from Regular Charts.
-    /// PivotCharts: Throws exception guiding to pivottable_field remove-field.
+    /// PivotCharts: Throws exception guiding to pivottable_field remove-field (CLI: pivottablefield remove-field).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -216,7 +216,7 @@ public interface IChartConfigCommands
         LegendPosition? legendPosition = null);
 
     /// <summary>
-    /// Applies a built-in chart style (1-48). Parameter: style_id (integer).
+    /// Applies a built-in chart style (1-48). Parameter: style_id (CLI: --style-id), integer.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
