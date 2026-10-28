@@ -83,9 +83,7 @@ def build_model(excel):
     existing = excel.call("sheet.list")
     print("Initial sheets:", json.dumps(existing)[:600], flush=True)
     # A new workbook starts with Sheet1 in this installation; discover its actual name.
-    payload = existing.get("result", existing)
-    if isinstance(payload, str):
-        payload = json.loads(payload)
+    payload = existing["data"]
     first = payload["worksheets"][0]["name"]
     excel.batch([cmd("sheet.rename", oldName=first, newName=sheets[0])] +
                 [cmd("sheet.create", sheetName=name) for name in sheets[1:]])
@@ -240,7 +238,7 @@ def chart_style(excel, name, title, value_format=None, colors=COLORS):
     if value_format:
         commands.append(cmd("chartconfig.set-axis-number-format", chartName=name, axis="Value", numberFormat=value_format))
     excel.batch(commands)
-    info = excel.call("chart.read", chartName=name)["result"]
+    info = excel.call("chart.read", chartName=name)["data"]
     count = len(info.get("series", []))
     if not count:
         print("Chart result:", json.dumps(info)[:1000], flush=True)
@@ -421,7 +419,7 @@ def polish(excel):
 
 
 def configure_sources(excel):
-    sheets = {sheet["name"] for sheet in excel.call("sheet.list")["result"]["worksheets"]}
+    sheets = {sheet["name"] for sheet in excel.call("sheet.list")["data"]["worksheets"]}
     if "Indicator Notes" not in sheets:
         excel.call("sheet.create", sheetName="Indicator Notes")
         excel.batch(table_commands("Indicator Notes", "IndicatorNotes", read_data("indicators.csv")) + [
@@ -436,7 +434,7 @@ def configure_sources(excel):
         cmd("workbook.set-document-property", propertyName="Subject",
             value="25 selected countries; World Bank WDI; CC BY 4.0", scope="built-in"),
     ])
-    existing = {query["name"] for query in excel.call("powerquery.list")["result"]["queries"]}
+    existing = {query["name"] for query in excel.call("powerquery.list")["data"]["queries"]}
     for name, filename in [("EmbeddedSnapshot", "snapshot_source.m"), ("WorldBankLive", "world_bank_source.m")]:
         query = (ROOT / filename).read_text(encoding="utf-8")
         if name in existing:
@@ -492,7 +490,7 @@ def redesign_overview(excel):
             for baseline, current_column in [("G", "B"), ("H", "D"), ("I", "C")]
         ]]))
     excel.batch(operations)
-    tables = excel.call("table.list")["result"]["tables"]
+    tables = excel.call("table.list")["data"]["tables"]
     if not any(table["name"] == "OverviewData" for table in tables):
         excel.call("table.create", sheetName="Chart Data", tableName="OverviewData",
                    rangeAddress="A1:L26", tableStyle="TableStyleMedium2")

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;
-using StreamJsonRpc;
+using Sbroenne.ExcelMcp.Service.Rpc;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -39,7 +39,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("datamodel.refresh", json.RootElement.GetProperty("command").GetString());
 
-        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
+        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("data").GetProperty("argsJson").GetString()!);
         Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 
@@ -62,10 +62,9 @@ public sealed class DataModelRefreshTimeoutRegressionTests
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.True(json.RootElement.GetProperty("isError").GetBoolean());
-        var error = json.RootElement.GetProperty("errorMessage").GetString();
+        var error = json.RootElement.GetProperty("error").GetProperty("message").GetString();
         Assert.Contains("00:10:00", error, StringComparison.Ordinal);
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]
@@ -90,61 +89,40 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("powerquery.refresh", json.RootElement.GetProperty("command").GetString());
 
-        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
+        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("data").GetProperty("argsJson").GetString()!);
         Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 
     private sealed class EchoDaemon : IAsyncDisposable
     {
         private readonly string _pipeName;
-        private readonly CancellationTokenSource _shutdown = new();
-        private readonly TaskCompletionSource _listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly DaemonHost _work;
+        private readonly DaemonHost _control;
         private readonly Task _runTask;
 
         public EchoDaemon(string pipeName)
         {
             _pipeName = pipeName;
-            _runTask = RunAsync();
+            var target = new EchoRpcTarget();
+            _work = new DaemonHost(target.ProcessCommandAsync);
+            _control = new DaemonHost(target.ProcessCommandAsync);
+            _runTask = Task.WhenAll(_work.RunAsync(pipeName),
+                _control.RunAsync(ServiceClient.GetControlPipeName(pipeName)));
         }
 
-        public Task StartAsync() => _listening.Task;
+        public async Task StartAsync()
+        {
+            using var client = new ServiceClient(_pipeName, useControlEndpoint: true);
+            Assert.True(await client.PingAsync(), "The test controller did not become ready.");
+        }
 
         public async ValueTask DisposeAsync()
         {
-            _shutdown.Cancel();
-
-            try
-            {
-                await _runTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-
-            _shutdown.Dispose();
-        }
-
-        private async Task RunAsync()
-        {
-            _listening.TrySetResult();
-
-            while (!_shutdown.IsCancellationRequested)
-            {
-                using var server = ServiceSecurity.CreateSecureServer(_pipeName);
-                await server.WaitForConnectionAsync(_shutdown.Token);
-
-                var target = new EchoRpcTarget();
-                using var rpc = JsonRpc.Attach(server, target);
-
-                try
-                {
-                    await rpc.Completion.WaitAsync(_shutdown.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
+            _work.RequestShutdown();
+            _control.RequestShutdown();
+            await _runTask.WaitAsync(TimeSpan.FromSeconds(5));
+            _work.Dispose();
+            _control.Dispose();
         }
     }
 

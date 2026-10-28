@@ -109,8 +109,10 @@ public sealed class ChartErrorBarsResult : OperationResult
     /// <summary>Native error-bar presence.</summary>
     public bool HasErrorBars { get; set; }
     /// <summary>False: Excel exposes no getters for calculation kind, direction, include, amount or custom range references.</summary>
+    [ResultContext]
     public bool SettingsReadable { get; set; }
     /// <summary>Explicit native read limitation, not cached request settings.</summary>
+    [ResultContext]
     public string ReadLimitations { get; set; } = "Excel COM does not expose error-bar kind, direction, include, amount or custom source getters.";
     /// <summary>Native end-cap setting when bars exist.</summary>
     public ChartErrorBarEndStyle? EndStyle { get; set; }
@@ -145,26 +147,34 @@ public sealed class ChartPointFormatResult : OperationResult
     /// <summary>Native fill color.</summary>
     public string? FillColor { get; set; }
     /// <summary>Whether Excel exposes an explicit RGB fill/marker background color.</summary>
+    [ResultContext]
     public bool FillColorAvailable { get; set; }
     /// <summary>Explicit automatic/mixed native color limitation.</summary>
+    [ResultContext]
     public string? FillColorReadError { get; set; }
     /// <summary>Native fill transparency when Excel returns a valid zero-to-one value.</summary>
     public double? FillTransparency { get; set; }
     /// <summary>Whether Excel exposes a valid point-transparency getter.</summary>
+    [ResultContext]
     public bool FillTransparencyAvailable { get; set; }
     /// <summary>Explicit native getter limitation when transparency cannot be inspected.</summary>
+    [ResultContext]
     public string? FillTransparencyReadError { get; set; }
     /// <summary>Native line color.</summary>
     public string? LineColor { get; set; }
     /// <summary>Whether Excel exposes an explicit RGB line/marker foreground color.</summary>
+    [ResultContext]
     public bool LineColorAvailable { get; set; }
     /// <summary>Explicit automatic/mixed native color limitation.</summary>
+    [ResultContext]
     public string? LineColorReadError { get; set; }
     /// <summary>Native line weight.</summary>
     public double? LineWeight { get; set; }
     /// <summary>Whether this point exposes a supported outline-weight getter.</summary>
+    [ResultContext]
     public bool LineWeightAvailable { get; set; }
     /// <summary>Whether this series has supported native marker getters.</summary>
+    [ResultContext]
     public bool MarkersSupported { get; set; }
     /// <summary>Native marker style when supported.</summary>
     public MarkerStyle? MarkerStyle { get; set; }

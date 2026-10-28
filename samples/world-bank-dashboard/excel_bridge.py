@@ -30,12 +30,12 @@ class Excel:
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             raise FileExistsError(f"Refusing to overwrite {path}")
-        self.session = self.invoke("session", "create", path, "--timeout-seconds", "600", "--show")["sessionId"]
+        self.session = self.invoke("session", "create", path, "--timeout-seconds", "600", "--show")["data"]["sessionId"]
         return self.session
 
     def open(self, path, show=False):
         options = ["--show"] if show else []
-        self.session = self.invoke("session", "open", Path(path).resolve(), "--timeout-seconds", "600", *options)["sessionId"]
+        self.session = self.invoke("session", "open", Path(path).resolve(), "--timeout-seconds", "600", *options)["data"]["sessionId"]
         return self.session
 
     def batch(self, commands):
@@ -61,7 +61,7 @@ class Excel:
         return self.batch([{"command": command, "args": args}])[0]
 
     def close(self, save):
-        sessions = self.invoke("session", "list")["sessions"]
+        sessions = self.invoke("session", "list")["data"]["sessions"]
         owned = next((row for row in sessions if row["sessionId"] == self.session), None)
         if not owned or not owned["canClose"]:
             raise RuntimeError(f"Session {self.session} missing or busy; do not force cleanup")

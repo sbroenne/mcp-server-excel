@@ -191,12 +191,14 @@ public partial class RangeCommands
 public sealed class RangeFilterResult : OperationResult
 {
     /// <summary>Absolute selected range, including its header.</summary>
+    [ResultContext]
     public string RangeAddress { get; set; } = string.Empty;
     /// <summary>Whether a native AutoFilter exists on this exact range.</summary>
     public bool FilterEnabled { get; set; }
     /// <summary>Native worksheet row-filter context, including advanced filters.</summary>
     public bool WorksheetFilterMode { get; set; }
     /// <summary>False when advanced row filtering exists but Excel does not expose its original criteria.</summary>
+    [ResultContext]
     public bool AdvancedCriteriaAvailable { get; set; }
     /// <summary>Whether any column filter is active.</summary>
     public bool HasActiveFilters { get; set; }

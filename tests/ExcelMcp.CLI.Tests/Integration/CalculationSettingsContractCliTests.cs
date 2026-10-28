@@ -115,9 +115,9 @@ public sealed class CalculationSettingsContractCliTests
         Assert.Equal("calculationmode.calculate", captured.Command);
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("InvalidInput", json.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal(nameof(ArgumentException), json.RootElement.GetProperty("exceptionType").GetString());
-        Assert.Contains(parameter, json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Equal("InvalidInput", json.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(nameof(ArgumentException), json.RootElement.GetProperty("error").GetProperty("exceptionType").GetString());
+        Assert.Contains(parameter, json.RootElement.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Theory]

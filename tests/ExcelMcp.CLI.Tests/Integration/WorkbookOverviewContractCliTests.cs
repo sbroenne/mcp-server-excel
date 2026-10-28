@@ -58,7 +58,7 @@ public sealed class WorkbookOverviewContractCliTests
         Assert.Equal(20, args.GetProperty("maxCellCharacters").GetInt32());
         Assert.Equal(123, args.GetProperty("maxPreviewCharacters").GetInt32());
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.Equal("$A$1:$D$3", output.RootElement.GetProperty("preview")
+        Assert.Equal("$A$1:$D$3", output.RootElement.GetProperty("data").GetProperty("preview")
             .GetProperty("rangeAddress").GetString());
     }
 }

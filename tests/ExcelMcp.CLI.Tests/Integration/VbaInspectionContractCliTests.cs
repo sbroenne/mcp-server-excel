@@ -44,8 +44,8 @@ public sealed class VbaInspectionContractCliTests
         Assert.True(args.RootElement.GetProperty("matchCase").GetBoolean());
         Assert.Equal(1, args.RootElement.GetProperty("maxMatches").GetInt32());
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.True(output.RootElement.GetProperty("hasMore").GetBoolean());
-        var match = Assert.Single(output.RootElement.GetProperty("matches").EnumerateArray());
+        Assert.True(output.RootElement.GetProperty("data").GetProperty("hasMore").GetBoolean());
+        var match = Assert.Single(output.RootElement.GetProperty("data").GetProperty("matches").EnumerateArray());
         Assert.Equal("Module1", match.GetProperty("moduleName").GetString());
         Assert.Equal(4, match.GetProperty("line").GetInt32());
         Assert.Equal(12, match.GetProperty("column").GetInt32());

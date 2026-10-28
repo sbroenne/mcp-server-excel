@@ -72,8 +72,10 @@ class ConsentWorkbook:
             capture_output=True, text=True, encoding="utf-8", timeout=180, check=True,
         )
         result = json.loads(executed.stdout)
-        assert result.get("success") is not False, result
-        return result
+        assert result["success"] is True, result
+        data = result.get("data", {})
+        assert isinstance(data, dict), result
+        return data
 
     def close_owned_sessions(self) -> None:
         for session in self.cli("session", "list")["sessions"]:

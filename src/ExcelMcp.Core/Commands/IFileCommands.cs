@@ -8,12 +8,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public interface IFileCommands
 {
     /// <summary>
-    /// Tests file existence, Excel extension validity (.xlsx, .xlsm, .xlsb, .xls), file access, and deterministic
-    /// IRM/AIP visible-session requirements before Service open validation.
+    /// Checks local file details and reports IRM/AIP protection before a read-only Excel open.
     /// Excel determines editing permissions after authentication.
-    /// Direct SharePoint HTTPS URLs report a visible-authentication requirement without a local file probe.
+    /// URLs report unavailable local file details without opening Excel.
     /// </summary>
-    /// <param name="filePath">Absolute Windows path or direct SharePoint/OneDrive for Business HTTPS workbook URL</param>
+    /// <param name="filePath">Absolute Windows path or URL</param>
     /// <returns>Canonical file metadata shared by CLI and MCP</returns>
     FileValidationInfo Test(string filePath);
 }

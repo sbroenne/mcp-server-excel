@@ -50,8 +50,8 @@ copilot plugin install excel-mcp@awesome-copilot
 copilot plugin install excel-cli@awesome-copilot
 ```
 
-Close open Excel workbooks before starting; ExcelMcp requires exclusive access
-while automating them.
+For a workbook already open in Excel, use discovery and attachment to keep
+working in that workbook. Excel determines whether newly opened files are read-only.
 
 ## What You Can Automate
 
@@ -93,8 +93,9 @@ technical. Coding agents can use either one.
 | **MCP Server** | Any MCP-compatible client | Tool discovery and persistent sessions |
 | **CLI (`excelcli`)** | Agents that can run terminal commands | Built-in help without loading MCP tool definitions, usually with fewer AI tokens |
 
-The MCP Server calls the ExcelMcp service in-process. The CLI uses a background
-daemon so workbook sessions persist across commands.
+Both entry points run Excel commands in separate worker processes, so a blocked
+Excel operation does not block their basic controls. The CLI also keeps a
+background service running so workbook sessions persist across commands.
 
 ```text
 AI assistant or script

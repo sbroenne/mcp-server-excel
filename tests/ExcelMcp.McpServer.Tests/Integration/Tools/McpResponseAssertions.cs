@@ -23,7 +23,7 @@ internal static class McpResponseAssertions
         {
             foreach (var name in new[]
             {
-                "success", "exists", "isValid", "canOpen", "isIrmProtected",
+                "success", "isValid", "canOpen", "isIrmProtected",
                 "willOpenReadOnly", "requiresVisibleSession"
             })
             {
@@ -33,7 +33,6 @@ internal static class McpResponseAssertions
                     $"Invalid file validation field {name}: {text}");
             }
 
-            Assert.False(result.IsError == true, "File validation is an assessment, not a tool execution failure.");
             Assert.False(root.TryGetProperty("isError", out _),
                 "File validation should not include a tool failure envelope.");
         }
@@ -43,10 +42,7 @@ internal static class McpResponseAssertions
         {
             Assert.True(success.ValueKind is JsonValueKind.True or JsonValueKind.False,
                 $"Invalid success field: {text}");
-            if (!isFileValidation)
-            {
-                Assert.Equal(success.ValueKind == JsonValueKind.False, result.IsError == true);
-            }
+            Assert.Equal(success.ValueKind == JsonValueKind.False, result.IsError == true);
         }
 
         if (result.StructuredContent.HasValue)

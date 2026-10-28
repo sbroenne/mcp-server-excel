@@ -67,16 +67,19 @@ public sealed class BatchCommandTests : IDisposable
             $$$"""{"command":"powerquery.{{{action}}}","args":{"queryName":"Query","mCode":"error \"Formula.Firewall\""}}""");
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Empty(result.Stderr);
+        Assert.Equal(
+            $"Batch 1/1: powerquery.{action} started.{Environment.NewLine}" +
+            $"Batch 1/1: powerquery.{action} failed.{Environment.NewLine}",
+            result.Stderr);
         using var json = JsonDocument.Parse(result.Stdout);
         var root = json.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal(partialState.GetRawText(), root.GetProperty("partialState").GetRawText());
-        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
-        Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
-        Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
-        Assert.Equal("Original privacy error", root.GetProperty("innerError").GetString());
-        Assert.Equal("Query remains after privacy failure", root.GetProperty("errorMessage").GetString());
+        Assert.Equal("Privacy", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal("PowerQueryCommandException", root.GetProperty("error").GetProperty("exceptionType").GetString());
+        Assert.Equal("0x800A03EC", root.GetProperty("error").GetProperty("hresult").GetString());
+        Assert.Equal("Original privacy error", root.GetProperty("error").GetProperty("innerError").GetString());
+        Assert.Equal("Query remains after privacy failure", root.GetProperty("error").GetProperty("message").GetString());
     }
 
     // ============================================
@@ -111,8 +114,8 @@ public sealed class BatchCommandTests : IDisposable
         Assert.Equal(2, results[2].GetProperty("index").GetInt32());
 
         // Verify echo results
-        Assert.Equal("hello", results[1].GetProperty("result").GetProperty("message").GetString());
-        Assert.Equal("world", results[2].GetProperty("result").GetProperty("message").GetString());
+        Assert.Equal("hello", results[1].GetProperty("data").GetProperty("message").GetString());
+        Assert.Equal("world", results[2].GetProperty("data").GetProperty("message").GetString());
     }
 
     // ============================================
@@ -252,7 +255,7 @@ public sealed class BatchCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Batch_ErrorResult_HasOnlyErrorMessageField()
+    public async Task Batch_ErrorResult_HasStructuredErrorWithoutOldMessageField()
     {
         var inputFile = WriteBatchFile("""
             [
@@ -264,9 +267,9 @@ public sealed class BatchCommandTests : IDisposable
 
         Assert.Single(results);
         Assert.False(results[0].GetProperty("success").GetBoolean());
-        Assert.True(results[0].TryGetProperty("errorMessage", out var errorMessage));
+        Assert.True(results[0].GetProperty("error").TryGetProperty("message", out var errorMessage));
         Assert.False(string.IsNullOrWhiteSpace(errorMessage.GetString()));
-        Assert.False(results[0].TryGetProperty("error", out _));
+        Assert.False(results[0].TryGetProperty("errorMessage", out _));
         Assert.False(results[0].TryGetProperty("partialState", out _));
     }
 
@@ -286,7 +289,7 @@ public sealed class BatchCommandTests : IDisposable
 
         Assert.Equal(2, results.Count);
         Assert.True(results[0].GetProperty("success").GetBoolean());
-        Assert.Equal("ndjson", results[1].GetProperty("result").GetProperty("message").GetString());
+        Assert.Equal("ndjson", results[1].GetProperty("data").GetProperty("message").GetString());
     }
 
     // ============================================

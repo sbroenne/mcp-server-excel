@@ -63,7 +63,7 @@ public sealed class RangePasteContractCliTests
         Assert.Equal(skipBlanks, args.RootElement.GetProperty("skipBlanks").GetBoolean());
         using var output = JsonDocument.Parse(result.Stdout);
         Assert.Equal(transpose ? "$D$1:$F$2" : "$D$1:$E$3",
-            output.RootElement.GetProperty("destinationAddress").GetString());
+            output.RootElement.GetProperty("data").GetProperty("destinationAddress").GetString());
     }
 
     [Theory]

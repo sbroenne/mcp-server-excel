@@ -20,6 +20,46 @@ MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
 repeated process startup for a known sequence. It is not a transaction.
 Use individual commands when the next step needs inspection.
 
+The executable provides the discovery path without a skill or external guide:
+
+```cli
+excelcli.exe --help
+excelcli.exe batch --help
+excelcli.exe range set-values --help
+```
+
+Batch help includes runnable PowerShell examples, input fields, session rules,
+and result checks. Action-specific help maps its CLI flags to the exact
+batch argument names. In particular, `--sheet` maps to `sheetName`, and `--range`
+maps to `rangeAddress`; the short CLI aliases are not accepted as batch keys.
+The entry's `sessionId` stays outside `args`. Arrays and objects are supplied
+directly as JSON values, not strings containing JSON.
+
+Both `--input <file>` and stdin accept a JSON array or one command per line.
+Omitting `--input` or passing `--input -` reads stdin. For example, this
+PowerShell check needs no workbook:
+
+```cli
+@'
+[
+  {"command":"diag.ping"},
+  {"command":"diag.echo","args":{"message":"hello"}}
+]
+'@ | excelcli.exe batch --stop-on-error
+```
+
+An unrecognized space-separated command such as `diag ping` is rejected, with
+the verified dotted spelling suggested when available. It is not automatically
+corrected or executed. Invalid argument errors retain the accepted names and
+point to action help; malformed input errors point to batch help.
+
+Commands still run one at a time through the same execution path as individual
+CLI calls. Standard output contains only the JSON result lines and is flushed
+after each command. Standard error shows when each command starts, completes,
+or fails, including in quiet mode. A started line is not proof of completion.
+If a wait expires, inspect the session's eventual state rather than
+automatically repeating writes or assuming earlier changes were undone.
+
 Batch commands use the same group and action names as the CLI
 (`group.action`, for example `worksheetstyle.set-tab-color`). Arguments use
 camel-case names, not CLI flags; for example, `--timeout-seconds` becomes
@@ -27,59 +67,71 @@ camel-case names, not CLI flags; for example, `--timeout-seconds` becomes
 flag, the exit status, and expected command count. Use `--stop-on-error`;
 otherwise errors do not stop later commands. Keep save/close outside the batch.
 
-### Identifying batch results
+### Reading results and choosing fields
 
-Both JSON-array input and one-command-per-line input return one JSON object per
-output line. Each per-command object includes `commandSummary` alongside the
-existing `index`, `command`, `success`, result, and error fields. For repeated
-commands, summaries can distinguish their targets without repeating all input:
+Individual CLI operations and batch items use the same JSON object:
 
-```text
-range.set-values: Sales!A2:D21 (20 rows x 4 columns)
-range.set-values: Forecast!B5:C8 (4 rows x 2 columns)
-powerquery.refresh: queryName=SalesImport
-chart.read: chartName=RevenueChart
-diag.ping
+```json
+{"command":"range.get-values","success":true,"durationMs":12,"data":{"sheetName":"Sales","rangeAddress":"$A$1:$B$1","rowCount":1,"columnCount":2,"values":[[false,0]],"cellErrors":[]}}
 ```
 
-Summaries always start with the command and use only these top-level input
-details, in this fixed order:
+Batch items add a zero-based `index` that matches the original input. There is
+no `commandSummary` or nested `result` wrapper. Business fields are under
+`data`; an operation without returned data can omit it. Read `success` and the
+process exit code: delivery alone does not establish that the operation worked.
+Failures exit nonzero and put the explanation under `error.message`, with
+`error.category`, the original cause and session details when available.
+Warnings and `partialState` are outside `data` and cannot be hidden by choosing
+fields. Cancellation does not undo earlier changes.
 
-| Input details | Summary |
-|---|---|
-| `sheetName`, `rangeAddress` | `Sales!A1:B2`; sheet names with spaces or punctuation are quoted |
-| `sourceSheet`, `sourceRange` | `source=Sales!A1:B2` |
-| `targetSheet`, `targetRange` | `target=Archive!C1:D2` |
-| `tableName`, `queryName`, `pivotTableName`, `chartName` | Each supplied name as `key=value` |
-| `oldName`, `newName` | Worksheet rename targets as `oldName=Before, newName=After` |
-| `values` for `range.set-values`, `formulas` for `range.set-formulas` | Row/column counts for a nonempty rectangular inline array; never the cells themselves |
+`durationMs` measures the operation through its returned outcome, including
+validation and, for individual commands, connection/startup. It excludes writing
+the output. Batch timing excludes shared startup and earlier items. A feature's
+own `data.durationMs` remains separate because it can measure different work.
 
-When only a sheet or range is supplied, it appears as `key=value`. An empty
-sheet name is not replaced with a guessed active sheet. Unsupported details,
-empty strings, wrong-type details, and text that cannot be decoded are omitted;
-normal command validation still applies. With no supported details, the summary
-is just the command.
-File-based writes show available target details but do not read files to
-calculate dimensions.
+Every list/read operation accepts CLI `--fields` with comma-separated,
+case-sensitive business paths. Action-specific `--help` lists the generated
+paths. MCP uses a `fields` array; batch input uses `args.fields`:
 
-Each summary is at most 160 characters, including a trailing `...` if shortened.
-Whitespace, control characters, and invisible formatting controls are replaced
-with spaces; shortening keeps Unicode characters intact. Summaries are
-display text, not unique identifiers or executable commands. Use `index` to
-match a result to its original input.
+```cli
+excelcli powerquery list --session $sessionId --fields queries.name,queries.loadMode
+```
 
-The same summary rules apply to successful entries, validation errors, command
-errors, and communication errors returned as per-command results.
-`--stop-on-error` still stops after the first failed entry. A summary describes
-the requested operation, not confirmation of completion or actual workbook
-state. Batch-wide errors without per-command results remain unchanged.
+```json
+{"command":"powerquery.list","sessionId":"SESSION_ID","args":{"fields":["queries.name","queries.loadMode"]}}
+```
 
-Cell contents, formula text, VBA/M code, credentials, connection strings, free-form
-messages, nested arguments, and file-path arguments are not copied into summaries.
-Selected target names remain visible to the requesting user; summaries do not
-scan or redact those names for secrets and are not safe to publish automatically.
-Summaries are not sent to usage reporting. This field is CLI-only because MCP
-has no batch tool.
+MCP example: `powerquery_read` with `action:"list"`,
+`workbook_session_id:"SESSION_ID"`, and `fields:["queries.name","queries.loadMode"]`.
+MCP keeps its existing business-object result rather than the CLI outer object;
+its actual tool error flag reports failures, and text and structured results
+agree.
+
+Choosing a parent path keeps the whole object. Choosing nested fields keeps
+every array position in its original order, including empty arrays. Warnings,
+cell errors, skipped reasons, partial results, inspection limits, dimensions,
+and continuation details remain visible. Exact cell reads never shorten a
+requested grid. Invalid paths are rejected before contacting Excel, even when
+the result would be empty.
+
+For a scalar read, such as a chart axis number-format string, the accepted
+path is `result`; it keeps the complete value under CLI `data` or MCP `result`.
+
+Screenshot selection does not change the capture. MCP still returns the native
+image with its actual format and captured bounds; CLI `--output` still writes
+the complete image. Capture limits and warnings remain visible.
+
+Without `fields`, reads return full business data, except `powerquery.list`
+omits formula previews. Select `queries.formulaPreview` to include its existing
+80-character preview, or use `powerquery.view` for full M code. Use existing
+bounded reads such as `workbook.inspect` and existing paging options when less
+data is needed. Choosing fields changes output only; it does not skip checks or
+promise faster Excel work.
+
+Operation output is JSON even without `--quiet` or redirection. Diagnostics go
+to standard error; help and version output remain human-readable. Scripts using
+the previous output must change root business-field lookups to `data`, batch
+`result` lookups to `data`, and root error-text lookups to `error.message`.
 
 ### Running a batch job
 
@@ -92,7 +144,7 @@ For a reused session, report partial work without discarding earlier edits.
 $path = [IO.Path]::GetFullPath($path)
 $listed = excelcli -q session list | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { throw "Cannot inspect existing sessions." }
-if ($listed.sessions | Where-Object { $_.filePath -eq $path }) {
+if ($listed.data.sessions | Where-Object { $_.filePath -eq $path }) {
     throw "Reuse the existing session; this job must not discard its unsaved work."
 }
 
@@ -104,8 +156,8 @@ if ($listed.sessions | Where-Object { $_.filePath -eq $path }) {
 '@ | Set-Content commands.json -Encoding utf8
 
 $opened = excelcli -q session open $path | ConvertFrom-Json
-if ($LASTEXITCODE -ne 0 -or -not $opened.sessionId) { throw "Open failed; inspect session state." }
-$sessionId = $opened.sessionId
+if ($LASTEXITCODE -ne 0 -or -not $opened.data.sessionId) { throw "Open failed; inspect session state." }
+$sessionId = $opened.data.sessionId
 $save = $false
 $jobError = $null
 try {
@@ -125,7 +177,7 @@ finally {
     try {
         $listed = excelcli -q session list | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0) { throw "Cannot inspect cleanup state." }
-        $owned = $listed.sessions | Where-Object { $_.sessionId -eq $sessionId }
+        $owned = $listed.data.sessions | Where-Object { $_.sessionId -eq $sessionId }
         if (-not $owned -or -not $owned.canClose) { throw "Session missing or busy; inspect before shutdown." }
         $close = @('-q', 'session', 'close', '--session', $sessionId)
         if ($save) { $close += '--save' }

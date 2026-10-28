@@ -50,10 +50,10 @@ public sealed class SessionLifecycleContractTests : IDisposable
         {
             Assert.Equal(0, result.ExitCode);
             Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-            Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+            Assert.True(json.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
             Assert.Equal(
                 "running",
-                json.RootElement.GetProperty("daemonState").GetString());
+                json.RootElement.GetProperty("data").GetProperty("daemonState").GetString());
         }
     }
 
@@ -146,23 +146,23 @@ public sealed class SessionLifecycleContractTests : IDisposable
             _output.WriteLine(result.Stdout);
             Assert.Equal(expectedCanOpen ? 0 : 1, result.ExitCode);
             Assert.Equal(expectedCanOpen, json.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal(createFile, json.RootElement.GetProperty("exists").GetBoolean());
-            Assert.Equal(expectedValid, json.RootElement.GetProperty("isValid").GetBoolean());
-            Assert.Equal(expectedCanOpen, json.RootElement.GetProperty("canOpen").GetBoolean());
-            Assert.Equal(irmSignature, json.RootElement.GetProperty("isIrmProtected").GetBoolean());
-            Assert.Equal(expectedReadOnly, json.RootElement.GetProperty("willOpenReadOnly").GetBoolean());
-            Assert.Equal(expectedVisible, json.RootElement.GetProperty("requiresVisibleSession").GetBoolean());
-            Assert.Equal(Path.GetFullPath(path), json.RootElement.GetProperty("filePath").GetString());
-            Assert.Equal(Path.GetExtension(path), json.RootElement.GetProperty("extension").GetString());
+            Assert.Equal(createFile, json.RootElement.GetProperty("data").GetProperty("exists").GetBoolean());
+            Assert.Equal(expectedValid, json.RootElement.GetProperty("data").GetProperty("isValid").GetBoolean());
+            Assert.Equal(expectedCanOpen, json.RootElement.GetProperty("data").GetProperty("canOpen").GetBoolean());
+            Assert.Equal(irmSignature, json.RootElement.GetProperty("data").GetProperty("isIrmProtected").GetBoolean());
+            Assert.Equal(expectedReadOnly, json.RootElement.GetProperty("data").GetProperty("willOpenReadOnly").GetBoolean());
+            Assert.Equal(expectedVisible, json.RootElement.GetProperty("data").GetProperty("requiresVisibleSession").GetBoolean());
+            Assert.Equal(Path.GetFullPath(path), json.RootElement.GetProperty("data").GetProperty("filePath").GetString());
+            Assert.Equal(Path.GetExtension(path), json.RootElement.GetProperty("data").GetProperty("extension").GetString());
             Assert.Equal(originalBytes?.LongLength ?? 0,
-                json.RootElement.GetProperty("size").GetInt64());
+                json.RootElement.GetProperty("data").GetProperty("size").GetInt64());
             Assert.Equal(originalModified,
-                json.RootElement.GetProperty("lastModified").GetDateTime());
+                json.RootElement.GetProperty("data").GetProperty("lastModified").GetDateTime());
             Assert.False(json.RootElement.TryGetProperty("isError", out _),
                 "File preflight is a diagnostic result, not a tool execution failure.");
             if (!expectedCanOpen)
             {
-                Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("message").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("data").GetProperty("message").GetString()));
             }
 
             Assert.Equal(createFile, File.Exists(path));

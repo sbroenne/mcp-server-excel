@@ -30,8 +30,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             if (!actionsByCommand.TryGetValue(key, out var actions))
             {
                 var error = new { success = false, errorMessage = $"Unknown command '{key}'." };
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(error, ServiceProtocol.JsonOptions));
-                return 1;
+                return CliResultOutput.WriteJson(JsonSerializer.Serialize(error, ServiceProtocol.JsonOptions), "list-actions");
             }
 
             var result = new
@@ -40,8 +39,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
                 command = key,
                 actions = actions.OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray()
             };
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions));
-            return 0;
+            return CliResultOutput.WriteJson(JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions), "list-actions");
         }
 
         var all = actionsByCommand.ToDictionary(
@@ -56,8 +54,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
             commands = all
         };
-        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions));
-        return 0;
+        return CliResultOutput.WriteJson(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions), "list-actions");
     }
 
     internal sealed class Settings : CommandSettings

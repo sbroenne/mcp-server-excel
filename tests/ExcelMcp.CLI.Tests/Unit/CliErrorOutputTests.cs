@@ -47,8 +47,8 @@ public sealed class CliErrorOutputTests
         using var json = JsonDocument.Parse(stdout.ToString());
         var root = json.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.True(root.GetProperty("isError").GetBoolean());
-        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
+        Assert.False(root.TryGetProperty("isError", out _));
+        Assert.Equal("Privacy", root.GetProperty("error").GetProperty("category").GetString());
         Assert.Equal(partialState.GetRawText(), root.GetProperty("partialState").GetRawText());
     }
 
@@ -72,8 +72,8 @@ public sealed class CliErrorOutputTests
         }
 
         using var json = JsonDocument.Parse(stdout.ToString());
-        Assert.Equal(expected, json.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal("Operation context", json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal(expected, json.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal("Operation context", json.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Theory]
@@ -109,13 +109,14 @@ public sealed class CliErrorOutputTests
         using var json = JsonDocument.Parse(stdout.ToString());
         var root = json.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.Equal(category, root.GetProperty("errorCategory").GetString());
-        Assert.Equal("Original operation context", root.GetProperty("errorMessage").GetString());
-        Assert.False(root.TryGetProperty("error", out _));
-        Assert.Equal("Original cause", root.GetProperty("innerError").GetString());
+        var error = root.GetProperty("error");
+        Assert.Equal(category, error.GetProperty("category").GetString());
+        Assert.Equal("Original operation context", error.GetProperty("message").GetString());
+        Assert.False(root.TryGetProperty("errorMessage", out _));
+        Assert.Equal("Original cause", error.GetProperty("innerError").GetString());
         Assert.Equal("datamodel.evaluate", root.GetProperty("command").GetString());
-        Assert.Equal("test-session", root.GetProperty("sessionId").GetString());
-        Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
+        Assert.Equal("test-session", error.GetProperty("sessionId").GetString());
+        Assert.Equal("0x800A03EC", error.GetProperty("hresult").GetString());
         Assert.False(root.TryGetProperty("partialState", out _));
     }
 
@@ -145,9 +146,9 @@ public sealed class CliErrorOutputTests
         using var json = JsonDocument.Parse(stdout.ToString());
         Assert.Equal(
             "SessionNotFound",
-            json.RootElement.GetProperty("errorCategory").GetString());
+            json.RootElement.GetProperty("error").GetProperty("category").GetString());
         Assert.Contains(
             "Open the workbook again",
-            json.RootElement.GetProperty("errorMessage").GetString());
+            json.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 }

@@ -417,7 +417,7 @@ public partial class SheetCommands
                 {
                     throw new InvalidOperationException(
                         "Worksheet copy changed the target in memory, but its save was not confirmed. " +
-                        "Temporary sessions will close without another save; inspect the target file before retrying. " +
+                        "Inspect the reported partial state and any recovery session before retrying. " +
                         ex.Message, ex);
                 }
 
@@ -537,7 +537,7 @@ public partial class SheetCommands
                         (sourceSaveCompleted
                             ? "Worksheet move: Excel confirmed the source save, but the target save was not confirmed. "
                             : "Worksheet move changed both workbooks in memory, but the source save was not confirmed. ") +
-                        "Temporary sessions will close without another save; inspect both files before retrying. " +
+                        "Inspect the reported partial state and any recovery session before retrying. " +
                         "No rollback was performed. " + ex.Message, ex);
                 }
 

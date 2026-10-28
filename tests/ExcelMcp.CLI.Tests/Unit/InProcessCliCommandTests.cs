@@ -17,6 +17,241 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Fact]
+    public async Task SessionClose_PreservesActualOutcomeRatherThanInventingSavedState()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"message":"Session already closed.","warnings":["No save was performed."],"partialState":{"changed":false}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["session", "close", "--session", "target", "--save"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("Session already closed.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        Assert.Equal("No save was performed.", Assert.Single(result.RootElement.GetProperty("warnings").EnumerateArray()).GetString());
+        Assert.False(result.RootElement.GetProperty("partialState").GetProperty("changed").GetBoolean());
+        Assert.False(result.RootElement.GetProperty("data").TryGetProperty("saved", out _));
+    }
+
+    [Fact]
+    public async Task SessionClose_DeliveredNegativeOutcomeDoesNotReportSaved()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":false,"errorMessage":"Workbook remains open","partialState":{"open":true}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["session", "close", "--session", "target", "--save"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("Workbook remains open", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+        Assert.True(result.RootElement.GetProperty("partialState").GetProperty("open").GetBoolean());
+        Assert.False(result.RootElement.TryGetProperty("data", out _));
+    }
+
+    [Fact]
+    public async Task OutputFile_ImageStillWrittenWhenFieldsSelectOnlyMetadata()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"excelcli-image-{Guid.NewGuid():N}.png");
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"imageBase64":"AQID","sheetName":"Data","width":1,"height":3,"mimeType":"image/png","message":"Truncated to the top-left portion."}"""
+        });
+        var output = new StringWriter();
+        try
+        {
+            var exit = await Program.RunAsync(
+                ["--quiet", "screenshot", "capture", "--session", "target", "--sheet-name", "Data",
+                    "--range-address", "A1", "--fields", "sheetName", "--output", path],
+                CreateRuntime(factory, output, new StringWriter()));
+            Assert.Equal(0, exit);
+            Assert.Equal(new byte[] { 1, 2, 3 }, await File.ReadAllBytesAsync(path));
+            using var result = JsonDocument.Parse(output.ToString());
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(path, result.RootElement.GetProperty("data").GetProperty("outputPath").GetString());
+            Assert.Equal("Truncated to the top-left portion.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+            Assert.DoesNotContain("AQID", output.ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task OutputFile_WriteFailureRetainsCompletedOperation()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "result.json");
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"modifiedCells":3,"warnings":["Check retained state"],"partialState":{"changed":true}}"""
+        });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--session", "target", "--sheet-name", "Data",
+                "--range-address", "A1:C1", "--values", "[[1,2,3]]", "--output", path],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Single(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        var root = result.RootElement;
+        Assert.Equal("OutputWriteFailed", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(3, root.GetProperty("data").GetProperty("modifiedCells").GetInt32());
+        Assert.True(root.GetProperty("partialState").GetProperty("operationCompleted").GetBoolean());
+        Assert.False(root.GetProperty("partialState").GetProperty("outputWriteCompleted").GetBoolean());
+        Assert.True(root.GetProperty("partialState").GetProperty("operationPartialState").GetProperty("changed").GetBoolean());
+        Assert.Equal("Check retained state", root.GetProperty("warnings")[0].GetString());
+    }
+
+    [Theory]
+    [InlineData("\"0.00%\"")]
+    [InlineData("null")]
+    [InlineData("[false,0,null]")]
+    public async Task OutputFile_WriteFailureKeepsOriginalDataShape(string data)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "result.json");
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = data });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "chartconfig", "get-axis-number-format", "--session", "target",
+                "--chart-name", "Revenue", "--axis", "Value", "--output", path],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Single(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("OutputWriteFailed", result.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(data, result.RootElement.GetProperty("data").GetRawText());
+        Assert.True(result.RootElement.GetProperty("partialState").GetProperty("operationCompleted").GetBoolean());
+        Assert.False(result.RootElement.GetProperty("partialState").GetProperty("outputWriteCompleted").GetBoolean());
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task NonRedirectedOperation_WritesOnlyJsonToStdout()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"message":"pong"}"""
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = new CliCommandRuntime(factory, new StringReader(""), output, error, isOutputRedirected: false);
+        Assert.Equal(0, await Program.RunAsync(["diag", "ping"], runtime));
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("diag.ping", result.RootElement.GetProperty("command").GetString());
+        Assert.Equal("pong", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        Assert.Contains("Excel", error.ToString());
+    }
+
+    [Theory]
+    [InlineData("session", "list", "sessions")]
+    [InlineData("service", "status", "running")]
+    public async Task ManualReadHelp_ListsAcceptedFields(string category, string action, string field)
+    {
+        var output = new StringWriter();
+        var runtime = CreateRuntime(new RecordingClientFactory(), output, new StringWriter());
+        Assert.Equal(0, await Program.RunAsync([category, action, "--help"], runtime));
+        Assert.Contains("Result fields for --fields", output.ToString());
+        Assert.Contains(field, output.ToString());
+    }
+
+    [Fact]
+    public async Task ManualRead_FieldsPreserveSessionIdentity()
+    {
+        var daemon = new RecordingDaemonConnection(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"count":1,"sessions":[{"sessionId":"target","workbookName":"Selected","filePath":"omitted.xlsx","canClose":false,"operationPending":true}]}"""
+        }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
+        var output = new StringWriter();
+        Assert.Equal(0, await Program.RunAsync(
+            ["session", "list", "--fields", "sessions.workbookName"],
+            CreateRuntime(new RecordingClientFactory(), output, new StringWriter(), daemonConnection: daemon)));
+        using var result = JsonDocument.Parse(output.ToString());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
+        Assert.Equal("target", session.GetProperty("sessionId").GetString());
+        Assert.Equal("Selected", session.GetProperty("workbookName").GetString());
+        Assert.False(session.GetProperty("canClose").GetBoolean());
+        Assert.True(session.GetProperty("operationPending").GetBoolean());
+        Assert.False(session.TryGetProperty("filePath", out _));
+    }
+
+    [Fact]
+    public async Task ReadFields_SelectsNestedQueryMetadata()
+    {
+        const string payload = """{"success":true,"queries":[{"name":"Source","formulaPreview":"let x = 1 in x","loadMode":"connection-only"}]}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = payload });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.name,queries.loadMode"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        var query = Assert.Single(result.RootElement.GetProperty("data").GetProperty("queries").EnumerateArray());
+        Assert.Equal("Source", query.GetProperty("name").GetString());
+        Assert.Equal("connection-only", query.GetProperty("loadMode").GetString());
+        Assert.False(query.TryGetProperty("formulaPreview", out _));
+        using var args = JsonDocument.Parse(Assert.Single(factory.Requests).Args!);
+        Assert.Equal(2, args.RootElement.GetProperty("fields").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ReadFields_RejectsUnknownPathsBeforeConnecting()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "powerquery", "list", "--session", "target", "--fields", "queries.unknown"],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Empty(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("queries.name", result.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Results_UseOneEnvelopeAndPreserveMeaningfulValues(bool batch)
+    {
+        const string payload = """{"success":true,"filePath":"C:\\fixture.xlsx","values":[[false,0,null]],"rowCount":1,"columnCount":3}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = payload });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = CreateRuntime(factory, output, error,
+            """{"command":"range.get-values","sessionId":"target","args":{"sheetName":"Sheet1","rangeAddress":"A1:C1"}}""");
+        var exit = await Program.RunAsync(
+            batch ? ["--quiet", "batch"] :
+                ["--quiet", "range", "get-values", "--session", "target", "--sheet-name", "Sheet1", "--range-address", "A1:C1"],
+            runtime);
+        Assert.Equal(0, exit);
+        using var result = JsonDocument.Parse(output.ToString());
+        var root = result.RootElement;
+        Assert.Equal("range.get-values", root.GetProperty("command").GetString());
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("durationMs").GetInt64() >= 0);
+        Assert.Equal(batch, root.TryGetProperty("index", out _));
+        Assert.False(root.TryGetProperty("commandSummary", out _));
+        Assert.False(root.TryGetProperty("result", out _));
+        var data = root.GetProperty("data");
+        Assert.False(data.TryGetProperty("success", out _));
+        Assert.False(data.TryGetProperty("filePath", out _));
+        Assert.Equal("[[false,0,null]]", data.GetProperty("values").GetRawText());
+        Assert.Equal(1, data.GetProperty("rowCount").GetInt32());
+        Assert.Equal(3, data.GetProperty("columnCount").GetInt32());
+    }
+
     [Theory]
     [InlineData("enable-editing", "--allow-reopen")]
     [InlineData("enable-connections", "--allow-reopen")]
@@ -33,7 +268,7 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(factory.Requests);
         using var result = JsonDocument.Parse(output.ToString());
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("only for", result.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Contains("only for", result.RootElement.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
         Assert.Empty(error.ToString());
     }
 
@@ -69,7 +304,7 @@ public sealed class InProcessCliCommandTests
                 action == "enable-macros" ? "allowReopen" : "allowRememberedTrust").GetBoolean());
             Assert.Equal(2, args.RootElement.EnumerateObject().Count());
         }
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -92,7 +327,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("target", request.SessionId);
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal(enabled, args.RootElement.GetProperty("enabled").GetBoolean());
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -118,8 +353,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("Always", args.RootElement.GetProperty("interactiveLogin").GetString());
         Assert.Equal("CurrentUser", args.RootElement.GetProperty("identityMode").GetString());
         using var actual = JsonDocument.Parse(output.ToString());
-        Assert.True(actual.RootElement.GetProperty("changed").GetBoolean());
-        Assert.Equal("Always", actual.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.True(actual.RootElement.GetProperty("data").GetProperty("changed").GetBoolean());
+        Assert.Equal("Always", actual.RootElement.GetProperty("data").GetProperty("interactiveLogin").GetString());
         Assert.DoesNotContain("fixture-account", output.ToString(), StringComparison.Ordinal);
         Assert.Empty(error.ToString());
     }
@@ -144,7 +379,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("session.discover", discoverRequest.Command);
         Assert.Null(discoverRequest.SessionId);
         Assert.Null(discoverRequest.Args);
-        Assert.Equal(discoverResult, discoverOutput.ToString().Trim());
+        AssertResult(discoverResult, discoverOutput.ToString());
         Assert.Empty(discoverError.ToString());
 
         const string attachResult = """{"success":true,"sessionId":"attached-session","name":"Book1","warning":"Excel AutoSave is off."}""";
@@ -166,7 +401,7 @@ public sealed class InProcessCliCommandTests
         Assert.Null(attachRequest.SessionId);
         using var args = JsonDocument.Parse(attachRequest.Args!);
         Assert.Equal("open-workbook-123", args.RootElement.GetProperty("workbookId").GetString());
-        Assert.Equal(attachResult, attachOutput.ToString().Trim());
+        AssertResult(attachResult, attachOutput.ToString());
         Assert.Empty(attachError.ToString());
     }
 
@@ -188,10 +423,7 @@ public sealed class InProcessCliCommandTests
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal("Sales", args.RootElement.GetProperty("connectionName").GetString());
         Assert.Single(args.RootElement.EnumerateObject());
-        using var expected = JsonDocument.Parse(result);
-        using var actual = JsonDocument.Parse(output.ToString());
-        foreach (var property in expected.RootElement.EnumerateObject())
-            Assert.Equal(property.Value.GetRawText(), actual.RootElement.GetProperty(property.Name).GetRawText());
+        AssertResult(result, output.ToString());
         Assert.Empty(error.ToString());
     }
 
@@ -224,8 +456,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(save, args.RootElement.GetProperty("save").GetBoolean());
         using var result = JsonDocument.Parse(output.ToString());
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Busy", result.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Equal(message, result.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("Busy", result.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(message, result.RootElement.GetProperty("error").GetProperty("message").GetString());
         Assert.False(result.RootElement.TryGetProperty("saved", out _));
         Assert.Empty(error.ToString());
     }
@@ -248,7 +480,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var result = JsonDocument.Parse(output.ToString());
-        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
         Assert.False(session.GetProperty("operationPending").GetBoolean());
         Assert.False(session.GetProperty("canClose").GetBoolean());
@@ -273,7 +505,7 @@ public sealed class InProcessCliCommandTests
 
         Assert.Equal(0, exitCode);
         using var result = JsonDocument.Parse(output.ToString());
-        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        var session = Assert.Single(result.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
         Assert.Equal("Check the Excel window and respond there.\nDialog text: The database is unavailable.", session.GetProperty("blockingMessage").GetString());
@@ -283,10 +515,13 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(error.ToString());
     }
 
-    [Fact]
-    public async Task SessionOpen_SharePointUrl_ForwardsUrlAndVisibilityToSharedService()
+    [Theory]
+    [InlineData("https://contoso-my.sharepoint.com/personal/test/Documents/Test.xlsx?web=1", true)]
+    [InlineData("https://d.docs.live.net/123/Documents/Test.xlsx?download=1", false)]
+    [InlineData("http://example.com:8080/Test.csv?download=1#data", false)]
+    [InlineData(@"C:\Imports\Test.txt", false)]
+    public async Task SessionOpen_ForwardsOriginalLocationAndVisibilityToSharedService(string url, bool show)
     {
-        const string url = "https://contoso-my.sharepoint.com/personal/test/Documents/Test.xlsx?web=1";
         var factory = new RecordingClientFactory(new ServiceResponse
         {
             Success = true,
@@ -295,7 +530,7 @@ public sealed class InProcessCliCommandTests
         var output = new StringWriter();
         var error = new StringWriter();
         var exitCode = await Program.RunAsync(
-            ["--quiet", "session", "open", url, "--show"],
+            show ? ["--quiet", "session", "open", url, "--show"] : ["--quiet", "session", "open", url],
             CreateRuntime(factory, output, error));
 
         Assert.Equal(0, exitCode);
@@ -303,9 +538,9 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("session.open", request.Command);
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal(url, args.RootElement.GetProperty("filePath").GetString());
-        Assert.True(args.RootElement.GetProperty("show").GetBoolean());
+        Assert.Equal(show, args.RootElement.GetProperty("show").GetBoolean());
         using var result = JsonDocument.Parse(output.ToString());
-        Assert.Equal("remote-session", result.RootElement.GetProperty("sessionId").GetString());
+        Assert.Equal("remote-session", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -347,7 +582,7 @@ public sealed class InProcessCliCommandTests
         Assert.True(returnedBeforeCompletion, "RunAsync blocked until the command completed.");
         Assert.Equal([("session.open", true, null)], telemetry);
         using var result = JsonDocument.Parse(output.ToString());
-        Assert.Equal("pending", result.RootElement.GetProperty("sessionId").GetString());
+        Assert.Equal("pending", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -370,28 +605,29 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedExitCode == 0, result.RootElement.GetProperty("success").GetBoolean());
         if (command == "range")
         {
-            Assert.Equal("range", result.RootElement.GetProperty("command").GetString());
-            Assert.Contains("get-values", result.RootElement.GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
+            Assert.Equal("list-actions", result.RootElement.GetProperty("command").GetString());
+            Assert.Equal("range", result.RootElement.GetProperty("data").GetProperty("command").GetString());
+            Assert.Contains("get-values", result.RootElement.GetProperty("data").GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
         }
         else if (command == "session")
         {
-            var actions = result.RootElement.GetProperty("actions").EnumerateArray()
+            var actions = result.RootElement.GetProperty("data").GetProperty("actions").EnumerateArray()
                 .Select(value => value.GetString()).ToArray();
             Assert.Contains("discover", actions);
             Assert.Contains("attach", actions);
         }
         else if (command == null)
         {
-            var actions = result.RootElement.GetProperty("commands").GetProperty("session")
+            var actions = result.RootElement.GetProperty("data").GetProperty("commands").GetProperty("session")
                 .EnumerateArray().Select(value => value.GetString()).ToArray();
             Assert.Contains("discover", actions);
             Assert.Contains("attach", actions);
-            Assert.Contains("session discover", result.RootElement.GetProperty("workflow").GetString());
-            Assert.Contains("session attach", result.RootElement.GetProperty("workflow").GetString());
+            Assert.Contains("session discover", result.RootElement.GetProperty("data").GetProperty("workflow").GetString());
+            Assert.Contains("session attach", result.RootElement.GetProperty("data").GetProperty("workflow").GetString());
         }
         else
         {
-            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("errorMessage").GetString());
+            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("error").GetProperty("message").GetString());
         }
         Assert.Empty(error.ToString());
     }
@@ -416,13 +652,13 @@ public sealed class InProcessCliCommandTests
             Assert.True(result.RootElement.GetProperty("success").GetBoolean());
             if (action == "status")
             {
-                Assert.Equal("stopped", result.RootElement.GetProperty("daemonState").GetString());
-                Assert.False(result.RootElement.GetProperty("running").GetBoolean());
-                Assert.Equal(0, result.RootElement.GetProperty("processId").GetInt32());
+                Assert.Equal("stopped", result.RootElement.GetProperty("data").GetProperty("daemonState").GetString());
+                Assert.False(result.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
+                Assert.Equal(0, result.RootElement.GetProperty("data").GetProperty("processId").GetInt32());
             }
             else
             {
-                Assert.Equal("Service not running.", result.RootElement.GetProperty("message").GetString());
+                Assert.Equal("Service not running.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
             }
             Assert.Empty(factory.Requests);
             Assert.Empty(error.ToString());
@@ -437,6 +673,229 @@ public sealed class InProcessCliCommandTests
         _CliCategoryMetadata.ValidActionsByCommand.Keys
             .Order(StringComparer.Ordinal)
             .Select(command => new object[] { command });
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BatchDiscovery_MainHelpAndInitialUsageExplainWhenToBatch(bool showHelp)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            showHelp ? ["--quiet", "--help"] : ["--quiet"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        var text = Regex.Replace(output.ToString() + error, @"\s+", " ");
+        Assert.Contains("known sequence", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("batch --help", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_BatchHelpExplainsInputSessionsAndFailures()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--help"], CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        var text = output.ToString();
+        foreach (var expected in new[]
+                 {
+                     "group.action", "command", "args", "sessionId", "sheetName", "rangeAddress",
+                     "case-sensitive", "JSON array", "one command per line", "--input -",
+                     "session.open/create/attach", "--stop-on-error", "default: continue",
+                     "earlier changes", "index", "$LASTEXITCODE", "stderr", "expected",
+                     "excelcli.exe batch", "range.set-values"
+                 })
+        {
+            Assert.Contains(expected, text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_DiagnosticExampleExecutesAsPrinted()
+    {
+        var help = new StringWriter();
+        await Program.RunAsync(
+            ["--quiet", "batch", "--help"],
+            CreateRuntime(new RecordingClientFactory(), help, new StringWriter()));
+        var example = Regex.Match(help.ToString(), @"(?s)@'\r?\n(.*?)\r?\n'@");
+        Assert.True(example.Success, "Batch help must include a runnable PowerShell input example.");
+        var input = example.Groups[1].Value;
+        using var entries = JsonDocument.Parse(input);
+        Assert.Equal(2, entries.RootElement.GetArrayLength());
+
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"message":"pong"}""" },
+            new ServiceResponse { Success = true, Result = """{"message":"hello"}""" });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--stop-on-error"],
+            CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(0, exit);
+        Assert.Collection(factory.Requests,
+            request => Assert.Equal("diag.ping", request.Command),
+            request =>
+            {
+                Assert.Equal("diag.echo", request.Command);
+                Assert.Equal("""{"message":"hello"}""", request.Args);
+            });
+        var lines = output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            using var result = JsonDocument.Parse(lines[index]);
+            Assert.Equal(index, result.RootElement.GetProperty("index").GetInt32());
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(index == 0 ? "pong" : "hello",
+                result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        }
+        Assert.Contains("started", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("started", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [MemberData(nameof(GeneratedCommandNames))]
+    public async Task BatchDiscovery_ActionHelpMapsExactArgumentsWithoutConnecting(string command)
+    {
+        foreach (var (action, parameters) in _CliCategoryMetadata.ActionParametersByCommand[command])
+        {
+            var factory = new RecordingClientFactory();
+            var output = new StringWriter();
+            var error = new StringWriter();
+            var exit = await Program.RunAsync(
+                ["--quiet", command, action, "--help"], CreateRuntime(factory, output, error));
+
+            Assert.Equal(0, exit);
+            Assert.Equal(0, factory.ConnectionCount);
+            Assert.Empty(error.ToString());
+            var text = output.ToString();
+            var section = text.IndexOf("Batch input", StringComparison.Ordinal);
+            Assert.True(section >= 0, $"Missing batch help for {command}.{action}.");
+            var batchHelp = text[section..];
+            Assert.Contains($"\"command\":\"{command}.{action}\"", batchHelp, StringComparison.Ordinal);
+            foreach (var parameter in parameters)
+                Assert.Contains($"args.{parameter}", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("args.sessionId", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("args.outputPath", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("--output", batchHelp, StringComparison.Ordinal);
+            var category = _CliCategoryMetadata.Categories.Single(item => item.CliCommandName == command);
+            if (category.RequiresSession)
+                Assert.Contains("--session", batchHelp, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_RangeHelpIncludesValidNativeJsonExample()
+    {
+        var output = new StringWriter();
+        await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--help"],
+            CreateRuntime(new RecordingClientFactory(), output, new StringWriter()));
+
+        var text = output.ToString();
+        Assert.Contains("args.sheetName", text, StringComparison.Ordinal);
+        Assert.Contains("args.rangeAddress", text, StringComparison.Ordinal);
+        var example = text.Split('\n')
+            .Last(line => line.StartsWith("{\"command\":\"range.set-values\"", StringComparison.Ordinal));
+        using var entry = JsonDocument.Parse(example);
+        var args = entry.RootElement.GetProperty("args");
+        Assert.Equal("Sales", args.GetProperty("sheetName").GetString());
+        Assert.Equal("A1:B2", args.GetProperty("rangeAddress").GetString());
+        Assert.Equal(42, args.GetProperty("values")[1][1].GetInt32());
+        ServiceRegistry.ValidateCommandArguments("range.set-values", args.GetRawText());
+    }
+
+    [Theory]
+    [InlineData("diag ping", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("DIAG PING", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("diag\tping", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("diag not-an-action", "Unknown command group", "group.action")]
+    [InlineData("diag.not-an-action", "Unknown action", "group.action")]
+    public async Task BatchDiscovery_CommandErrorsSuggestButNeverExecute(
+        string command, string originalError, string hint)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var input = JsonSerializer.Serialize(new[] { new { command } });
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--stop-on-error"],
+            CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        var item = result.RootElement;
+        Assert.False(item.GetProperty("success").GetBoolean());
+        Assert.Equal(0, item.GetProperty("index").GetInt32());
+        Assert.Equal(command, item.GetProperty("command").GetString());
+        Assert.True(item.GetProperty("durationMs").GetInt64() >= 0);
+        var message = item.GetProperty("error").GetProperty("message").GetString();
+        Assert.Contains(originalError, message, StringComparison.Ordinal);
+        Assert.Contains(hint, message, StringComparison.Ordinal);
+        Assert.Contains("batch --help", message, StringComparison.Ordinal);
+        if (command.Contains("not-an-action", StringComparison.Ordinal))
+            Assert.DoesNotContain("Use 'diag.not-an-action'", message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("[]", "No commands provided")]
+    [InlineData("[", "BytePositionInLine")]
+    [InlineData("""{"args":{}}""", "missing the 'command' field")]
+    [InlineData("""{"command":"diag.ping","unexpected":true}""", "unexpected")]
+    public async Task BatchDiscovery_InputErrorsKeepDetailsAndPointToHelp(string input, string originalError)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch"], CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        var failure = result.RootElement.GetProperty("error");
+        var message = failure.GetProperty("message").GetString();
+        Assert.Contains(originalError, message, StringComparison.Ordinal);
+        Assert.Contains("batch --help", message + error.ToString(), StringComparison.Ordinal);
+        if (input == "[" || input.Contains("unexpected", StringComparison.Ordinal))
+            Assert.Equal(nameof(JsonException), failure.GetProperty("exceptionType").GetString());
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_WrongArgumentKeysPointToActionHelp()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch"],
+            CreateRuntime(factory, output, error,
+                """{"command":"range.set-values","args":{"sheet":"Sales","range":"A1","values":[[42]]}}"""));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        var message = result.RootElement.GetProperty("error").GetProperty("message").GetString();
+        Assert.Contains("Unknown or non-canonical", message, StringComparison.Ordinal);
+        Assert.Contains("sheetName", message, StringComparison.Ordinal);
+        Assert.Contains("rangeAddress", message, StringComparison.Ordinal);
+        Assert.Contains("excelcli range set-values --help", message, StringComparison.Ordinal);
+    }
 
     [Theory]
     [MemberData(nameof(GeneratedCommandNames))]
@@ -481,32 +940,6 @@ public sealed class InProcessCliCommandTests
         Assert.Contains("--pivot-table-name", help, StringComparison.Ordinal);
         Assert.Contains("--field-name", help, StringComparison.Ordinal);
         Assert.DoesNotContain("--selected-items", help, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task BatchHelp_ContainsUsableJsonExample()
-    {
-        var factory = new RecordingClientFactory();
-        var output = new StringWriter();
-        var error = new StringWriter();
-
-        var exitCode = await Program.RunAsync(
-            ["--quiet", "batch", "--help"],
-            CreateRuntime(factory, output, error));
-
-        Assert.Equal(0, exitCode);
-        Assert.Empty(factory.Requests);
-        Assert.Empty(error.ToString());
-        var example = output.ToString()
-            .Split("Example commands.json (JSON array):", StringSplitOptions.None)[1]
-            .Split("Outputs NDJSON", StringSplitOptions.None)[0];
-        using var json = JsonDocument.Parse(example);
-        var entry = Assert.Single(json.RootElement.EnumerateArray());
-        Assert.Equal("range.set-values", entry.GetProperty("command").GetString());
-        var args = entry.GetProperty("args");
-        Assert.Equal("Sales", args.GetProperty("sheetName").GetString());
-        Assert.Equal("A1", args.GetProperty("rangeAddress").GetString());
-        Assert.Equal(1, args.GetProperty("values")[0][0].GetInt32());
     }
 
     [Fact]
@@ -558,11 +991,6 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
-    [InlineData("batch", null, "not undone")]
-    [InlineData("batch", null, "every result")]
-    [InlineData("batch", null, "camelCase")]
-    [InlineData("batch", null, "\"command\":\"range.set-values\"")]
-    [InlineData("batch", null, "\"args\":")]
     [InlineData("session", "list", "not a completed or failed operation")]
     [InlineData("session", "list", "activeOperations:0")]
     [InlineData("session", "list", "before repeating")]
@@ -575,16 +1003,13 @@ public sealed class InProcessCliCommandTests
     [InlineData("session", "enable-connections", "company policy")]
     [InlineData("session", "enable-macros", "company policy")]
     public async Task CommandHelp_ExplainsResultLimitsAndApprovalWithoutConnecting(
-        string command, string? action, string guidance)
+        string command, string action, string guidance)
     {
         var factory = new RecordingClientFactory();
         var output = new StringWriter();
         var error = new StringWriter();
-        string[] arguments = action is null
-            ? ["--quiet", command, "--help"]
-            : ["--quiet", command, action, "--help"];
-
-        var exitCode = await Program.RunAsync(arguments, CreateRuntime(factory, output, error));
+        var exitCode = await Program.RunAsync(
+            ["--quiet", command, action, "--help"], CreateRuntime(factory, output, error));
 
         Assert.Equal(0, exitCode);
         Assert.Empty(factory.Requests);
@@ -735,13 +1160,13 @@ public sealed class InProcessCliCommandTests
         using var envelope = JsonDocument.Parse(output.ToString());
         var root = envelope.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.True(root.GetProperty("isError").GetBoolean());
+        Assert.False(root.TryGetProperty("isError", out _));
         Assert.Equal(
             "Workbook is already open; close the file and retry with exclusive access.",
-            root.GetProperty("errorMessage").GetString());
-        Assert.False(root.TryGetProperty("error", out _));
-        Assert.Equal("ComInterop", root.GetProperty("errorCategory").GetString());
-        Assert.Equal(nameof(IOException), root.GetProperty("exceptionType").GetString());
+            root.GetProperty("error").GetProperty("message").GetString());
+        Assert.False(root.TryGetProperty("errorMessage", out _));
+        Assert.Equal("ComInterop", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(nameof(IOException), root.GetProperty("error").GetProperty("exceptionType").GetString());
         Assert.Equal("session.open", root.GetProperty("command").GetString());
         Assert.Equal(string.Empty, error.ToString());
     }
@@ -977,19 +1402,20 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedState == "stopped" ? 0 : 1, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var envelope = JsonDocument.Parse(output.ToString());
-        Assert.Equal(expectedState, envelope.RootElement.GetProperty("daemonState").GetString());
+        var data = envelope.RootElement.GetProperty("data");
+        Assert.Equal(expectedState, data.GetProperty("daemonState").GetString());
         if (running)
         {
-            Assert.True(envelope.RootElement.GetProperty("running").GetBoolean());
+            Assert.True(data.GetProperty("running").GetBoolean());
             Assert.Equal(
                 "controlled transport failure",
-                envelope.RootElement.GetProperty("errorMessage").GetString());
+                envelope.RootElement.GetProperty("error").GetProperty("message").GetString());
         }
         else
         {
-            Assert.Equal(0, envelope.RootElement.GetProperty("count").GetInt32());
-            Assert.Empty(envelope.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.False(envelope.RootElement.TryGetProperty("running", out _));
+            Assert.Equal(0, data.GetProperty("count").GetInt32());
+            Assert.Empty(data.GetProperty("sessions").EnumerateArray());
+            Assert.False(data.TryGetProperty("running", out _));
         }
     }
 
@@ -1011,15 +1437,15 @@ public sealed class InProcessCliCommandTests
             new StringWriter(),
             daemonConnection: daemonConnection));
 
-        var exitCode = await new SessionListCommand().ExecuteAsync(null!, CancellationToken.None);
+        var exitCode = await new SessionListCommand().ExecuteAsync(null!, new ReadSelectionSettings(), CancellationToken.None);
 
         Assert.Equal(0, exitCode);
         Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
         using var json = JsonDocument.Parse(output.ToString());
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
-        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
-        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("stopped", json.RootElement.GetProperty("data").GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("data").GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
         Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
@@ -1041,7 +1467,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(1, exitCode);
         Assert.Empty(error.ToString());
         Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
-        Assert.Equal(result, output.ToString().Trim());
+        AssertResult(result, output.ToString());
         var tracked = Assert.Single(telemetry);
         Assert.False(tracked.Succeeded);
         Assert.False(tracked.ExpectedNegative);
@@ -1063,7 +1489,7 @@ public sealed class InProcessCliCommandTests
 
             Assert.Equal(1, exitCode);
             Assert.False(File.Exists(outputPath));
-            Assert.Equal(result, output.ToString().Trim());
+            AssertResult(result, output.ToString());
         }
         finally
         {
@@ -1095,10 +1521,10 @@ public sealed class InProcessCliCommandTests
         using var line = JsonDocument.Parse(Assert.Single(
             output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
         Assert.False(line.RootElement.GetProperty("success").GetBoolean());
-        Assert.False(line.RootElement.GetProperty("result").GetProperty("success").GetBoolean());
+        Assert.False(line.RootElement.TryGetProperty("result", out _));
         Assert.Equal(
             "1 of 1 queries failed to refresh: 'Broken'.",
-            line.RootElement.GetProperty("errorMessage").GetString());
+            line.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]
@@ -1126,8 +1552,8 @@ public sealed class InProcessCliCommandTests
         using (var first = JsonDocument.Parse(lines[0]))
         {
             Assert.False(first.RootElement.GetProperty("success").GetBoolean());
-            Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
-            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("errorMessage").GetString()));
+            Assert.False(first.RootElement.GetProperty("data").GetProperty("canOpen").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetProperty("message").GetString()));
         }
         using (var second = JsonDocument.Parse(lines[1]))
         {
@@ -1244,8 +1670,8 @@ public sealed class InProcessCliCommandTests
             Assert.False(args.RootElement.TryGetProperty("clearFirst", out _));
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.True(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("2026 Q2", returned.RootElement.GetProperty("selectedItems")[0].GetString());
-        Assert.Equal("RevenuePivot", returned.RootElement.GetProperty("connectedPivotTables")[0].GetString());
+        Assert.Equal("2026 Q2", returned.RootElement.GetProperty("data").GetProperty("selectedItems")[0].GetString());
+        Assert.Equal("RevenuePivot", returned.RootElement.GetProperty("data").GetProperty("connectedPivotTables")[0].GetString());
     }
 
     [Fact]
@@ -1271,8 +1697,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("slicer.set-slicer-selection", Assert.Single(factory.Requests).Command);
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
-        Assert.Contains("missing", returned.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Contains("missing", returned.RootElement.GetProperty("error").GetProperty("message").GetString());
         Assert.Empty(error.ToString());
     }
 
@@ -1310,8 +1736,8 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(error.ToString());
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
-        string returnedMessage = returned.RootElement.GetProperty("errorMessage").GetString()!;
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("error").GetProperty("category").GetString());
+        string returnedMessage = returned.RootElement.GetProperty("error").GetProperty("message").GetString()!;
         Assert.Equal(message, returnedMessage);
         var returnedCandidates = JsonSerializer.Deserialize<string[]>(returnedMessage[
             (returnedMessage.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..(returnedMessage.LastIndexOf(']') + 1)])!;
@@ -1333,6 +1759,68 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(candidates[1], Assert.Single(args.RootElement.GetProperty("selectedItems").EnumerateArray()).GetString());
         using var success = JsonDocument.Parse(output.ToString());
         Assert.True(success.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Batch_ReportsCurrentCommandAndDeliversEarlierResultWhileWaiting()
+    {
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var factory = new RecordingClientFactory
+        {
+            Responder = _ =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                    return Task.FromResult(new ServiceResponse { Success = true, Result = """{"message":"first"}""" });
+                waiting.SetResult();
+                return release.Task;
+            }
+        };
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = CreateRuntime(factory, output, error, """
+            {"command":"diag.echo","args":{"message":"first"}}
+            {"command":"diag.echo","args":{"message":"second"}}
+            """);
+        var run = Program.RunAsync(["--quiet", "batch"], runtime);
+        try
+        {
+            await waiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(run.IsCompleted);
+            using var first = JsonDocument.Parse(Assert.Single(
+                output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
+            Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("first", first.RootElement.GetProperty("data").GetProperty("message").GetString());
+            Assert.Contains("Batch 2/2: diag.echo", error.ToString());
+        }
+        finally
+        {
+            release.TrySetResult(new ServiceResponse { Success = true, Result = """{"message":"second"}""" });
+            Assert.Equal(0, await run.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        Assert.Equal(2, output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    private static void AssertResult(string serviceJson, string cliJson)
+    {
+        using var service = JsonDocument.Parse(serviceJson);
+        using var cli = JsonDocument.Parse(cliJson);
+        var root = cli.RootElement;
+        Assert.Equal(service.RootElement.GetProperty("success").GetBoolean(), root.GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("durationMs").GetInt64() >= 0);
+        foreach (var property in service.RootElement.EnumerateObject())
+        {
+            if (property.Name == "success")
+                continue;
+            if (property.Name is "errorMessage" or "errorCategory")
+                Assert.Equal(property.Value.GetString(),
+                    root.GetProperty("error").GetProperty(property.Name == "errorMessage" ? "message" : "category").GetString());
+            else if (property.Name == "warning")
+                Assert.Equal(property.Value.GetString(), Assert.Single(root.GetProperty("warnings").EnumerateArray()).GetString());
+            else
+                Assert.Equal(property.Value.GetRawText(), root.GetProperty("data").GetProperty(property.Name).GetRawText());
+        }
     }
 
     private static CliCommandRuntime CreateRuntime(
@@ -1385,11 +1873,14 @@ public sealed class InProcessCliCommandTests
         private readonly Queue<ServiceResponse> _responses = new(responses);
 
         internal List<ServiceRequest> Requests { get; } = [];
+        internal int ConnectionCount { get; private set; }
         internal Task<ServiceResponse>? PendingResponse { get; init; }
+        internal Func<ServiceRequest, Task<ServiceResponse>>? Responder { get; init; }
         internal TaskCompletionSource RequestSent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken)
         {
+            ConnectionCount++;
             return Task.FromResult<ICliRequestClient>(new RecordingClient(this));
         }
 
@@ -1401,7 +1892,8 @@ public sealed class InProcessCliCommandTests
             {
                 owner.Requests.Add(request);
                 owner.RequestSent.TrySetResult();
-                return owner.PendingResponse ?? Task.FromResult(owner._responses.Dequeue());
+                return owner.Responder?.Invoke(request)
+                    ?? owner.PendingResponse ?? Task.FromResult(owner._responses.Dequeue());
             }
 
             public void Dispose()

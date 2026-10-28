@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 /// <summary>
@@ -12,9 +14,11 @@ public sealed class DocumentPropertyInfo
     public string? Value { get; set; }
 
     /// <summary>Whether Excel successfully returned the property value. False does not establish that the value is undefined.</summary>
+    [ResultContext]
     public bool ValueAvailable { get; set; } = true;
 
     /// <summary>Native value-read error and uncertainty when ValueAvailable is false; otherwise null.</summary>
+    [ResultContext]
     public string? ValueError { get; set; }
 
     /// <summary>Office document property value type.</summary>

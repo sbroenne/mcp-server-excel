@@ -167,7 +167,7 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
         var (result, json) = await RunJsonSuccessAsync(args, environmentVariables, diagnosticLabel, timeoutMs: 45000);
         using (json)
         {
-            var sessionId = json.RootElement.GetProperty("sessionId").GetString();
+            var sessionId = json.RootElement.GetProperty("data").GetProperty("sessionId").GetString();
             Assert.False(string.IsNullOrWhiteSpace(sessionId), $"{diagnosticLabel} did not return a sessionId. Stdout: {result.Stdout}");
             _activeSessions.TryAdd(sessionId!, PipeNameFor(environmentVariables));
             return sessionId!;
@@ -205,7 +205,7 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
 
         using (json)
         {
-            return json.RootElement.GetProperty("values")[0][0].GetString() ?? string.Empty;
+            return json.RootElement.GetProperty("data").GetProperty("values")[0][0].GetString() ?? string.Empty;
         }
     }
 
@@ -245,8 +245,8 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
         var (_, statusJson) = await RunJsonSuccessAsync(["service", "status"], environmentVariables, diagnosticLabel, timeoutMs: 10000);
         using (statusJson)
         {
-            Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean(), $"{diagnosticLabel} daemon should be running.");
-            Assert.Equal(expectedSessionCount, statusJson.RootElement.GetProperty("sessionCount").GetInt32());
+            Assert.True(statusJson.RootElement.GetProperty("data").GetProperty("running").GetBoolean(), $"{diagnosticLabel} daemon should be running.");
+            Assert.Equal(expectedSessionCount, statusJson.RootElement.GetProperty("data").GetProperty("sessionCount").GetInt32());
         }
     }
 

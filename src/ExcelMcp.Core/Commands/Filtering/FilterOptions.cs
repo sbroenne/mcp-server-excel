@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Filtering;
 
@@ -88,14 +89,18 @@ public sealed class FilterOptions
 public sealed class FilterCriterion
 {
     /// <summary>Whether Excel returned the criterion.</summary>
+    [ResultContext]
     public bool Available { get; set; }
     /// <summary>Whether Excel returned an empty native variant rather than a populated criterion.</summary>
+    [ResultContext]
     public bool EmptyVariant { get; set; }
     /// <summary>Native scalar, ordered array, or icon descriptor; never an array's ToString output.</summary>
     public object? Value { get; set; }
     /// <summary>Native getter error when the criterion could not be read.</summary>
+    [ResultContext]
     public string? ReadError { get; set; }
     /// <summary>Native HRESULT when a criterion getter failed.</summary>
+    [ResultContext]
     public int? HResult { get; set; }
 }
 

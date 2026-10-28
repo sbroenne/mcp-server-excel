@@ -32,7 +32,7 @@ public sealed class OwnedContextVisibilityContractCliTests
         Assert.Equal("window.get-context", captured.Command);
         Assert.Equal("session-1", captured.SessionId);
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.Equal("available", output.RootElement.GetProperty("availability").GetString());
+        Assert.Equal("available", output.RootElement.GetProperty("data").GetProperty("availability").GetString());
     }
 
     [Theory]

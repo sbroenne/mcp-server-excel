@@ -1,15 +1,18 @@
 using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Workers;
+using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 
 /// <summary>
-/// Fixture that starts an in-process ExcelMCP service for CLI integration tests.
+/// Fixture that starts the shared controller with product workers for CLI integration tests.
 /// Uses the CLI pipe name so CLI commands can connect to it.
 /// </summary>
 public sealed class ServiceFixture : IAsyncLifetime, IDisposable
 {
-    private ExcelMcpService? _service;
+    private ExcelController? _service;
+    private Task? _server;
     private string? _pipeName;
     private string? _previousPipeNameOverride;
 
@@ -19,8 +22,8 @@ public sealed class ServiceFixture : IAsyncLifetime, IDisposable
         _previousPipeNameOverride = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE");
         Environment.SetEnvironmentVariable("EXCELMCP_CLI_PIPE", _pipeName);
 
-        _service = new ExcelMcpService();
-        _ = Task.Run(() => _service.RunAsync(_pipeName));
+        _service = new ExcelController(launcher: new ProductProcessLauncher(CliProcessHelper.GetExePath(), []));
+        _server = _service.RunAsync(_pipeName);
 
         // Wait for pipe server to be ready
         for (int i = 0; i < 20; i++)
@@ -44,9 +47,11 @@ public sealed class ServiceFixture : IAsyncLifetime, IDisposable
 
     public void Dispose()
     {
-        _service?.RequestShutdown();
+        _service?.RequestShutdownAsync().GetAwaiter().GetResult();
+        _server?.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
         _service?.Dispose();
         _service = null;
+        _server = null;
         Environment.SetEnvironmentVariable("EXCELMCP_CLI_PIPE", _previousPipeNameOverride);
         _previousPipeNameOverride = null;
         _pipeName = null;

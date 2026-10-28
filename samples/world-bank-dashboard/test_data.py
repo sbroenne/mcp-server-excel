@@ -87,7 +87,8 @@ class OverviewDesignTests(unittest.TestCase):
             def call(self, command, **args):
                 self.commands.append({"command": command, "args": args})
                 if command == "table.list":
-                    return {"result": {"tables": [{"name": "OverviewData"}]}}
+                    return {"index": 0, "command": command, "success": True, "durationMs": 1,
+                            "data": {"tables": [{"name": "OverviewData"}]}}
                 return None
 
         recorder = Recorder()
@@ -125,9 +126,10 @@ class BuildLifecycleTests(unittest.TestCase):
                     "--output", str(Path(directory) / "sample.xlsx"),
                     "--logs", str(Path(directory) / "logs")]
             responses = [
-                {"sessionId": "created"},
-                {"sessions": [{"sessionId": "created", "canClose": True}]},
-                {"success": True},
+                {"command": "session.create", "success": True, "durationMs": 1, "data": {"sessionId": "created"}},
+                {"command": "session.list", "success": True, "durationMs": 1,
+                 "data": {"sessions": [{"sessionId": "created", "canClose": True}]}},
+                {"command": "session.close", "success": True, "durationMs": 1},
                 RuntimeError("Cannot reopen saved model"),
             ]
             with patch("sys.argv", args), patch("build_workbook.build_model"), \

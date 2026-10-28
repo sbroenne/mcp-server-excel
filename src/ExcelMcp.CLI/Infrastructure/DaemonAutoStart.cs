@@ -84,7 +84,7 @@ internal static class DaemonAutoStart
             startupDeadline.Cap(InitialPingTimeout),
             cancellationToken))
         {
-            return new ServiceClient(pipeName);
+            return new ServiceClient(pipeName, useControlEndpoint: true);
         }
 
         if (runtime.IsDaemonMutexHeld())
@@ -126,7 +126,7 @@ internal static class DaemonAutoStart
 
                 if (await runtime.PingAsync(connectTimeout, cancellationToken))
                 {
-                    return new ServiceClient(pipeName);
+                    return new ServiceClient(pipeName, useControlEndpoint: true);
                 }
             }
 
@@ -137,7 +137,7 @@ internal static class DaemonAutoStart
                     startupDeadline,
                     cancellationToken))
                 {
-                    return new ServiceClient(pipeName);
+                    return new ServiceClient(pipeName, useControlEndpoint: true);
                 }
             }
             var daemonStillRunning = runtime.IsDaemonMutexHeld();
@@ -152,7 +152,7 @@ internal static class DaemonAutoStart
                     startupDeadline,
                     cancellationToken))
             {
-                return new ServiceClient(pipeName);
+                return new ServiceClient(pipeName, useControlEndpoint: true);
             }
 
             if (daemonStillRunning)
@@ -174,14 +174,14 @@ internal static class DaemonAutoStart
             cancellationToken);
         if (startOutcome == StartOutcome.Ready)
         {
-            return new ServiceClient(pipeName);
+            return new ServiceClient(pipeName, useControlEndpoint: true);
         }
 
         if (await runtime.WaitForResponsiveDaemonAsync(
             startupDeadline,
             cancellationToken))
         {
-            return new ServiceClient(pipeName);
+            return new ServiceClient(pipeName, useControlEndpoint: true);
         }
 
         throw new TimeoutException(startOutcome switch
@@ -573,7 +573,8 @@ internal static class DaemonAutoStart
         using var client = new ServiceClient(
             pipeName,
             connectTimeout: connectTimeout,
-            requestTimeout: connectTimeout);
+            requestTimeout: connectTimeout,
+            useControlEndpoint: true);
         var response = await client.SendAsync(
             new ServiceRequest { Command = "service.ping" },
             connectTimeout,

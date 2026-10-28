@@ -293,9 +293,9 @@ public sealed class SessionManager : IDisposable
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
 
-    private void CleanupDeadFilePathOwner(string normalizedPath)
+    private void CleanupDeadFilePathOwner(string location)
     {
-        if (_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId)
+        if (_activeFilePaths.TryGetValue(WorkbookLocation.GetOwnershipKey(location), out var ownerSessionId)
             && _activeSessions.TryGetValue(ownerSessionId, out var owner)
             && owner is not ExcelBatch { HasFailedStartup: true }
             && !owner.IsExcelProcessAlive())
@@ -304,12 +304,13 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private bool TryClaimFilePath(string normalizedPath, string sessionId)
+    private bool TryClaimFilePath(string location, string sessionId)
     {
+        var normalizedPath = WorkbookLocation.GetOwnershipKey(location);
         lock (_filePathReservationLock)
         {
             ThrowIfClosedToNewSessions();
-            if (_activeSessions.Any(entry =>
+            if (!WorkbookLocation.IsRemote(location) && _activeSessions.Any(entry =>
                 !string.Equals(entry.Key, sessionId, StringComparison.Ordinal)
                 && string.Equals(
                     entry.Value is AttachedWorkbookBatch attached
@@ -329,11 +330,17 @@ public sealed class SessionManager : IDisposable
     {
         lock (_filePathReservationLock)
         {
-            if (_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId) &&
+            var ownershipKey = WorkbookLocation.GetOwnershipKey(normalizedPath);
+            if (_activeFilePaths.TryGetValue(ownershipKey, out var ownerSessionId) &&
                 string.Equals(ownerSessionId, sessionId, StringComparison.Ordinal))
             {
-                _activeFilePaths.TryRemove(normalizedPath, out _);
+                _activeFilePaths.TryRemove(ownershipKey, out _);
+                return;
             }
+            foreach (var claim in _activeFilePaths.Where(entry =>
+                entry.Value == sessionId && string.Equals(WorkbookLocation.Normalize(entry.Key),
+                    WorkbookLocation.Normalize(normalizedPath), StringComparison.OrdinalIgnoreCase)))
+                _activeFilePaths.TryRemove(claim);
         }
     }
 
@@ -371,15 +378,123 @@ public sealed class SessionManager : IDisposable
         _logger = logger ?? NullLogger<SessionManager>.Instance;
     }
 
+    internal TemporaryBatchOwnership OwnTemporaryBatches(string command, CancellationToken cancellation) =>
+        new(this, command, cancellation);
+
+    internal sealed class TemporaryBatchOwnership : IDisposable
+    {
+        private readonly SessionManager _manager;
+        private readonly string _command;
+        private readonly CancellationToken _cancellation;
+        private readonly IDisposable _scope;
+        internal string? SessionId { get; private set; }
+        internal IReadOnlyList<string> FilePaths { get; private set; } = [];
+
+        internal TemporaryBatchOwnership(SessionManager manager, string command, CancellationToken cancellation)
+        {
+            _manager = manager;
+            _command = command;
+            _cancellation = cancellation;
+            _scope = ExcelSession.OwnTemporaryBatches(Create);
+        }
+
+        private ExcelBatch Create(string[] paths, bool show, TimeSpan? operationTimeout, TimeSpan? startupTimeout)
+        {
+            if (SessionId is not null)
+                throw new InvalidOperationException("This operation already owns a temporary Excel batch.");
+            var sessionId = Guid.NewGuid().ToString("N");
+            ExcelBatch batch;
+            lock (_manager._filePathReservationLock)
+            {
+                _manager.ThrowIfClosedToNewSessions();
+                foreach (var path in paths)
+                {
+                    if (!_manager.TryClaimFilePath(path, sessionId))
+                    {
+                        foreach (var claimed in paths)
+                            _manager.ReleaseFilePathClaim(claimed, sessionId);
+                        throw new InvalidOperationException(
+                            $"File '{WorkbookLocation.Normalize(path)}' is already open or reserved by another session.");
+                    }
+                }
+                try
+                {
+                    batch = new ExcelBatch(paths, show: show,
+                        operationTimeout: operationTimeout ?? ExcelSession.TemporaryBatchTimeoutForTests,
+                        startupTimeout: startupTimeout ?? ExcelSession.TemporaryBatchStartupTimeoutForTests
+                            ?? ComInteropConstants.DefaultOperationTimeout,
+                        deferStartup: true)
+                    {
+                        IsManagedTemporaryBatch = true
+                    };
+                    _manager.PublishSession(sessionId, WorkbookLocation.Normalize(paths[0]), batch, show, SessionOrigin.Unknown);
+                }
+                catch
+                {
+                    foreach (var path in paths)
+                        _manager.ReleaseFilePathClaim(path, sessionId);
+                    throw;
+                }
+                SessionId = sessionId;
+                FilePaths = paths.Select(WorkbookLocation.Normalize).ToArray();
+            }
+            batch.SetOperationContext(_command, _cancellation);
+            ExcelSession.TemporaryBatchCreatedForTests?.Invoke(batch);
+            batch.WaitForStartup();
+            return batch;
+        }
+
+        internal void Complete()
+        {
+            if (SessionId is not { } sessionId)
+                return;
+            if (_manager._activeSessions.TryGetValue(sessionId, out var batch))
+            {
+                ((ExcelBatch)batch).Close();
+                _manager.RemoveSessionTracking(sessionId, removeSessionLock: true);
+            }
+        }
+
+        internal void RetainFailure()
+        {
+            if (SessionId is not { } sessionId
+                || !_manager._activeSessions.TryGetValue(sessionId, out var batch))
+                return;
+            if (TryConfirmFailedTeardown(batch))
+            {
+                _manager.RemoveSessionTracking(sessionId, removeSessionLock: true);
+                SessionId = null;
+                return;
+            }
+            _manager.RevealForRecovery(sessionId);
+        }
+
+        public void Dispose() => _scope.Dispose();
+    }
+
+    internal IReadOnlyList<string> GetOwnedFilePaths(string sessionId) =>
+        GetOwnedFilePathKeys(sessionId).Select(WorkbookLocation.Normalize)
+            .Order(StringComparer.OrdinalIgnoreCase).ToArray();
+
+    internal IReadOnlyList<string> GetOwnedFilePathKeys(string sessionId) =>
+        _activeFilePaths.Where(entry => string.Equals(entry.Value, sessionId, StringComparison.Ordinal))
+            .Select(entry => entry.Key).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+
+    internal bool HasPendingExecution => _activeSessions.Values.Any(batch =>
+        GetExecutionOwner(batch) is { } owner
+        && owner.OperationStatus.ExecutionPending);
+
     internal Action<ExcelBatch>? AfterApplicationDiscoveryHookForTests { get; set; }
     internal Action<ExcelBatch>? AfterOwnedCloseDiscoveryHookForTests { get; set; }
     internal Action? AfterAttachmentRefreshHookForTests { get; set; }
     internal Action? AfterOwnedWorkbookMatchHookForTests { get; set; }
 
     /// <summary>Discovers already-open workbooks in the current user's Windows session.</summary>
+    public Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync() => DiscoverOpenWorkbooksAsync(null);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Discovery returns partial results and the exact per-application inspection errors instead of treating failed reads as missing workbooks.")]
-    public async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync()
+    internal async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync(ExcelProcessIdentity? selectedApplication)
     {
         ThrowIfClosedToNewSessions();
         var nativeDiscovery = RunningExcelWindows.Find();
@@ -405,6 +520,7 @@ public sealed class SessionManager : IDisposable
         }
 
         await Task.WhenAll(nativeDiscovery.Windows
+            .Where(window => selectedApplication is null || window.Process == selectedApplication)
             .GroupBy(window => window.Process)
             .Select(group => group.First())
             .Select(window => Task.Run(() =>
@@ -676,12 +792,13 @@ public sealed class SessionManager : IDisposable
                     ValidateOwnedWorkbookLocations(ownedCandidates);
                 if (previousPath is null)
                     continue;
+                var primaryWorkbook = string.Equals(previousPath, owned.WorkbookPath, StringComparison.OrdinalIgnoreCase);
                 AfterOwnedWorkbookMatchHookForTests?.Invoke();
 
                 if (workbook.Location is { } currentPath
                     && (!string.Equals(previousPath, currentPath, StringComparison.OrdinalIgnoreCase)
-                        || !_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
-                        || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase)))
+                        || primaryWorkbook && (!_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
+                            || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase))))
                 {
                     string reserved;
                     lock (_filePathReservationLock)
@@ -699,10 +816,10 @@ public sealed class SessionManager : IDisposable
                                     throw new InvalidOperationException(
                                         "The owned workbook location changed during discovery. Discover open workbooks again.");
                                 }
-                                owned.UpdateWorkbookPath(currentPath);
+                                owned.UpdateOwnedWorkbookPath(previousPath, currentPath);
                                 return 0;
                             });
-                        UpdateSessionFilePath(ownedSessionId, currentPath);
+                        UpdateSessionFilePath(ownedSessionId, currentPath, previousPath);
                         ownedCandidates[index] = (ownedSessionId, owned, owned.LocationRevision);
                     }
                     finally
@@ -714,12 +831,18 @@ public sealed class SessionManager : IDisposable
             }
         }
 
-        if (workbook.Location is { } location
-            && _activeFilePaths.TryGetValue(location, out var sessionId)
-            && _activeSessions.TryGetValue(sessionId, out var session)
-            && session is not AttachedWorkbookBatch
-            && session.ExcelProcessId == workbook.ProcessId)
+        if (workbook.Location is not { } location)
+            return null;
+
+        foreach (var claim in _activeFilePaths.Where(entry =>
+            WorkbookLocation.MatchesReportedLocation(entry.Key, location)))
         {
+            var sessionId = claim.Value;
+            if (!_activeSessions.TryGetValue(sessionId, out var session)
+                || session is AttachedWorkbookBatch
+                || session.ExcelProcessId != workbook.ProcessId)
+                continue;
+
             if (session is not ExcelBatch ownedSession)
                 return sessionId;
 
@@ -859,6 +982,11 @@ public sealed class SessionManager : IDisposable
                     "The workbook connection changed during attachment. Discover open workbooks again.");
             if (existingSessionId is not null)
             {
+                if (_activeSessions[existingSessionId] is ExcelBatch { IsManagedTemporaryBatch: true } temporary
+                    && !string.Equals(current.Location, temporary.WorkbookPath, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Workbook '{path}' is already managed by multi-workbook session '{existingSessionId}'. " +
+                        "Its primary workbook selection was not changed. Inspect that session's filePaths or show its Excel window.");
                 if (_activeSessions[existingSessionId] is AttachedWorkbookBatch attached)
                 {
                     if (observedSession is null && attached.LocationRevision == 0)
@@ -959,42 +1087,25 @@ public sealed class SessionManager : IDisposable
         ThrowIfClosedToNewSessions();
 
         string normalizedPath = WorkbookLocation.Normalize(filePath);
-        bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
-        if (isRemote && !show)
-            throw new ArgumentException("SharePoint workbooks require show=true so Excel authentication and permission prompts remain visible.", nameof(show));
-
-        if (!isRemote && !File.Exists(normalizedPath))
-        {
-            throw new FileNotFoundException($"Excel file not found: {filePath}. To create a new file, use the 'create' action instead of 'open'.", filePath);
-        }
-
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
-        CleanupDeadFilePathOwner(normalizedPath);
-        if (!TryClaimFilePath(normalizedPath, sessionId))
+        CleanupDeadFilePathOwner(filePath);
+        if (!TryClaimFilePath(filePath, sessionId))
         {
             throw new InvalidOperationException(
-                $"File '{filePath}' is already open in another session or reserved for one. " +
+                $"File '{normalizedPath}' is already open in another session or reserved for one. " +
                 "Excel cannot open the same file multiple times.");
         }
 
         ExcelBatch? batch = null;
         try
         {
-            // Reject external file-access failures after the in-process path claim,
-            // so a duplicate session reports its canonical ownership error instead
-            // of being mistaken for an unrelated OS-level file lock.
-            if (!isRemote && !FileAccessValidator.IsIrmProtected(normalizedPath))
-            {
-                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
-            }
-
             // Create batch session using Core API with retry for transient COM failures
             // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
             lock (_filePathReservationLock)
             {
                 ThrowIfClosedToNewSessions();
-                batch = ExcelSession.BeginOwnedBatch(show, operationTimeout, startupTimeout, normalizedPath);
+                batch = ExcelSession.BeginOwnedBatch(show, operationTimeout, startupTimeout, filePath);
                 PublishSession(sessionId, normalizedPath, batch, show, origin);
             }
             batch.WaitForStartup();
@@ -1008,7 +1119,7 @@ public sealed class SessionManager : IDisposable
         catch (Exception ex)
         {
             CleanupFailedStartup(sessionId, batch, ex);
-            throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
+            throw new InvalidOperationException($"Failed to create session for '{normalizedPath}': {ex.Message}", ex);
         }
     }
 
@@ -1022,23 +1133,21 @@ public sealed class SessionManager : IDisposable
 
         var normalizedPath = WorkbookLocation.Normalize(filePath);
         var reservationId = Guid.NewGuid().ToString("N");
-        CleanupDeadFilePathOwner(normalizedPath);
-        if (!TryClaimFilePath(normalizedPath, reservationId))
+        CleanupDeadFilePathOwner(filePath);
+        if (!TryClaimFilePath(filePath, reservationId))
         {
             throw new InvalidOperationException(
-                $"File '{filePath}' is already open in another session or reserved for one.");
+                $"File '{normalizedPath}' is already open in another session or reserved for one.");
         }
 
         ExcelBatch? batch = null;
         var retained = false;
         try
         {
-            if (!WorkbookLocation.IsRemote(normalizedPath))
-                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
             lock (_filePathReservationLock)
             {
                 ThrowIfClosedToNewSessions();
-                batch = ExcelSession.BeginReadOnlyValidation(normalizedPath, operationTimeout, deferStartup: true);
+                batch = ExcelSession.BeginReadOnlyValidation(filePath, operationTimeout, deferStartup: true);
                 PublishSession(reservationId, normalizedPath, batch,
                     show: WorkbookLocation.IsRemote(normalizedPath),
                     SessionOrigin.Unknown,
@@ -1921,12 +2030,7 @@ public sealed class SessionManager : IDisposable
         {
             foreach (var path in closedPaths)
             {
-                var normalizedPath = WorkbookLocation.Normalize(path);
-                if (_activeFilePaths.TryGetValue(normalizedPath, out var owner)
-                    && string.Equals(owner, sessionId, StringComparison.Ordinal))
-                {
-                    _activeFilePaths.TryRemove(normalizedPath, out _);
-                }
+                ReleaseFilePathClaim(path, sessionId);
             }
 
             if (_sessionFilePaths.ContainsKey(sessionId))
@@ -2086,7 +2190,6 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var normalizedPath = WorkbookLocation.Normalize(filePath);
-
         lock (_filePathReservationLock)
         {
             if (!_activeSessions.TryGetValue(sessionId, out var session))
@@ -2150,7 +2253,10 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">Active session ID</param>
     /// <param name="filePath">New workbook path</param>
-    public void UpdateSessionFilePath(string sessionId, string filePath)
+    public void UpdateSessionFilePath(string sessionId, string filePath) =>
+        UpdateSessionFilePath(sessionId, WorkbookLocation.Normalize(filePath), previousWorkbookPath: null);
+
+    private void UpdateSessionFilePath(string sessionId, string filePath, string? previousWorkbookPath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var normalizedPath = WorkbookLocation.Normalize(filePath);
@@ -2176,13 +2282,19 @@ public sealed class SessionManager : IDisposable
                     $"File '{normalizedPath}' is not reserved by session '{sessionId}'.");
             }
 
-            if (_sessionFilePaths.TryGetValue(sessionId, out var previousPath) &&
+            _sessionFilePaths.TryGetValue(sessionId, out var selectedPath);
+            var previousPath = previousWorkbookPath ?? selectedPath;
+            if (previousPath is not null &&
                 !string.Equals(previousPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
             {
                 ReleaseFilePathClaim(previousPath, sessionId);
             }
 
-            _sessionFilePaths[sessionId] = normalizedPath;
+            if (previousWorkbookPath is null
+                || string.Equals(previousWorkbookPath, selectedPath, StringComparison.OrdinalIgnoreCase))
+                _sessionFilePaths[sessionId] = normalizedPath;
+            else
+                _sessionFilePathReservations.TryRemove(sessionId, out _);
             _readOnlyValidationSessions.TryRemove(sessionId, out _);
         }
     }

@@ -6,10 +6,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public sealed class RangeFormulaTraceResult : OperationResult
 {
     /// <summary>Resolved worksheet.</summary>
+    [ResultContext]
     public string SheetName { get; set; } = string.Empty;
     /// <summary>Exact starting scope, including disjoint areas.</summary>
+    [ResultContext]
     public string RangeAddress { get; set; } = string.Empty;
     /// <summary>precedents or dependents.</summary>
+    [ResultContext]
     public string Direction { get; set; } = string.Empty;
     /// <summary>Included cells and bounded formula/value previews, including retained starting cells.</summary>
     public List<FormulaTraceNode> Nodes { get; set; } = [];
@@ -18,21 +21,26 @@ public sealed class RangeFormulaTraceResult : OperationResult
     /// <summary>Cycles in returned edges, including self-references; omitted edges can hide other cycles.</summary>
     public List<List<string>> Cycles { get; set; } = [];
     /// <summary>Native lookups that could not establish whether relationships exist.</summary>
+    [ResultContext]
     public List<FormulaTraceUnresolved> Unresolved { get; set; } = [];
     /// <summary>Effective caller-selected limits.</summary>
+    [ResultContext]
     public FormulaTraceLimits Limits { get; set; } = new(3, 50, 256);
     /// <summary>Separate graph and preview omissions; reaching a bound alone is not an omission.</summary>
+    [ResultContext]
     public FormulaTraceTruncation Truncation { get; set; } = new();
     /// <summary>Where enumeration stopped, not an exact count of excluded cells or relationships.</summary>
+    [ResultContext]
     public List<FormulaTraceBoundary> Boundaries { get; set; } = [];
     /// <summary>Native scope and semantic limitations; not a complete workbook dependency graph.</summary>
+    [ResultContext]
     public FormulaTraceCoverage Coverage { get; set; } = new();
 }
 
 /// <summary>An included cell with minimum depth from retained roots and flagged formula/value previews.</summary>
 public sealed record FormulaTraceNode(
     string Address, int Row, int Column, string? Formula, object? Value, bool IsRoot,
-    int Depth, bool FormulaTruncated, bool ValueTruncated);
+    int Depth, [property: ResultContext] bool FormulaTruncated, [property: ResultContext] bool ValueTruncated);
 
 /// <summary>Limits shared by both entry points; there is no unlimited setting.</summary>
 public sealed record FormulaTraceLimits(int MaxDepth, int MaxNodes, int MaxPreviewCharacters);

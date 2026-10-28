@@ -428,7 +428,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         var result = timeout.HasValue
             ? await callTask.WaitAsync(timeout.Value, TestCancellationToken)
             : await callTask;
-        return Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        return McpResponseAssertions.ReadText(result);
     }
 
     private static JsonDocument ParseJsonResult(string jsonResult, string operationName)
@@ -446,7 +446,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         string? expectedErrorCategory = null)
     {
         Assert.False(root.GetProperty("success").GetBoolean(), $"{operationName} unexpectedly succeeded.");
-        Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
+        Assert.False(root.TryGetProperty("isError", out _), $"{operationName} should use the protocol error flag.");
         Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
         var errorMessage = root.GetProperty("errorMessage").GetString();
 

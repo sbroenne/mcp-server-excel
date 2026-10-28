@@ -67,6 +67,14 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 > 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close --session <id> --save` when finished. Add `--show` when Excel must stay visible for IRM/AIP sign-in or other authentication prompts.
 
+For a known sequence, use `excelcli batch` to avoid launching the CLI for every
+step. Start with `excelcli batch --help` for runnable PowerShell examples and
+input/result rules. Action help, such as `excelcli range set-values --help`,
+also shows the exact batch command and argument names; no skill is required.
+Use individual commands when you need to inspect a result before choosing the
+next step. See [CLI batch jobs](../../docs/reference/workflows.md#cli-batch-jobs)
+for the complete workflow.
+
 ---
 
 ## 📋 What You Can Do
@@ -193,6 +201,16 @@ Use `session discover`, check `complete` and `errors`, then explicitly attach
 with `session attach --workbook-id <ID>` to inspect the intended workbook.
 Do not infer that an unknown workbook is empty or safe to terminate.
 
+Excel work runs in separate private workers. Status and the tray read recorded
+information, so a responsive service does not prove that Excel is ready.
+Commands for workbooks in the same Excel application share one execution owner.
+If a stopped service retained a worker, explicit discovery can reconnect to it
+after the old service process exits; pending edits are not repeated. A different
+product build or another running owner is reported rather than replaced.
+Tray exit does not keep a report window's process alive. When Excel must remain
+open, its shutdown details are saved beside the private service tracking record
+under `%TEMP%\ExcelMcp\cli-daemon` as `<pipe-hash>.json.shutdown.txt`.
+
 ---
 
 ## 🛠️ Advanced Usage
@@ -203,7 +221,7 @@ Do not infer that an unknown workbook is empty or safe to terminate.
 # PowerShell script example
 $files = Get-ChildItem *.xlsx
 foreach ($file in $files) {
-    $sessionId = (excelcli -q session open $file.FullName | ConvertFrom-Json).sessionId
+    $sessionId = (excelcli -q session open $file.FullName | ConvertFrom-Json).data.sessionId
     excelcli -q powerquery refresh --session $sessionId --query-name "Sales Data"
     excelcli -q datamodel refresh --session $sessionId
     excelcli -q session close --session $sessionId --save
@@ -216,21 +234,20 @@ example, a `powerquery refresh-all` where one query failed), so scripts can
 check `$LASTEXITCODE`. In `batch` output, such a line has `success: false`, and
 `--stop-on-error` stops there.
 
-Each per-command batch result also includes `commandSummary`, a single-line
-description of at most 160 characters. It identifies selected worksheet/range,
-table, query, PivotTable, or chart targets and includes inline range-write
-dimensions when available. For example:
-`range.set-values: Sales!A2:D21 (20 rows x 4 columns)`.
-Summaries appear on failed entries too; they describe the request, not proof
-that it completed. Existing `index`, `command`, results, errors, and exit codes
-are unchanged. Both JSON-array and one-command-per-line input produce one JSON
-result per output line.
+Individual commands and batch items return `command`, `success`, `durationMs`,
+and optional `data`, `warnings`, `error`, and `partialState`. Batch items add
+only `index`; the old `commandSummary` and `result` fields are removed.
+Read business fields under `data` and failure details under `error.message`
+and `error.category`. This also applies without quiet mode or redirection.
+Help and version output remain human-readable.
 
-Summaries do not copy cell contents, formulas, code, credentials, connection
-strings, or file paths from input arguments. Target names are returned to the
-requesting user, not added to usage reporting; they are not redacted for public
-sharing. See [CLI batch jobs](../../docs/reference/workflows.md#cli-batch-jobs)
-for the supported details, shortening rules, and examples.
+List/read commands accept `--fields` with comma-separated business paths, such
+as `queries.name,queries.loadMode`. Batch input uses `args.fields` as an array.
+Warnings, errors, partial state, and inspection boundaries cannot be hidden.
+Power Query lists omit formula previews by default; explicitly select
+`queries.formulaPreview` for its bounded preview or use `powerquery view`
+for full M code. Choosing fields reduces returned data, not Excel's checks.
+See [result details and migration examples](../../docs/reference/workflows.md#reading-results-and-choosing-fields).
 
 ### CI/CD Integration
 
@@ -255,7 +272,7 @@ jobs:
       - name: Process Excel Files
         shell: pwsh
         run: |
-          $sessionId = (excelcli -q session open data.xlsx | ConvertFrom-Json).sessionId
+          $sessionId = (excelcli -q session open data.xlsx | ConvertFrom-Json).data.sessionId
           excelcli -q powerquery create --session $sessionId --query-name "Query1" --m-code-file queries\query1.pq
           excelcli -q powerquery refresh --session $sessionId --query-name "Query1"
           excelcli -q session close --session $sessionId --save

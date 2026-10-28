@@ -52,15 +52,15 @@ public sealed class DaemonForcedStopRegressionTests
             using var json = JsonDocument.Parse(result.Stdout);
             var status = json.RootElement;
             Assert.False(status.GetProperty("success").GetBoolean());
-            Assert.Equal(serviceRunning, status.GetProperty("running").GetBoolean());
-            Assert.Equal(serviceRunning ? "running" : "stopped", status.GetProperty("daemonState").GetString());
-            Assert.Equal(daemon?.Id ?? 0, status.GetProperty("processId").GetInt32());
-            Assert.Equal(0, status.GetProperty("sessionCount").GetInt32());
+            Assert.Equal(serviceRunning, status.GetProperty("data").GetProperty("running").GetBoolean());
+            Assert.Equal(serviceRunning ? "running" : "stopped", status.GetProperty("data").GetProperty("daemonState").GetString());
+            Assert.Equal(daemon?.Id ?? 0, status.GetProperty("data").GetProperty("processId").GetInt32());
+            Assert.Equal(0, status.GetProperty("data").GetProperty("sessionCount").GetInt32());
             var expectedError = nullEntryList is null ? "malformed" : "invalid process ownership";
-            Assert.Contains(expectedError, status.GetProperty("retainedExcelError").GetString());
-            Assert.Contains(expectedError, status.GetProperty("errorMessage").GetString());
-            Assert.False(status.TryGetProperty("retainedExcelProcessCount", out _));
-            Assert.False(status.TryGetProperty("retainedExcelProcesses", out _));
+            Assert.Contains(expectedError, status.GetProperty("data").GetProperty("retainedExcelError").GetString());
+            Assert.Contains(expectedError, status.GetProperty("error").GetProperty("message").GetString());
+            Assert.False(status.GetProperty("data").TryGetProperty("retainedExcelProcessCount", out _));
+            Assert.False(status.GetProperty("data").TryGetProperty("retainedExcelProcesses", out _));
         }
         finally
         {
@@ -107,22 +107,22 @@ public sealed class DaemonForcedStopRegressionTests
             using var json = JsonDocument.Parse(result.Stdout);
             var status = json.RootElement;
             Assert.False(status.GetProperty("success").GetBoolean());
-            Assert.True(status.GetProperty("running").GetBoolean());
-            Assert.Equal("unresponsive", status.GetProperty("daemonState").GetString());
-            Assert.Equal("Timeout", status.GetProperty("errorCategory").GetString());
+            Assert.True(status.GetProperty("data").GetProperty("running").GetBoolean());
+            Assert.Equal("unresponsive", status.GetProperty("data").GetProperty("daemonState").GetString());
+            Assert.Equal("Timeout", status.GetProperty("error").GetProperty("category").GetString());
             if (damagedRecord)
             {
-                Assert.Contains("malformed", status.GetProperty("retainedExcelError").GetString());
-                Assert.False(status.TryGetProperty("retainedExcelProcessCount", out _));
+                Assert.Contains("malformed", status.GetProperty("data").GetProperty("retainedExcelError").GetString());
+                Assert.False(status.GetProperty("data").TryGetProperty("retainedExcelProcessCount", out _));
             }
             else
             {
-                Assert.Equal(1, status.GetProperty("retainedExcelProcessCount").GetInt32());
-                var retained = Assert.Single(status.GetProperty("retainedExcelProcesses").EnumerateArray());
+                Assert.Equal(1, status.GetProperty("data").GetProperty("retainedExcelProcessCount").GetInt32());
+                var retained = Assert.Single(status.GetProperty("data").GetProperty("retainedExcelProcesses").EnumerateArray());
                 Assert.Equal(excel.Id, retained.GetProperty("processId").GetInt32());
                 Assert.Equal(excel.StartTime.ToUniversalTime(), retained.GetProperty("startTime").GetDateTime());
                 Assert.Equal("unknown", retained.GetProperty("workbookState").GetString());
-                Assert.Contains("unsaved", status.GetProperty("recoveryMessage").GetString());
+                Assert.Contains("unsaved", status.GetProperty("data").GetProperty("recoveryMessage").GetString());
             }
             Assert.False(excel.HasExited);
         }
@@ -140,7 +140,7 @@ public sealed class DaemonForcedStopRegressionTests
     public async Task ServiceStop_WithoutDaemonMutex_SendsShutdownAndPreservesResponse(bool succeeds)
     {
         var pipeName = $"excelmcp-mutexless-stop-{Guid.NewGuid():N}";
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         var target = new MutexlessShutdownRpcTarget(succeeds);
         var connection = server.WaitForConnectionAsync();
         var stop = RunServiceStopAsync(pipeName);
@@ -157,7 +157,7 @@ public sealed class DaemonForcedStopRegressionTests
             using var response = JsonDocument.Parse(result.Stdout);
             Assert.Equal(succeeds, response.RootElement.GetProperty("success").GetBoolean());
             if (!succeeds)
-                Assert.Equal("Timeout", response.RootElement.GetProperty("errorCategory").GetString());
+                Assert.Equal("Timeout", response.RootElement.GetProperty("error").GetProperty("category").GetString());
         }
         finally
         {
@@ -184,23 +184,25 @@ public sealed class DaemonForcedStopRegressionTests
 
     [Fact]
     [Trait("Speed", "Slow")]
-    public async Task ServiceStop_DelayedShutdownBeyondOneMinute_ReturnsConfirmedSuccess()
+    public async Task ServiceStop_DelayedShutdownBeyondResponseBudget_ReportsUnconfirmedState()
     {
         var pipeName = $"excelmcp-delayed-stop-{Guid.NewGuid():N}";
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
+        var elapsed = Stopwatch.StartNew();
         var stop = CliProcessHelper.RunAsync(
             "service stop",
-            timeoutMs: 90000,
+            timeoutMs: 15000,
             environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
         await server.WaitForConnectionAsync().WaitAsync(TimeSpan.FromSeconds(10));
         using var rpc = JsonRpc.Attach(server, new DelayedShutdownRpcTarget(TimeSpan.FromSeconds(65)));
 
         var result = await stop;
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         using var response = JsonDocument.Parse(result.Stdout);
-        Assert.True(response.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Service stopped.", response.RootElement.GetProperty("message").GetString());
+        Assert.False(response.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Timeout", response.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.InRange(elapsed.Elapsed, TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(15));
     }
 
     private sealed class DelayedShutdownRpcTarget(TimeSpan delay)
@@ -301,7 +303,7 @@ public sealed class DaemonForcedStopRegressionTests
         var pipeName = $"excelmcp-unconfirmed-stop-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         try
         {
             RegisterTrackedProcesses(pipeName, daemon, excel);
@@ -347,7 +349,7 @@ public sealed class DaemonForcedStopRegressionTests
         var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         try
         {
             RegisterTrackedProcesses(pipeName, daemon, excel);
@@ -359,7 +361,7 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.Equal(1, result.ExitCode);
             using var json = JsonDocument.Parse(result.Stdout);
             Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal(category, json.RootElement.GetProperty("errorCategory").GetString());
+            Assert.Equal(category, json.RootElement.GetProperty("error").GetProperty("category").GetString());
             Assert.False(daemon.HasExited);
             Assert.False(excel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
@@ -422,7 +424,7 @@ public sealed class DaemonForcedStopRegressionTests
             using var statusJson = JsonDocument.Parse(status.Stdout);
             Assert.Equal(
                 daemon.Id,
-                statusJson.RootElement.GetProperty("processId").GetInt32());
+                statusJson.RootElement.GetProperty("data").GetProperty("processId").GetInt32());
 
             var stopResult = await RunProcessAsync(
                 cliPath,
@@ -949,7 +951,7 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeB)));
             using var output = JsonDocument.Parse(result.Stdout);
             Assert.Equal(excelA.Id, Assert.Single(output.RootElement
-                .GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
+                .GetProperty("data").GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
         }
         finally
         {
@@ -980,7 +982,7 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.False(excel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
             using var stopped = JsonDocument.Parse(result.Stdout);
-            var retained = Assert.Single(stopped.RootElement.GetProperty("retainedExcelProcesses").EnumerateArray());
+            var retained = Assert.Single(stopped.RootElement.GetProperty("data").GetProperty("retainedExcelProcesses").EnumerateArray());
             Assert.Equal(excel.Id, retained.GetProperty("processId").GetInt32());
             Assert.Equal(excel.StartTime.ToUniversalTime(),
                 retained.GetProperty("startTime").GetDateTime().ToUniversalTime());
@@ -989,9 +991,9 @@ public sealed class DaemonForcedStopRegressionTests
                 environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
             Assert.Equal(0, status.ExitCode);
             using var statusJson = JsonDocument.Parse(status.Stdout);
-            Assert.False(statusJson.RootElement.GetProperty("running").GetBoolean());
+            Assert.False(statusJson.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
             Assert.Equal(excel.Id, Assert.Single(statusJson.RootElement
-                .GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
+                .GetProperty("data").GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
         }
         finally
         {
@@ -1289,7 +1291,7 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.False(response.RootElement.GetProperty("success").GetBoolean());
             Assert.Contains(
                 "malformed",
-                response.RootElement.GetProperty("errorMessage").GetString(),
+                response.RootElement.GetProperty("error").GetProperty("message").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(trackingFile));
         }

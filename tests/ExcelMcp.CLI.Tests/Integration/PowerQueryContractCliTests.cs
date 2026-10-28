@@ -39,9 +39,9 @@ public sealed class PowerQueryContractCliTests
             });
         Assert.Equal(0, result.ExitCode);
         using var document = JsonDocument.Parse(result.Stdout);
-        Assert.Equal(12.5, document.RootElement.GetProperty("durationMs").GetDouble());
-        Assert.Equal(1, document.RootElement.GetProperty("rowsLoaded").GetInt64());
-        Assert.Equal(1, document.RootElement.GetProperty("worksheetRowsLoaded").GetInt64());
+        Assert.Equal(12.5, document.RootElement.GetProperty("data").GetProperty("durationMs").GetDouble());
+        Assert.Equal(1, document.RootElement.GetProperty("data").GetProperty("rowsLoaded").GetInt64());
+        Assert.Equal(1, document.RootElement.GetProperty("data").GetProperty("worksheetRowsLoaded").GetInt64());
     }
 
     [Theory]
@@ -87,11 +87,10 @@ public sealed class PowerQueryContractCliTests
         using var document = JsonDocument.Parse(result.Stdout);
         var root = document.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.True(root.GetProperty("isError").GetBoolean());
-        Assert.Equal("PrivacyFirewall", root.GetProperty("errorCategory").GetString());
-        Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
-        Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
-        Assert.Contains("powerquery set-privacy-settings", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Equal("PrivacyFirewall", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal("PowerQueryCommandException", root.GetProperty("error").GetProperty("exceptionType").GetString());
+        Assert.Equal("0x800A03EC", root.GetProperty("error").GetProperty("hresult").GetString());
+        Assert.Contains("powerquery set-privacy-settings", root.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
         Assert.Equal(partialState.GetRawText(), root.GetProperty("partialState").GetRawText());
     }
 
@@ -126,14 +125,14 @@ public sealed class PowerQueryContractCliTests
         }
         using var document = JsonDocument.Parse(result.Stdout);
         var root = document.RootElement;
-        Assert.True(root.GetProperty("isError").GetBoolean());
-        Assert.Equal("PrivacyFirewall", root.GetProperty("errorCategory").GetString());
-        Assert.Equal("Formula.Firewall", root.GetProperty("innerError").GetString());
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal("PrivacyFirewall", root.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal("Formula.Firewall", root.GetProperty("error").GetProperty("innerError").GetString());
         Assert.False(root.TryGetProperty("partialState", out _));
     }
 
     [Fact]
-    public async Task ListAndView_PrintServiceResultUnchanged()
+    public async Task ListOmitsPreviewAndViewPreservesCompleteCode()
     {
         const string listJson = """{"success":true,"queries":[{"name":"Query","formulaPreview":"let","characterCount":5000,"loadMode":"connection-only"}]}""";
         const string viewJson = """{"success":true,"queryName":"Query","mCode":"let Source = 1 in Source","loadMode":"connection-only"}""";
@@ -158,11 +157,17 @@ public sealed class PowerQueryContractCliTests
         Assert.True(list.ExitCode == 0, list.Stdout + list.Stderr);
         Assert.True(view.ExitCode == 0, view.Stdout + view.Stderr);
         using var listDocument = JsonDocument.Parse(list.Stdout);
-        using var expectedList = JsonDocument.Parse(listJson);
-        Assert.True(JsonElement.DeepEquals(expectedList.RootElement, listDocument.RootElement), list.Stdout);
+        var query = Assert.Single(listDocument.RootElement.GetProperty("data").GetProperty("queries").EnumerateArray());
+        Assert.Equal("Query", query.GetProperty("name").GetString());
+        Assert.Equal(5000, query.GetProperty("characterCount").GetInt32());
+        Assert.Equal("connection-only", query.GetProperty("loadMode").GetString());
+        Assert.False(query.TryGetProperty("formulaPreview", out _));
         using var viewDocument = JsonDocument.Parse(view.Stdout);
         using var expectedView = JsonDocument.Parse(viewJson);
-        Assert.True(JsonElement.DeepEquals(expectedView.RootElement, viewDocument.RootElement), view.Stdout);
+        var viewData = viewDocument.RootElement.GetProperty("data");
+        foreach (var property in expectedView.RootElement.EnumerateObject().Where(property => property.Name != "success"))
+            Assert.True(JsonElement.DeepEquals(property.Value, viewData.GetProperty(property.Name)), property.Name);
+        Assert.Equal(3, viewData.EnumerateObject().Count());
     }
 
     [Theory]
@@ -201,7 +206,7 @@ public sealed class PowerQueryContractCliTests
         foreach (var output in new[] { set.Stdout, get.Stdout })
         {
             using var document = JsonDocument.Parse(output);
-            Assert.Equal(ignorePrivacyLevels, document.RootElement.GetProperty("ignorePrivacyLevels").GetBoolean());
+            Assert.Equal(ignorePrivacyLevels, document.RootElement.GetProperty("data").GetProperty("ignorePrivacyLevels").GetBoolean());
         }
     }
 }

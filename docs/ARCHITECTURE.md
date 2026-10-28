@@ -11,17 +11,18 @@ refresh PivotTables and the Data Model, evaluate DAX, and run VBA or Python
 The project ships both an MCP Server and a CLI. They are first-class entry
 points backed by the same Core commands, parameters, defaults, and validation:
 
-- **MCP Server** hosts `ExcelMcpService` in-process and uses direct method calls,
-  which suits conversational and interactive AI clients.
-- **CLI** (`excelcli`) communicates with an `ExcelMcpService` background daemon
-  over a user-isolated Windows named pipe. The daemon keeps workbook sessions
-  open across CLI invocations.
+- **MCP Server** owns a controller through its Service bridge.
+- **CLI** (`excelcli`) communicates with its persistent controller over
+  user-isolated Windows named pipes. Sessions remain open across CLI invocations.
+
+Both controllers route Excel work to private workers hosting the same
+`ExcelMcpService` and Core commands.
 
 ```text
 CLI client process
-  -> named pipe -> CLI daemon process [ExcelMcpService -> Core Commands] -> Excel COM
+  -> named pipe -> CLI controller -> private worker [Service -> Core] -> Excel COM
 
-MCP Server process [Service bridge -> ExcelMcpService -> Core Commands] -> Excel COM
+MCP Server [Service bridge -> controller] -> private worker [Service -> Core] -> Excel COM
 ```
 
 ### Process lifetimes
@@ -29,19 +30,21 @@ MCP Server process [Service bridge -> ExcelMcpService -> Core Commands] -> Excel
 | Process | Lifetime | Responsibilities |
 | --- | --- | --- |
 | CLI client (`excelcli`) | One command invocation, including a batch | Parses arguments, sends requests, prints results, then exits. It does not own workbook sessions or send operation telemetry. |
-| CLI daemon (`excelcli service run`) | Persists across client invocations | Hosts the Service, keeps workbook sessions open, and sends telemetry for operations it handles after clients exit. |
-| MCP Server | Persists across requests until server shutdown | Hosts its own Service through the bridge, owns its workbook sessions, and sends its own telemetry. |
+| CLI daemon (`excelcli service run`) | Persists across client invocations | Owns the CLI controller, tray, recorded status, workers, and operation telemetry. |
+| MCP Server | Persists across requests until server shutdown | Owns its controller through the bridge, its workers, and operation telemetry. |
+| Private Excel worker | Remains while owning sessions or retained work | Hosts the shared Service, owns Excel COM objects, and serializes work for its Excel application. |
 
 The CLI client and daemon are separate processes running the same executable.
-`ExcelMcpService` is a library hosted inside the daemon or MCP Server, not a
-fourth product process. The CLI daemon and MCP Server own separate workbook
-sessions and their Excel processes; they do not share live sessions.
+Workers launch the same CLI or MCP executable in a private mode before normal
+product startup. `ExcelMcpService` remains a library, not a separately installed
+product. CLI and MCP own separate session sets; they do not share live sessions.
+Workers start independently of the controller's standard input and output, so a
+retained worker cannot keep an MCP client's connection open after controller exit.
 
-The Service owns command routing and workbook sessions. A separate Service
-daemon host owns named-pipe acceptance, connection limits, and
-connection draining inside the CLI daemon process. The MCP Server does not use this pipe:
-its bridge owns an in-process Service generation and prevents cancellation from
-an older generation from resetting a newer one.
+The Service owns Excel command routing and workbook sessions inside workers.
+The controller records worker status and routes requests without Excel COM.
+The shared listener uses .NET hosting, StreamJsonRpc, and protected Windows named
+pipes. MCP does not use the CLI controller's pipe; it owns its own controller.
 
 The CLI daemon accepts up to 64 simultaneous connections and up to ten work
 requests. It rejects another work request for a session whose request is still
@@ -49,9 +52,38 @@ running, rather than letting repeated requests occupy the service. Health,
 session-list, and window show/hide requests do not consume the work limit.
 Commands that do not use an existing workbook session still consume the work
 limit, but do not reserve a workbook session even if batch supplies its ID.
-These limits apply to the CLI pipe, not the MCP Server's in-process calls.
+Recovery controls also have a separate pipe so full work connections cannot
+exclude them. Incoming data is bounded to 64 MiB per connection before JSON
+parsing; normal clients use one request per connection. Each worker accepts up
+to eight connections and one Excel operation at a time. Controllers limit the
+number of workers to 32. Worker startup, status, release, and connection
+draining all have finite waits. These limits do not shorten Excel operation waits.
 The daemon remains running when idle until explicitly stopped or its process
 exits. An expired caller wait does not stop Excel or undo workbook changes.
+An unreachable worker is reported separately from controller health.
+The controller continues observing a request after its caller stops waiting,
+so a late result still updates the recorded session and workbook path. It does
+not send the edit again.
+Validation and cross-file worksheet commands reserve each file before
+starting a worker, just as opening a workbook does. A rejected request releases
+only its own reservations. If both a worker and its recorded Excel process have
+exited, the controller releases unusable routes and paths but continues reporting
+the old session's last outcome as unknown.
+If a helper exits before reporting which Excel process it started, retained
+sessions and pending file requests stay protected until explicit recovery or
+controller restart. A missing process identity is not proof that Excel closed.
+Cross-file worksheet commands register their temporary Excel batch and both
+file paths with the existing session manager before waiting for startup.
+Success releases that session; failure retains it and reports both files and
+the original error. Worker release and controller-loss handling therefore see
+unfinished cross-file work as owned work, not an empty helper.
+Retained worker records include process start times, controller identity,
+generation, and build identity. A new controller requires explicit discovery
+and attachment; it never repeats an uncertain edit. A surviving worker reveals
+its retained workbooks after controller loss without saving or closing them.
+Recovery through another controller requires the same build. After an upgrade,
+the retained workbooks remain available for direct inspection in Excel, but
+the new build cannot claim their old worker.
 
 Telemetry ownership and delivery tradeoffs are described in
 [ADR-007](ADR-007-LOCAL-ACCESS-AND-TELEMETRY.md). A short-lived client's background
@@ -73,11 +105,11 @@ explain the reasons and tradeoffs behind these boundaries.
 2. **Core** (`src/ExcelMcp.Core`) implements Excel operations for Power Query,
    DAX, VBA, worksheets, ranges, charts, and other domains.
 3. **Service** (`src/ExcelMcp.Service`) manages sessions and routes commands;
-   its daemon host provides the CLI's named-pipe process lifetime.
+   its controller and workers provide the shared execution boundary.
 4. **CLI** (`src/ExcelMcp.CLI`) exposes generated command categories and uses a
    persistent daemon.
 5. **MCP Server** (`src/ExcelMcp.McpServer`) exposes generated MCP tools and
-   invokes the service in-process.
+   calls its own controller, independent of the CLI daemon.
 6. **Source generators** (`src/ExcelMcp.Generators*`) generate CLI commands,
    MCP schemas, and skill manifests from Core interfaces.
 

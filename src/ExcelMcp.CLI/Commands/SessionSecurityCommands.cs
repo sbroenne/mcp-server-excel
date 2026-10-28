@@ -12,7 +12,7 @@ internal sealed class SessionNoticesCommand : AsyncCommand<SessionNoticesCommand
     public override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken) =>
         SessionSecurityCommand.SendAsync("notices", settings.SessionId, null, cancellationToken);
 
-    internal sealed class Settings : CommandSettings
+    internal sealed class Settings : ReadSelectionSettings
     {
         [CommandOption("-s|--session <SESSION>")]
         [Description("Exact workbook session to inspect without enabling content")]
@@ -48,8 +48,7 @@ internal sealed class SessionSecurityCommand : AsyncCommand<SessionSecurityComma
         var response = await CliTelemetry.TrackCommandAsync(request, () => client.SendAsync(request, cancellationToken));
         if (!response.Success)
             return CliErrorOutput.WriteServiceError(response);
-        CliCommandRuntime.Current.Output.WriteLine(response.Result);
-        return 0;
+        return CliResultOutput.Write(response, request.Command);
     }
 
     internal sealed class Settings : CommandSettings

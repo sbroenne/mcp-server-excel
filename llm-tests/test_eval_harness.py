@@ -124,7 +124,7 @@ class EvalHarnessTests(unittest.TestCase):
     def test_cli_checks_reject_a_failed_batch_subcommand(self):
         result = CopilotResult(turns=[Turn("assistant", "", [
             ToolCall("excel_execute", {"args": "batch"}, result=(
-                '{"exit_code":0,"stdout":"{\\"success\\":false,\\"errorMessage\\":\\"bad sheet\\"}\\n"}'
+                '{"exit_code":0,"stdout":"{\\"command\\":\\"range.set-values\\",\\"success\\":false,\\"durationMs\\":1,\\"error\\":{\\"message\\":\\"bad sheet\\"}}\\n"}'
             ), completion_received=True, success=True),
         ])])
         with self.assertRaises(AssertionError):

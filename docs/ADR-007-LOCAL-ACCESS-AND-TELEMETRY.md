@@ -56,7 +56,9 @@ new process, extra telemetry request, or client-side flush. Its telemetry
 session ID spans multiple CLI invocations, and timings describe service
 execution rather than the whole client invocation. Readiness pings and commands
 that never reach the daemon are not reported. MCP continues to report in its
-own server process; its in-process Service calls do not collect CLI telemetry.
+own server process; its controller calls do not collect CLI telemetry. Private
+Excel workers start before either product's reporting setup and do not create
+a second reporting owner.
 
 ## Implementation and guidance
 
