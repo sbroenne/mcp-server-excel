@@ -112,6 +112,29 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("Check retained state", root.GetProperty("warnings")[0].GetString());
     }
 
+    [Theory]
+    [InlineData("\"0.00%\"")]
+    [InlineData("null")]
+    [InlineData("[false,0,null]")]
+    public async Task OutputFile_WriteFailureKeepsOriginalDataShape(string data)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "result.json");
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = data });
+        var output = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "chartconfig", "get-axis-number-format", "--session", "target",
+                "--chart-name", "Revenue", "--axis", "Value", "--output", path],
+            CreateRuntime(factory, output, new StringWriter()));
+        Assert.Equal(1, exit);
+        Assert.Single(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("OutputWriteFailed", result.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Equal(data, result.RootElement.GetProperty("data").GetRawText());
+        Assert.True(result.RootElement.GetProperty("partialState").GetProperty("operationCompleted").GetBoolean());
+        Assert.False(result.RootElement.GetProperty("partialState").GetProperty("outputWriteCompleted").GetBoolean());
+        Assert.False(File.Exists(path));
+    }
+
     [Fact]
     public async Task NonRedirectedOperation_WritesOnlyJsonToStdout()
     {

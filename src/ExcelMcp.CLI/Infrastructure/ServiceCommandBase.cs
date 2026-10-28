@@ -170,11 +170,8 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
         catch (Exception ex)
         {
-            return CliResultOutput.Write(ResultJson.Read(outcome.ToToolJson(), command,
-                delivered: false, message: $"The operation completed, but writing its output failed: {ex.Message}",
-                category: "OutputWriteFailed", exceptionType: ex.GetType().Name,
-                hresult: $"0x{ex.HResult:X8}",
-                innerError: ex.InnerException?.Message,
+            return CliResultOutput.Write(outcome.WithFailure(command, ex, "OutputWriteFailed",
+                $"The operation completed, but writing its output failed: {ex.Message}",
                 partialState: JsonSerializer.Serialize(new
                 {
                     operationCompleted = true,

@@ -15,6 +15,35 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class ResultJsonTests
 {
     [Fact]
+    public void ChartImageExport_KeepsDestinationInCliAndMcpResults()
+    {
+        const string command = "chart.export-image";
+        const string destination = @"C:\exports\Revenue.png";
+        var result = ResultJson.Read(
+            """{"success":true,"filePath":"C:\\exports\\Revenue.png","action":"export-image"}""", command);
+        using var cli = JsonDocument.Parse(result.ToCliJson(command, 1));
+        using var mcp = JsonDocument.Parse(result.ToToolJson());
+        Assert.Equal(destination, cli.RootElement.GetProperty("data").GetProperty("filePath").GetString());
+        Assert.Equal(destination, mcp.RootElement.GetProperty("filePath").GetString());
+        Assert.Contains("filePath", ServiceRegistry.GetResultContract(command)!.Fields);
+    }
+
+    [Fact]
+    public void DictionarySelection_AdvertisesTheWholeValueRatherThanEntryProperties()
+    {
+        const string command = "pivottablecalc.get-data";
+        var contract = ServiceRegistry.GetResultContract(command)!;
+        Assert.Contains("grandTotals", contract.Fields);
+        Assert.DoesNotContain("grandTotals.key", contract.Fields);
+        Assert.DoesNotContain("grandTotals.value", contract.Fields);
+        Assert.Throws<ArgumentException>(() => ResultJson.ValidateFields(command, ["grandTotals.key"], contract));
+        var result = ResultJson.Read(
+            """{"success":true,"grandTotals":{"Revenue":0,"Returns":null}}""", command);
+        result.Select(command, ["grandTotals"], contract);
+        Assert.Equal("""{"Revenue":0,"Returns":null}""", result.Data!["grandTotals"]!.ToJsonString());
+    }
+
+    [Fact]
     public void TraceSummarySelection_KeepsScopeUnreadableEntriesIssuesAndContinuation()
     {
         const string command = "powerquerytrace.summarize";

@@ -112,7 +112,8 @@ public sealed class ResultJson
                 root.Remove("sessionId");
                 root.Remove("workbook_session_id");
             }
-            if (delivered && !failed && !command.StartsWith("session.", StringComparison.Ordinal))
+            if (delivered && !failed && !command.StartsWith("session.", StringComparison.Ordinal) &&
+                !command.Equals("chart.export-image", StringComparison.OrdinalIgnoreCase))
                 root.Remove("filePath");
             if (root["action"] is JsonValue action &&
                 action.TryGetValue<string>(out var actionName) &&
@@ -125,6 +126,20 @@ public sealed class ResultJson
             }
         }
         return result;
+    }
+
+    /// <summary>Adds a later failure without changing the completed operation's data shape.</summary>
+    public ResultJson WithFailure(string command, Exception exception, string category, string message,
+        string? partialState = null)
+    {
+        var failure = Read(null, command, delivered: false, message: message, category: category,
+            exceptionType: exception.GetType().Name, hresult: $"0x{exception.HResult:X8}",
+            innerError: exception.InnerException?.Message, partialState: partialState);
+        failure.Data = Data?.DeepClone();
+        failure.HasData = HasData;
+        failure.Warnings = Warnings?.DeepClone();
+        failure.PartialState ??= PartialState?.DeepClone();
+        return failure;
     }
 
     /// <summary>Parses CLI field paths without silently accepting empty selections.</summary>

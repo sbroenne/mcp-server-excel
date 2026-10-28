@@ -182,7 +182,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     Visit(named.TypeArguments[0], prefix, ancestors);
                     return;
                 }
-                var sequence = named.AllInterfaces.Concat(new[] { named }).FirstOrDefault(candidate =>
+                var interfaces = named.AllInterfaces.Concat(new[] { named });
+                if (interfaces.Any(candidate =>
+                    candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IDictionary<TKey, TValue>" ||
+                    candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>"))
+                    return;
+                var sequence = interfaces.FirstOrDefault(candidate =>
                     candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
                 if (sequence is not null)
                 {
@@ -201,7 +206,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                         if (ignore is not null && ignore.NamedArguments.Length == 0)
                             continue;
                         if (prefix.Length == 0 && (property.Name is "Success" or "IsError" or "ErrorMessage" or "Warning" or "Warnings" or "PartialState" ||
-                            property.Name == "FilePath" && !command.StartsWith("session.", StringComparison.Ordinal)))
+                            property.Name == "FilePath" && !command.StartsWith("session.", StringComparison.Ordinal) &&
+                            command != "chart.export-image"))
                             continue;
                         var alias = property.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass?.Name == "JsonPropertyNameAttribute");
                         var name = alias?.ConstructorArguments[0].Value as string ??
