@@ -1630,7 +1630,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("/// </summary>");
         sb.AppendLine("internal static class _SkillManifest");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>JSON manifest of all commands and parameters.</summary>");
+        sb.AppendLine("    /// <summary>JSON manifest of all commands and their actions.</summary>");
         sb.AppendLine("    public const string Json = @\"");
 
         // Build JSON manually (no System.Text.Json in source generators)
@@ -1641,102 +1641,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         for (int i = 0; i < orderedCategories.Count; i++)
         {
             var cat = orderedCategories[i];
-            var cliCommandName = cat.Category;
-
-            sb.AppendLine("    {");
-            sb.AppendLine($"      \"\"name\"\": \"\"{cliCommandName}\"\",");
-            sb.AppendLine($"      \"\"mcpTool\"\": \"\"{cat.McpToolName}\"\",");
-
-            // Description from interface XML doc
-            var description = (cat.XmlDocSummary ?? "")
-                .Replace("\"", "\\\"\"")
-                .Replace("\r", "")
-                .Replace("\n", " ")
-                .Trim();
-            sb.AppendLine($"      \"\"description\"\": \"\"{description}\"\",");
-
-            // Actions array
-            sb.Append("      \"\"actions\"\": [");
-            var actions = cat.Methods.Select(m => $"\"\"{m.ActionName}\"\"");
-            sb.Append(string.Join(", ", actions));
-            sb.AppendLine("],");
-
-            // Parameters array with required-by-actions tracking
-            sb.AppendLine("      \"\"parameters\"\": [");
-
-            // Build required-by-actions map for each param
-            var paramRequiredMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var paramApplicableMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var totalActions = cat.Methods.Count;
-            foreach (var method in cat.Methods)
-            {
-                foreach (var p in method.Parameters)
-                {
-                    var pName = StringHelper.ToKebabCase(p.ExposedName ?? p.Name);
-                    if (!paramApplicableMap.TryGetValue(pName, out var applicableActions))
-                    {
-                        applicableActions = new List<string>();
-                        paramApplicableMap[pName] = applicableActions;
-                    }
-                    applicableActions.Add(method.ActionName);
-
-                    var isRequired = IsRequiredParameter(p);
-                    if (isRequired)
-                    {
-                        if (!paramRequiredMap.TryGetValue(pName, out var reqActions))
-                        {
-                            reqActions = new List<string>();
-                            paramRequiredMap[pName] = reqActions;
-                        }
-                        reqActions.Add(method.ActionName);
-                    }
-                }
-            }
-
-            var distinctParams = cat.Methods
-                .SelectMany(m => m.Parameters)
-                .GroupBy(p => p.ExposedName ?? StringHelper.ToKebabCase(p.Name))
-                .Select(g => g.First())
-                .ToList();
-
-            for (int j = 0; j < distinctParams.Count; j++)
-            {
-                var param = distinctParams[j];
-                var paramName = StringHelper.ToKebabCase(param.ExposedName ?? param.Name);
-                // JSON requires \" for quotes inside strings
-                // In verbatim C# strings: \"" outputs \" (backslash + "" for one quote)
-                var baseDescription = (param.XmlDocDescription ?? "")
-                    .Replace("\r", "")
-                    .Replace("\n", " ")
-                    .Trim();
-
-                // Append required-by-actions info
-                if (paramRequiredMap.TryGetValue(paramName, out var requiredActions) && requiredActions.Count > 0)
-                {
-                    var suffix = requiredActions.Count == totalActions
-                        ? "(required)"
-                        : $"(required for: {string.Join(", ", requiredActions)})";
-                    baseDescription = string.IsNullOrEmpty(baseDescription) ? suffix : $"{baseDescription} {suffix}";
-                }
-                if (paramApplicableMap.TryGetValue(paramName, out var applicableActions) &&
-                    applicableActions.Count < totalActions)
-                {
-                    var suffix = $"(valid for: {string.Join(", ", applicableActions)})";
-                    baseDescription = string.IsNullOrEmpty(baseDescription) ? suffix : $"{baseDescription} {suffix}";
-                }
-
-                var paramDescription = baseDescription
-                    .Replace("\"", "\\\"\"");  // Escape quotes for JSON in verbatim string
-
-                sb.AppendLine("        {");
-                sb.AppendLine($"          \"\"name\"\": \"\"{paramName}\"\",");
-                sb.AppendLine($"          \"\"description\"\": \"\"{paramDescription}\"\"");
-                sb.Append("        }");
-                sb.AppendLine(j < distinctParams.Count - 1 ? "," : "");
-            }
-
-            sb.AppendLine("      ]");
-            sb.Append("    }");
+            var actions = string.Join(", ", cat.Methods.Select(m => $"\"\"{m.ActionName}\"\""));
+            sb.Append($"    {{ \"\"name\"\": \"\"{cat.Category}\"\", \"\"actions\"\": [{actions}] }}");
             sb.AppendLine(i < orderedCategories.Count - 1 ? "," : "");
         }
 
