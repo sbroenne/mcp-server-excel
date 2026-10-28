@@ -90,10 +90,13 @@ public sealed class PageBreakInfo
 public sealed class SheetPageBreaksResult : ResultBase
 {
     /// <summary>Worksheet name.</summary>
+    [ResultContext]
     public string SheetName { get; set; } = string.Empty;
     /// <summary>Current explicit print area; empty means native automatic scope.</summary>
+    [ResultContext]
     public string PrintArea { get; set; } = string.Empty;
     /// <summary>Native read coverage, not a claim to discover breaks outside the print scope.</summary>
+    [ResultContext]
     public string Coverage { get; } = "Excel exposes page breaks within the current print scope; automatic breaks depend on printer and scaling.";
     /// <summary>All exposed horizontal page breaks.</summary>
     public List<PageBreakInfo> Horizontal { get; set; } = [];

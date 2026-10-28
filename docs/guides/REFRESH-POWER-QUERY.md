@@ -36,7 +36,7 @@ know the operation names — but they are useful when scripting.
 === "CLI"
 
     ```powershell
-    $session = (excelcli -q session open C:\reports\Q3-report.xlsx | ConvertFrom-Json).sessionId
+    $session = (excelcli -q session open C:\reports\Q3-report.xlsx | ConvertFrom-Json).data.sessionId
     excelcli -q powerquery refresh --session $session --query-name SalesData --timeout-seconds 300
     excelcli -q session close --session $session --save
     ```
@@ -141,8 +141,9 @@ excelcli -q datamodel list-tables --session $session    # if loading to the Data
 
 In `list` output, `IsConnectionOnly = true` means the query has **no** data
 destination. A query loaded only to the Data Model is *not* connection-only.
-List includes exact load mode, formula character count, and an M preview of at
-most 80 characters; use `powerquery view` for one query's complete M code.
+List includes exact load mode and formula character count. Select
+`queries.formulaPreview` with `--fields` (MCP: a `fields` array) for an M preview
+of at most 80 characters; use `powerquery view` for one query's complete M code.
 List, View, and Get Load Config share one exact worksheet/Data Model-aware
 detector. If Excel cannot inspect a query, List fails instead of silently
 omitting it from a successful response.

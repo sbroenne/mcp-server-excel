@@ -44,7 +44,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             Assert.Equal(0, openResult.ExitCode);
             Assert.True(openJson.RootElement.GetProperty("success").GetBoolean());
 
-            sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
+            sessionId = openJson.RootElement.GetProperty("data").GetProperty("sessionId").GetString();
             Assert.False(string.IsNullOrWhiteSpace(sessionId));
 
             await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-open-visible-list");
@@ -93,13 +93,13 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
 
             if (successProp.GetBoolean())
             {
-                sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
+                sessionId = openJson.RootElement.GetProperty("data").GetProperty("sessionId").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(sessionId));
                 await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-open-irm-show-list");
             }
             else
             {
-                var error = openJson.RootElement.GetProperty("errorMessage").GetString();
+                var error = openJson.RootElement.GetProperty("error").GetProperty("message").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(error));
             }
 
@@ -156,7 +156,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
         Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
 
         var session = listJson.RootElement
-            .GetProperty("sessions")
+            .GetProperty("data").GetProperty("sessions")
             .EnumerateArray()
             .FirstOrDefault(item => string.Equals(
                 item.GetProperty("sessionId").GetString(),
@@ -180,7 +180,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal(expectedVisible, json.RootElement.GetProperty("isVisible").GetBoolean());
+        Assert.Equal(expectedVisible, json.RootElement.GetProperty("data").GetProperty("isVisible").GetBoolean());
     }
 
     private async Task CloseSessionIfNeededAsync(string? sessionId, string diagnosticLabel)

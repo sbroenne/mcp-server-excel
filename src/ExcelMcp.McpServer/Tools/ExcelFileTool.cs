@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -97,6 +97,7 @@ public static partial class ExcelFileTool
     /// <param name="file_path">Full Windows workbook path or direct SharePoint/OneDrive for Business HTTPS workbook URL. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled.</param>
+    /// <param name="fields">Result field paths. Errors, restrictions and incomplete-result information are always retained.</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
         Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
     [McpMeta("category", "session")]
@@ -107,19 +108,30 @@ public static partial class ExcelFileTool
         [McpActionParameter("test", Required = true), DefaultValue(null)] string? file_path,
         [McpActionParameter("test"), DefaultValue(120)] int timeout_seconds = 120,
         [McpActionParameter("notices", Required = true), DefaultValue(null)] string? workbook_session_id = null,
-        CancellationToken cancellationToken = default) =>
-        ExecuteFileToolActionAsync(
+        CancellationToken cancellationToken = default,
+        [McpActionParameter("list"), McpActionParameter("test"), McpActionParameter("discover"), McpActionParameter("notices")]
+        [DefaultValue(null)] string[]? fields = null) =>
+        ExecuteFileReadAsync(action, bridge, file_path, timeout_seconds, workbook_session_id, cancellationToken, fields);
+
+    private static async Task<CallToolResult> ExecuteFileReadAsync(
+        FileReadAction action, ServiceBridge.ServiceBridge bridge, string? filePath,
+        int timeoutSeconds, string? sessionId, CancellationToken cancellationToken, string[]? fields)
+    {
+        var fileAction = action switch
+        {
+            FileReadAction.List => FileAction.List,
+            FileReadAction.Test => FileAction.Test,
+            FileReadAction.Discover => FileAction.Discover,
+            FileReadAction.Notices => FileAction.Notices,
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
+        var command = "session." + fileAction.ToActionString();
+        var result = await ExecuteFileToolActionAsync(
             "file_read",
-            action switch
-            {
-                FileReadAction.List => FileAction.List,
-                FileReadAction.Test => FileAction.Test,
-                FileReadAction.Discover => FileAction.Discover,
-                FileReadAction.Notices => FileAction.Notices,
-                _ => throw new ArgumentOutOfRangeException(nameof(action))
-            },
-            bridge, file_path, workbook_session_id, save: false, show: false,
-            timeout_seconds: timeout_seconds, cancellationToken: cancellationToken);
+            fileAction, bridge, filePath, sessionId, save: false, show: false,
+            timeout_seconds: timeoutSeconds, cancellationToken: cancellationToken, fields: fields);
+        return ExcelToolsBase.SelectToolResult(result, command, fields);
+    }
 
     private static Task<CallToolResult> ExecuteFileToolActionAsync(
         string toolName,
@@ -134,9 +146,12 @@ public static partial class ExcelFileTool
         string? open_workbook_id = null,
         bool approved = false,
         bool allow_remembered_trust = false,
-        bool allow_reopen = false) =>
+        bool allow_reopen = false,
+        string[]? fields = null) =>
         ExcelToolsBase.ExecuteToolActionAsync(toolName, action.ToActionString(), async () =>
         {
+            ResultJson.ValidateFields("session." + action.ToActionString(), fields,
+                ServiceRegistry.GetResultContract("session." + action.ToActionString()));
             if (timeout_seconds is < 10 or > 3600)
                 throw new ArgumentException("timeout_seconds must be between 10 and 3600 seconds.");
 
@@ -197,72 +212,24 @@ public static partial class ExcelFileTool
                 _ => throw new ArgumentException($"Unknown file action: {action}.")
             };
 
-            if (!response.Success)
-                return ExcelToolsBase.SerializeServiceResponse(response, file_path);
-
-            // session.close is a void Service command; its successful acknowledgement is authoritative.
-            if (action == FileAction.Close)
-                return JsonSerializer.Serialize(new { success = true, workbook_session_id, saved = save }, ExcelToolsBase.JsonOptions);
-            if (action == FileAction.Save)
-                return JsonSerializer.Serialize(new { success = true, workbook_session_id, saved = true }, ExcelToolsBase.JsonOptions);
-
-            var result = response.Result
-                ?? throw new InvalidOperationException("File operation returned no result.");
-            if (action == FileAction.List)
+            var command = ServiceRegistry.GetMcpCommand(toolName, action.ToActionString());
+            var outcome = ExcelToolsBase.ReadServiceResponse(response, command);
+            if (!outcome.Success)
             {
-                var list = JsonNode.Parse(result)?.AsObject()
-                    ?? throw new InvalidOperationException("Session listing returned no object.");
-                foreach (var node in list["sessions"]?.AsArray()
-                    ?? throw new InvalidOperationException("Session listing returned no sessions array."))
-                {
-                    var session = node?.AsObject()
-                        ?? throw new InvalidOperationException("Session listing returned an invalid entry.");
-                    var sessionId = session["sessionId"]?.GetValue<string>();
-                    if (string.IsNullOrWhiteSpace(sessionId))
-                        throw new InvalidOperationException("Session listing returned no session ID.");
-                    session.Remove("sessionId");
-                    session["workbook_session_id"] = sessionId;
-                }
-                return list.ToJsonString(ExcelToolsBase.JsonOptions);
+                if (file_path is not null)
+                    outcome.Error!["filePath"] = file_path;
+                return outcome.ToToolJson();
             }
-            if (action == FileAction.Discover)
-                return result;
-            if (action == FileAction.Attach)
-            {
-                using var attachDocument = JsonDocument.Parse(result);
-                var attach = attachDocument.RootElement;
-                return JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    workbook_session_id = attach.GetProperty("sessionId").GetString(),
-                    filePath = attach.TryGetProperty("filePath", out var filePath)
-                        && filePath.ValueKind != JsonValueKind.Null
-                        ? filePath.GetString()
-                        : null,
-                    name = attach.GetProperty("name").GetString(),
-                    autoSaveOn = attach.TryGetProperty("autoSaveOn", out var autoSaveOn)
-                        && autoSaveOn.ValueKind != JsonValueKind.Null
-                        ? autoSaveOn.GetBoolean()
-                        : (bool?)null,
-                    warning = attach.GetProperty("warning").GetString()
-                }, ExcelToolsBase.JsonOptions);
-            }
-            if (action is not (FileAction.Open or FileAction.Create))
-                return result;
 
-            using var document = JsonDocument.Parse(result);
-            var id = document.RootElement.GetProperty("sessionId").GetString();
-            if (string.IsNullOrWhiteSpace(id))
+            var result = System.Text.Json.Nodes.JsonNode.Parse(outcome.ToToolJson())!.AsObject();
+            var id = result["sessionId"]?.GetValue<string>();
+            if (action is FileAction.Open or FileAction.Create or FileAction.Attach && string.IsNullOrWhiteSpace(id))
                 throw new InvalidOperationException("Workbook startup returned no session ID.");
-            return JsonSerializer.Serialize(new
+            if (id is not null)
             {
-                success = true,
-                workbook_session_id = id,
-                filePath = document.RootElement.GetProperty("filePath").GetString(),
-                autoSaveOn = document.RootElement.TryGetProperty("autoSaveOn", out var startupAutoSave)
-                    && startupAutoSave.ValueKind != JsonValueKind.Null ? startupAutoSave.GetBoolean() : (bool?)null,
-                warning = document.RootElement.TryGetProperty("warning", out var startupWarning)
-                    ? startupWarning.GetString() : null
-            }, ExcelToolsBase.JsonOptions);
+                result.Remove("sessionId");
+                result["workbook_session_id"] = id;
+            }
+            return result.ToJsonString(ExcelToolsBase.JsonOptions);
         }, cancellationToken);
 }

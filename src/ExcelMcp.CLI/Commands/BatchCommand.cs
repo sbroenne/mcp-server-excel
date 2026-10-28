@@ -1,9 +1,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -47,8 +50,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
         catch (Exception ex)
         {
-            WriteError($"Failed to read commands: {ex.Message}");
-            return 1;
+            return CliErrorOutput.WriteException(ex);
         }
 
         if (commands.Count == 0)
@@ -67,7 +69,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             }
         }
 
-        var validationErrors = new Dictionary<int, string>();
+        var validationErrors = new Dictionary<int, (Exception Cause, long DurationMs)>();
+        var validationDurations = new long[commands.Count];
         for (int i = 0; i < commands.Count; i++)
         {
             var cmd = commands[i];
@@ -77,17 +80,20 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var validationStopwatch = Stopwatch.StartNew();
             try
             {
+                ResultJson.ValidateFields(cmd.Command, ResultJson.ReadFields(argsJson),
+                    ServiceRegistry.GetResultContract(cmd.Command));
                 ServiceRegistry.ValidateCommandArguments(cmd.Command, argsJson);
             }
             catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
             {
                 validationStopwatch.Stop();
-                validationErrors[i] = ex.Message;
+                validationErrors[i] = (ex, validationStopwatch.ElapsedMilliseconds);
                 CliTelemetry.TrackLocalFailure(
                     cmd.Command,
                     validationStopwatch.ElapsedMilliseconds,
                     "InvalidInput");
             }
+            validationDurations[i] = validationStopwatch.ElapsedMilliseconds;
         }
 
         if (validationErrors.Count == commands.Count ||
@@ -95,7 +101,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         {
             foreach (var validationError in validationErrors.OrderBy(error => error.Key))
             {
-                WriteValidationError(validationError.Key, commands[validationError.Key], validationError.Value);
+                WriteValidationError(validationError.Key, commands[validationError.Key],
+                    validationError.Value.Cause, validationError.Value.DurationMs);
                 if (settings.StopOnError)
                 {
                     break;
@@ -113,10 +120,11 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         for (int i = 0; i < commands.Count; i++)
         {
             var cmd = commands[i];
+            var itemTimer = Stopwatch.StartNew();
             var sessionId = cmd.SessionId ?? activeSession;
             if (validationErrors.TryGetValue(i, out var validationError))
             {
-                WriteValidationError(i, cmd, validationError);
+                WriteValidationError(i, cmd, validationError.Cause, validationError.DurationMs);
 
                 hasErrors = true;
                 if (settings.StopOnError)
@@ -128,19 +136,27 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
                 ? cmd.Args.Value.GetRawText()
                 : null;
+            var fields = ResultJson.ReadFields(argsJson);
+            var serviceArgs = argsJson;
+            if (fields is not null && cmd.Command.StartsWith("session.", StringComparison.OrdinalIgnoreCase))
+            {
+                var args = JsonNode.Parse(argsJson!)!.AsObject();
+                args.Remove("fields");
+                serviceArgs = args.ToJsonString(ServiceProtocol.JsonOptions);
+            }
 
             // Build the service request
             var request = new ServiceRequest
             {
                 Command = cmd.Command,
                 SessionId = sessionId,
-                Args = argsJson,
+                Args = serviceArgs,
                 Source = "cli-batch"
             };
 
             ServiceResponse response;
             CliCommandRuntime.Current.Error.WriteLine($"Batch {i + 1}/{commands.Count}: {cmd.Command} started.");
-            await CliCommandRuntime.Current.Error.FlushAsync(cancellationToken);
+            await CliCommandRuntime.Current.Error.FlushAsync(CancellationToken.None);
             try
             {
                 response = await CliTelemetry.TrackCommandAsync(
@@ -149,20 +165,29 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             }
             catch (Exception ex)
             {
-                response = new ServiceResponse { Success = false, ErrorMessage = $"Communication error: {ex.Message}" };
+                response = new ServiceResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Communication error: {ex.Message}",
+                    ErrorCategory = OperationFailureClassifier.Classify(ex),
+                    ExceptionType = ex.GetType().Name,
+                    HResult = OperationFailureClassifier.GetComHResult(ex),
+                    InnerError = ex.InnerException?.Message
+                };
             }
 
+            var outcome = CliResultOutput.Read(response, cmd.Command);
             // Auto-capture sessionId from session.open/create/attach results
-            if (response.Success && activeSession == null &&
+            if (outcome.Success && activeSession == null &&
                 (cmd.Command.Equals("session.open", StringComparison.OrdinalIgnoreCase) ||
                  cmd.Command.Equals("session.attach", StringComparison.OrdinalIgnoreCase) ||
                  cmd.Command.Equals("session.create", StringComparison.OrdinalIgnoreCase)))
             {
-                activeSession = TryExtractSessionId(response.Result);
+                activeSession = outcome.Data?["sessionId"]?.GetValue<string>();
             }
 
             // Auto-clear session on session.close
-            if (response.Success &&
+            if (outcome.Success &&
                 cmd.Command.Equals("session.close", StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(sessionId, activeSession, StringComparison.OrdinalIgnoreCase))
             {
@@ -171,54 +196,36 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
             // Output result as NDJSON line. A delivered result reporting success:false
             // is a failed item, matching single-command exit codes and MCP isError.
-            var negativeResult = ServiceResultOutcome.TryReadNegative(
-                response.Success ? response.Result : null,
-                out var resultErrorMessage,
-                out _);
-            var itemSucceeded = response.Success && !negativeResult;
-            var output = new BatchResult
-            {
-                Index = i,
-                Command = cmd.Command,
-                CommandSummary = BatchCommandSummary.Create(cmd.Command, cmd.Args),
-                Success = itemSucceeded,
-                Result = response.Success ? TryParseJsonElement(response.Result) : null,
-                ErrorMessage = response.ErrorMessage ?? resultErrorMessage ??
-                    (negativeResult ? "Command reported success: false; see result for details." : null),
-                ErrorCategory = response.ErrorCategory,
-                ExceptionType = response.ExceptionType,
-                HResult = response.HResult,
-                InnerError = response.InnerError,
-                PartialState = response.PartialState is null
-                    ? null
-                    : JsonSerializer.Deserialize<JsonElement>(response.PartialState)
-            };
-
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
-            await CliCommandRuntime.Current.Output.FlushAsync(cancellationToken);
+            outcome.Select(cmd.Command, fields, ServiceRegistry.GetResultContract(cmd.Command));
+            var itemSucceeded = outcome.Success;
+            CliResultOutput.Write(outcome, cmd.Command, itemTimer.ElapsedMilliseconds + validationDurations[i], i);
+            await CliCommandRuntime.Current.Output.FlushAsync(CancellationToken.None);
             CliCommandRuntime.Current.Error.WriteLine(
                 $"Batch {i + 1}/{commands.Count}: {cmd.Command} {(itemSucceeded ? "completed" : "failed")}.");
 
             if (!itemSucceeded)
             {
                 hasErrors = true;
-                if (settings.StopOnError) break;
+                if (settings.StopOnError || cancellationToken.IsCancellationRequested ||
+                    outcome.Error?["category"]?.GetValue<string>() == "Cancelled") break;
             }
         }
 
         return hasErrors ? 1 : 0;
     }
 
-    private static void WriteValidationError(int index, BatchEntry entry, string error)
+    private static void WriteValidationError(int index, BatchEntry entry, Exception error, long durationMs)
     {
-        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new BatchResult
+        CliResultOutput.Write(new ServiceResponse
         {
-            Index = index,
             Command = entry.Command,
-            CommandSummary = BatchCommandSummary.Create(entry.Command, entry.Args),
             Success = false,
-            ErrorMessage = error
-        }, BatchJsonOptions));
+            ErrorCategory = "InvalidInput",
+            ErrorMessage = error.Message,
+            ExceptionType = error.GetType().Name,
+            HResult = OperationFailureClassifier.GetComHResult(error),
+            InnerError = error.InnerException?.Message
+        }, entry.Command, durationMs: durationMs, index: index);
     }
 
     /// <summary>
@@ -256,7 +263,11 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         if (content.StartsWith('['))
         {
             // JSON array format
-            return JsonSerializer.Deserialize<List<BatchEntry>>(content, BatchJsonOptions) ?? [];
+            var entries = JsonSerializer.Deserialize<List<BatchEntry>>(content, BatchJsonOptions)
+                ?? throw new ArgumentException("Batch input must contain command objects.");
+            if (entries.Any(entry => entry is null))
+                throw new ArgumentException("Every batch item must be a command object, not null.");
+            return entries;
         }
 
         // NDJSON format: one JSON object per non-empty line
@@ -267,61 +278,15 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             if (string.IsNullOrEmpty(trimmed)) continue;
 
             var entry = JsonSerializer.Deserialize<BatchEntry>(trimmed, BatchJsonOptions);
-            if (entry != null)
-            {
-                commands.Add(entry);
-            }
+            commands.Add(entry ?? throw new ArgumentException("Every batch line must be a command object, not null."));
         }
 
         return commands;
     }
 
-    /// <summary>
-    /// Extracts sessionId from a session.open/create result JSON string.
-    /// </summary>
-    private static string? TryExtractSessionId(string? resultJson)
-    {
-        if (string.IsNullOrEmpty(resultJson)) return null;
-
-        try
-        {
-            using var doc = JsonDocument.Parse(resultJson);
-            if (doc.RootElement.TryGetProperty("sessionId", out var sessionIdProp) &&
-                sessionIdProp.ValueKind == JsonValueKind.String)
-            {
-                return sessionIdProp.GetString();
-            }
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Parses a JSON string into a JsonElement for embedding in the output.
-    /// </summary>
-    private static JsonElement? TryParseJsonElement(string? json)
-    {
-        if (string.IsNullOrEmpty(json)) return null;
-
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.Clone();
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
     private static void WriteError(string message)
     {
-        CliCommandRuntime.Current.Error.WriteLine(
-            JsonSerializer.Serialize(new { success = false, errorMessage = message }, ServiceProtocol.JsonOptions));
+        CliErrorOutput.WriteError(message, "InvalidInput");
     }
 
     // JSON options for batch I/O — camelCase, skip nulls for clean output
@@ -347,39 +312,4 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         public JsonElement? Args { get; init; }
     }
 
-    private sealed class BatchResult
-    {
-        [JsonPropertyName("index")]
-        public int Index { get; init; }
-
-        [JsonPropertyName("command")]
-        public string Command { get; init; } = string.Empty;
-
-        [JsonPropertyName("commandSummary")]
-        public required string CommandSummary { get; init; }
-
-        [JsonPropertyName("success")]
-        public bool Success { get; init; }
-
-        [JsonPropertyName("result")]
-        public JsonElement? Result { get; init; }
-
-        [JsonPropertyName("errorMessage")]
-        public string? ErrorMessage { get; init; }
-
-        [JsonPropertyName("errorCategory")]
-        public string? ErrorCategory { get; init; }
-
-        [JsonPropertyName("exceptionType")]
-        public string? ExceptionType { get; init; }
-
-        [JsonPropertyName("hresult")]
-        public string? HResult { get; init; }
-
-        [JsonPropertyName("innerError")]
-        public string? InnerError { get; init; }
-
-        [JsonPropertyName("partialState")]
-        public JsonElement? PartialState { get; init; }
-    }
 }

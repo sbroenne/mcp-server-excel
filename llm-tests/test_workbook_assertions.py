@@ -34,8 +34,10 @@ class SavedWorkbookChecks(unittest.TestCase):
             capture_output=True, text=True, encoding="utf-8", timeout=180, check=True,
         )
         data = json.loads(result.stdout)
-        self.assertIsNot(data.get("success"), False, data)
-        return data
+        self.assertIs(data["success"], True, data)
+        business_data = data.get("data", {})
+        self.assertIsInstance(business_data, dict, data)
+        return business_data
 
     def _command(self, group, action, *args):
         return self._cli(group, action, "--session", self.session, *args)

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -21,6 +23,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// Gets the action from settings.
     /// </summary>
     protected abstract string? GetAction(TSettings settings);
+    protected virtual string[]? GetFields(TSettings settings) => null;
 
     /// <summary>
     /// Gets the valid actions for this command.
@@ -71,12 +74,14 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         try
         {
             (command, args) = Route(settings, action);
+            ResultJson.ValidateFields(command, GetFields(settings), ServiceRegistry.GetResultContract(command));
+            args = ResultJson.WithFields(args, GetFields(settings));
         }
         catch (ArgumentException ex)
         {
             // Parameter validation failed (e.g., required param missing)
             // Return clean JSON error with exit code 1 instead of unhandled crash
-            return CliErrorOutput.WriteError(ex.Message);
+            return CliErrorOutput.WriteException(ex, "InvalidInput");
         }
 
         // Connect to CLI daemon service (auto-starts if not running)
@@ -97,33 +102,23 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         // Output result
         if (response.Success)
         {
-            var result = !string.IsNullOrEmpty(response.Result)
-                ? response.Result
-                : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions);
-
-            // A delivered result can still report a failed operation (success:false).
-            // Print it as-is so the details are visible, and exit nonzero like MCP's isError.
-            if (ServiceResultOutcome.TryReadNegative(result, out _, out var errorCategory))
-            {
-                if (!string.IsNullOrWhiteSpace(errorCategory))
-                {
-                    CliTelemetry.RecordFinalFailure(errorCategory);
-                }
-                CliCommandRuntime.Current.Output.WriteLine(result);
-                return 1;
-            }
+            var outcome = CliResultOutput.Read(response, command);
+            var originalData = outcome.Data as System.Text.Json.Nodes.JsonObject;
+            outcome.Select(command, GetFields(settings), ServiceRegistry.GetResultContract(command));
+            var durationMs = CliCommandRuntime.Current.OperationTimer.ElapsedMilliseconds;
+            if (!outcome.Success)
+                return CliResultOutput.Write(outcome, command);
 
             if (!string.IsNullOrEmpty(outputPath))
             {
-                return WriteOutputToFile(result, outputPath);
+                return WriteOutputToFile(outcome, originalData, command, durationMs, outputPath);
             }
 
-            CliCommandRuntime.Current.Output.WriteLine(result);
-            return 0;
+            return CliResultOutput.Write(outcome, command);
         }
         else
         {
-            return CliErrorOutput.WriteServiceError(response);
+            return CliResultOutput.Write(response, command);
         }
     }
 
@@ -133,19 +128,20 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "CLI output-file boundary reports the original write/encoding failure as success=false JSON and returns exit code 1.")]
-    private static int WriteOutputToFile(string result, string outputPath)
+    private static int WriteOutputToFile(ResultJson outcome, System.Text.Json.Nodes.JsonObject? originalData,
+        string command, long durationMs, string outputPath)
     {
         try
         {
-            // Try to extract base64 image data from the result
-            var base64Data = TryExtractBase64Image(result);
+            Dictionary<string, object?> metadata;
+            var base64Data = originalData?["imageBase64"]?.GetValue<string>();
             if (base64Data != null)
             {
                 var imageBytes = Convert.FromBase64String(base64Data);
                 File.WriteAllBytes(outputPath, imageBytes);
                 // Write metadata (without the large base64 payload) to stdout
-                var doc = JsonDocument.Parse(result);
-                var metadata = new Dictionary<string, object?>
+                using var doc = JsonDocument.Parse(originalData!.ToJsonString());
+                metadata = new Dictionary<string, object?>
                 {
                     ["success"] = true,
                     ["outputPath"] = outputPath,
@@ -156,45 +152,35 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
                 if (doc.RootElement.TryGetProperty("mimeType", out var m)) metadata["mimeType"] = m.GetString();
                 if (doc.RootElement.TryGetProperty("sheetName", out var s)) metadata["sheetName"] = s.GetString();
                 if (doc.RootElement.TryGetProperty("rangeAddress", out var r)) metadata["rangeAddress"] = r.GetString();
-                CliCommandRuntime.Current.Output.WriteLine(
-                    JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions));
+                if (doc.RootElement.TryGetProperty("message", out var message)) metadata["message"] = message.GetString();
             }
             else
             {
-                File.WriteAllText(outputPath, result);
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                    new { success = true, outputPath },
-                    ServiceProtocol.JsonOptions));
+                File.WriteAllText(outputPath, outcome.ToCliJson(command, durationMs));
+                metadata = new Dictionary<string, object?>
+                {
+                    ["success"] = true,
+                    ["outputPath"] = outputPath
+                };
             }
-            return 0;
+            metadata["warnings"] = outcome.Warnings;
+            metadata["partialState"] = outcome.PartialState;
+            return CliResultOutput.Write(ResultJson.Read(
+                JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions), command), command, durationMs);
         }
         catch (Exception ex)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                new { success = false, errorMessage = $"Failed to write output: {ex.Message}" },
-                ServiceProtocol.JsonOptions));
-            return 1;
+            return CliResultOutput.Write(ResultJson.Read(outcome.ToToolJson(), command,
+                delivered: false, message: $"The operation completed, but writing its output failed: {ex.Message}",
+                category: "OutputWriteFailed", exceptionType: ex.GetType().Name,
+                hresult: $"0x{ex.HResult:X8}",
+                innerError: ex.InnerException?.Message,
+                partialState: JsonSerializer.Serialize(new
+                {
+                    operationCompleted = true,
+                    outputWriteCompleted = false,
+                    operationPartialState = outcome.PartialState
+                }, ServiceProtocol.JsonOptions)), command, durationMs);
         }
-    }
-
-    /// <summary>
-    /// Attempts to extract base64 image data from a JSON result.
-    /// Returns the base64 string if found, null otherwise.
-    /// </summary>
-    private static string? TryExtractBase64Image(string json)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("imageBase64", out var imageElement))
-            {
-                return imageElement.GetString();
-            }
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-        return null;
     }
 }

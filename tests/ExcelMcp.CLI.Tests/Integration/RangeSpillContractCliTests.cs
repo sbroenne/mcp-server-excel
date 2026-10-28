@@ -47,9 +47,9 @@ public sealed class RangeSpillContractCliTests
         Assert.Equal("Sheet1", args.RootElement.GetProperty("sheetName").GetString());
         Assert.Equal("A1:A64", args.RootElement.GetProperty("rangeAddress").GetString());
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.Equal("supported", output.RootElement.GetProperty("capability").GetString());
-        Assert.Equal(64, output.RootElement.GetProperty("cellCount").GetInt64());
-        Assert.Equal(64, output.RootElement.GetProperty("cells").GetArrayLength());
-        Assert.Equal("$A$1", output.RootElement.GetProperty("cells")[63].GetProperty("sourceAddress").GetString());
+        Assert.Equal("supported", output.RootElement.GetProperty("data").GetProperty("capability").GetString());
+        Assert.Equal(64, output.RootElement.GetProperty("data").GetProperty("cellCount").GetInt64());
+        Assert.Equal(64, output.RootElement.GetProperty("data").GetProperty("cells").GetArrayLength());
+        Assert.Equal("$A$1", output.RootElement.GetProperty("data").GetProperty("cells")[63].GetProperty("sourceAddress").GetString());
     }
 }

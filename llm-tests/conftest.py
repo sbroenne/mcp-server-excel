@@ -294,7 +294,10 @@ def excel_cli_servers() -> Any:
     )
     if status.returncode != 0:
         pytest.fail(f"Owned CLI service status failed: {status.stderr or status.stdout}")
-    if json.loads(status.stdout)["running"]:
+    status_result = json.loads(status.stdout)
+    if status_result["success"] is not True:
+        pytest.fail(f"Owned CLI service status failed: {status_result}")
+    if status_result["data"]["running"]:
         stopped = subprocess.run([command, "-q", "service", "stop"], env=environment,
                                  capture_output=True, text=True, timeout=30, check=False)
         if stopped.returncode != 0:

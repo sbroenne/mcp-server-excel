@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service;
 
@@ -22,21 +23,8 @@ internal static class CliErrorOutput
         return 1;
     }
 
-    public static int WriteServiceError(ServiceResponse response)
-    {
-        CliCommandRuntime.Current.Output.WriteLine(Serialize(
-            response.ErrorMessage,
-            response.ErrorCategory,
-            response.Command,
-            response.SessionId,
-            response.ExceptionType,
-            response.HResult,
-            response.InnerError,
-            null,
-            null,
-            response.PartialState));
-        return 1;
-    }
+    public static int WriteServiceError(ServiceResponse response) =>
+        CliResultOutput.Write(response);
 
     public static int WriteDaemonError(
         ServiceResponse response,
@@ -61,7 +49,7 @@ internal static class CliErrorOutput
         return 1;
     }
 
-    public static int WriteError(string errorMessage, string? errorCategory = null)
+    public static int WriteError(string errorMessage, string? errorCategory = "InvalidInput")
     {
         CliCommandRuntime.Current.Output.WriteLine(
             Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null));
@@ -82,7 +70,8 @@ internal static class CliErrorOutput
         IReadOnlyList<OwnedProcessCleanup.RetainedExcelProcess>? retainedExcelProcesses = null,
         string? retainedExcelError = null)
     {
-        return JsonSerializer.Serialize(new ErrorEnvelope
+        command ??= CliCommandRuntime.Current.CommandName;
+        var json = JsonSerializer.Serialize(new ErrorEnvelope
         {
             Success = false,
             ErrorMessage = errorMessage ?? "Unknown error.",
@@ -101,6 +90,8 @@ internal static class CliErrorOutput
             RetainedExcelError = retainedExcelError,
             RecoveryMessage = retainedExcelProcesses?.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null
         }, ServiceProtocol.JsonOptions);
+        return ResultJson.Read(json, command).ToCliJson(
+            command, CliCommandRuntime.Current.OperationTimer.ElapsedMilliseconds);
     }
 
     private sealed class ErrorEnvelope

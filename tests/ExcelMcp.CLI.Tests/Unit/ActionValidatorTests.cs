@@ -80,7 +80,7 @@ public sealed class ActionValidatorTests
         using var document = JsonDocument.Parse(output);
 
         Assert.True(document.RootElement.GetProperty("success").GetBoolean());
-        var commands = document.RootElement.GetProperty("commands");
+        var commands = document.RootElement.GetProperty("data").GetProperty("commands");
 
         foreach (var expected in ExpectedCommands)
         {

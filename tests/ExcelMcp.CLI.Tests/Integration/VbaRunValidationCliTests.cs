@@ -26,7 +26,7 @@ public sealed class VbaRunValidationCliTests
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Contains(
             "procedureName is required for run action",
-            json.RootElement.GetProperty("errorMessage").GetString());
+            json.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]

@@ -32,7 +32,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
 
             Assert.Equal(0, createResult.ExitCode);
             Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
-            sessionId = createJson.RootElement.GetProperty("sessionId").GetString();
+            sessionId = createJson.RootElement.GetProperty("data").GetProperty("sessionId").GetString();
             Assert.False(string.IsNullOrWhiteSpace(sessionId));
             var seed = await CliProcessHelper.RunAsync(
                 ["range", "set-values", "--session", sessionId!, "--sheet-name", "Sheet1",
@@ -53,7 +53,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
 
             Assert.Equal(1, getResult.ExitCode);
             Assert.False(getJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.Contains("session operation timeout", getJson.RootElement.GetProperty("errorMessage").GetString());
+            Assert.Contains("session operation timeout", getJson.RootElement.GetProperty("error").GetProperty("message").GetString());
 
             var (listResult, listJsonDocument) = await CliProcessHelper.RunJsonAsync(
                 ["session", "list"],
@@ -62,7 +62,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
             using var listJson = listJsonDocument;
             Assert.Equal(0, listResult.ExitCode);
             Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
-            var session = listJson.RootElement.GetProperty("sessions")
+            var session = listJson.RootElement.GetProperty("data").GetProperty("sessions")
                 .EnumerateArray()
                 .Single(item => item.GetProperty("sessionId").GetString() == sessionId);
 
@@ -75,7 +75,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
             {
                 Assert.Equal(0, readResult.ExitCode);
                 Assert.True(readDocument.RootElement.GetProperty("success").GetBoolean());
-                Assert.Equal(17, readDocument.RootElement.GetProperty("values")[0][0].GetInt32());
+                Assert.Equal(17, readDocument.RootElement.GetProperty("data").GetProperty("values")[0][0].GetInt32());
             }
         }
         catch (Exception exception)

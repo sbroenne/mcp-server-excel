@@ -57,8 +57,8 @@ public sealed class RangeFormatReadContractCliTests
             Assert.Equal(view, args.RootElement.GetProperty("view").GetString(), ignoreCase: true);
         }
         using var output = JsonDocument.Parse(result.Stdout);
-        Assert.Equal(64, output.RootElement.GetProperty("cellCount").GetInt64());
-        Assert.Equal(64, output.RootElement.GetProperty("cells").GetArrayLength());
+        Assert.Equal(64, output.RootElement.GetProperty("data").GetProperty("cellCount").GetInt64());
+        Assert.Equal(64, output.RootElement.GetProperty("data").GetProperty("cells").GetArrayLength());
     }
 
     [Theory]

@@ -39,7 +39,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("datamodel.refresh", json.RootElement.GetProperty("command").GetString());
 
-        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
+        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("data").GetProperty("argsJson").GetString()!);
         Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 
@@ -62,10 +62,9 @@ public sealed class DataModelRefreshTimeoutRegressionTests
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.True(json.RootElement.GetProperty("isError").GetBoolean());
-        var error = json.RootElement.GetProperty("errorMessage").GetString();
+        var error = json.RootElement.GetProperty("error").GetProperty("message").GetString();
         Assert.Contains("00:10:00", error, StringComparison.Ordinal);
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]
@@ -90,7 +89,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("powerquery.refresh", json.RootElement.GetProperty("command").GetString());
 
-        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
+        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("data").GetProperty("argsJson").GetString()!);
         Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 

@@ -23,7 +23,7 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     public async Task InitializeAsync()
     {
         var created = await SendAsync("session", "create", _workbook);
-        _session = created.GetProperty("sessionId").GetString();
+        _session = created.GetProperty("data").GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(_session));
         Assert.True(File.Exists(_workbook));
     }
@@ -32,15 +32,39 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     public async Task Lifecycle_SaveAndReopen_PreservesValue()
     {
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
-        await WriteAsync("424242");
+        await SendAsync("range", "set-values", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A1:D1", "--values", "[[424242,false,0,null]]");
+        await SendAsync("range", "set-formulas", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A2", "--formulas", """[["=1/0"]]""");
+        var selected = await SendAsync("range", "get-values", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A1:D2", "--fields", "values");
+        var selectedData = selected.GetProperty("data");
+        Assert.Equal(2, selectedData.GetProperty("rowCount").GetInt32());
+        Assert.Equal(4, selectedData.GetProperty("columnCount").GetInt32());
+        var values = selectedData.GetProperty("values");
+        Assert.Equal(2, values.GetArrayLength());
+        Assert.Equal(4, values[0].GetArrayLength());
+        Assert.Equal(4, values[1].GetArrayLength());
+        Assert.Equal(424242, values[0][0].GetInt32());
+        Assert.False(values[0][1].GetBoolean());
+        Assert.Equal(0, values[0][2].GetInt32());
+        Assert.Equal(JsonValueKind.Null, values[0][3].ValueKind);
+        Assert.Equal("#DIV/0!", values[1][0].GetString());
+        Assert.Single(selectedData.GetProperty("cellErrors").EnumerateArray());
         await SendAsync("session", "close", "--session", Session, "--save");
         _session = null;
         var reopened = await SendAsync("session", "open", _workbook);
-        _session = reopened.GetProperty("sessionId").GetString();
+        _session = reopened.GetProperty("data").GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(_session));
-        Assert.Equal(424242, (await ReadAsync()).GetProperty("values")[0][0].GetInt32());
+        Assert.Equal(424242, (await ReadAsync()).GetProperty("data").GetProperty("values")[0][0].GetInt32());
+        var persisted = await SendAsync("range", "get-values", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A1:D2");
+        Assert.True(JsonElement.DeepEquals(values, persisted.GetProperty("data").GetProperty("values")));
+        var formulas = await SendAsync("range", "get-formulas", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A2");
+        Assert.Equal("=1/0", formulas.GetProperty("data").GetProperty("formulas")[0][0].GetString());
         var sheets = await SendAsync("sheet", "list", "--session", Session);
-        Assert.Contains("Data", sheets.GetProperty("worksheets").GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Data", sheets.GetProperty("data").GetProperty("worksheets").GetRawText(), StringComparison.Ordinal);
         Assert.True(new FileInfo(_workbook).Length > 0);
     }
 
@@ -71,10 +95,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     }
 
     private string Session => _session ?? throw new InvalidOperationException("No CLI acceptance session.");
-
-    private Task<JsonElement> WriteAsync(string value) =>
-        SendAsync("range", "set-values", "--session", Session, "--sheet-name", "Data",
-            "--range-address", "A1", "--values", $"[[{value}]]");
 
     private Task<JsonElement> ReadAsync() =>
         SendAsync("range", "get-values", "--session", Session, "--sheet-name", "Data", "--range-address", "A1");

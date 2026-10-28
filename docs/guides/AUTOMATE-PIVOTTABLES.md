@@ -24,7 +24,7 @@ directory and a new workbook path. Check each command's success response before
 continuing; a failed write does not promise rollback.
 
 ```powershell
-$session = (excelcli -q session create C:\data\dashboard.xlsx | ConvertFrom-Json).sessionId
+$session = (excelcli -q session create C:\data\dashboard.xlsx | ConvertFrom-Json).data.sessionId
 excelcli -q sheet create --session $session --sheet Data
 excelcli -q sheet create --session $session --sheet Analysis
 excelcli -q range set-values --session $session --sheet Data --range A1:C4 `

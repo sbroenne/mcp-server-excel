@@ -23,7 +23,7 @@ def near(actual, expected, label):
 
 
 def values(excel, sheet, address):
-    result = excel.call("range.get-values", sheetName=sheet, rangeAddress=address)["result"]
+    result = excel.call("range.get-values", sheetName=sheet, rangeAddress=address)["data"]
     require(not result["cellErrors"], f"Formula errors in {sheet}!{address}: {result['cellErrors']}")
     return result["values"]
 
@@ -85,7 +85,7 @@ def validate_overview(excel, expected, countries, year=2024):
 
 
 def validate_overview_chart(excel, expected, countries):
-    chart = excel.call("chart.read", chartName="IncomeAndLongevity")["result"]
+    chart = excel.call("chart.read", chartName="IncomeAndLongevity")["data"]
     require(len(chart["series"]) == len(countries), "Each country needs a named native bubble series")
     for i, (series, country) in enumerate(zip(chart["series"], countries)):
         require(series["name"] == country["Country"], "Chart country names differ from the source")
@@ -93,14 +93,14 @@ def validate_overview_chart(excel, expected, countries):
                 f"{country['Country']} must plot exactly one observation")
         near(series["values"][i], expected[(country["Code"], 2024, "Life")], "Bubble vertical position")
         near(series["categories"][i], expected[(country["Code"], 2024, "Income")], "Bubble horizontal position")
-        native = excel.call("chartconfig.get-series-settings", chartName="IncomeAndLongevity", seriesIndex=i+1)["result"]
+        native = excel.call("chartconfig.get-series-settings", chartName="IncomeAndLongevity", seriesIndex=i+1)["data"]
         size_row = i * 2 + 3
         require(f"'Chart Data'!$O${size_row}:$AM${size_row}" in native["formula"],
                 "Native bubble-size range must reference its country's population row")
         near(values(excel, "Chart Data", f"{col(15+i)}{size_row}")[0][0],
              expected[(country["Code"], 2024, "Population")] / 1000000, "Bubble population")
         point = excel.call("chartconfig.get-point-format", chartName="IncomeAndLongevity",
-                           seriesIndex=i+1, pointIndex=i+1)["result"]
+                           seriesIndex=i+1, pointIndex=i+1)["data"]
         require(point["fillColor"].upper() == REGION_COLORS[country["Region"]].upper(),
                 f"{country['Country']} has the wrong region color")
 
@@ -111,7 +111,7 @@ def validate(excel, logs, live):
         expected_units = {row["Code"]: row["Unit"] for row in csv.DictReader(source)}
     model_units = excel.call("datamodel.evaluate", daxQuery=(
         'EVALUATE SELECTCOLUMNS(Indicators, "Code", Indicators[Code], "Unit", Indicators[Unit])'
-    ))["result"]["rows"]
+    ))["data"]["rows"]
     require(dict(model_units) == expected_units, "Data Model indicator units differ from the source metadata")
     for sheet in ("Indicators", "Indicator Notes"):
         require({row[0]: row[3] for row in values(excel, sheet, "A2:D10")} == expected_units,
@@ -137,7 +137,7 @@ def validate(excel, logs, live):
 
     dax = excel.call("datamodel.evaluate", daxQuery=(
         'EVALUATE SUMMARIZECOLUMNS(Countries[Code], Years[Year], "GDPIndex", [GDP index 2000],'
-        ' "Income", [Income], "Population", [Population], "Internet", [Internet])'))["result"]
+        ' "Income", [Income], "Population", [Population], "Internet", [Internet])'))["data"]
     require(len(dax["rows"]) == 625, "Expected 25 country x 25 year model results")
     for code, year, index, income, population, internet in dax["rows"]:
         year = int(year)
@@ -151,7 +151,7 @@ def validate(excel, logs, live):
 
     validate_overview_chart(excel, expected, countries)
     for name in ("GrowthLines", "InternetLines"):
-        info = excel.call("chart.read", chartName=name)["result"]
+        info = excel.call("chart.read", chartName=name)["data"]
         require(info["isPivotChart"] and len(info["series"]) == 6, f"{name} must be a six-country native PivotChart")
 
     income_2024 = [v for (c, y, m), v in expected.items() if y == 2024 and m == "Income" and v is not None]
@@ -168,7 +168,7 @@ def validate(excel, logs, live):
     excel.call("slicer.set-slicer-selection", slicerName="OverviewYear", selectedItems=["2024"])
 
     excel.call("slicer.set-slicer-selection", slicerName="OverviewRegion", selectedItems=["North America"])
-    region = excel.call("chart.read", chartName="IncomeAndLongevity")["result"]
+    region = excel.call("chart.read", chartName="IncomeAndLongevity")["data"]
     numeric = [v for series in region["series"] for v in series["values"] if isinstance(v, (float, int)) and v > 0]
     require(len(numeric) == 2, "North America must leave Canada and United States")
     require([row[0] for row in values(excel, "Chart Data", "A2:A26")] ==

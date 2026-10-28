@@ -16,6 +16,57 @@ public sealed class FileToolRecordingContractTests(
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Theory]
+    [InlineData("close", """{"save":false}""")]
+    [InlineData("save", null)]
+    public async Task DeliveredNegativeOutcome_PreservesFailureAndPartialState(string action, string? expectedArgs)
+    {
+        var call = await _fixture.CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = action,
+            ["workbook_session_id"] = "target"
+        }, new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":false,"errorMessage":"Workbook remains open","errorCategory":"ExcelError","sessionId":"target","warnings":["Inspect pending edits."],"partialState":{"open":true}}"""
+        }, "session." + action, expectedSessionId: "target", expectedArgsJson: expectedArgs);
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        var root = result.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal("Workbook remains open", root.GetProperty("errorMessage").GetString());
+        Assert.Equal("ExcelError", root.GetProperty("errorCategory").GetString());
+        Assert.Equal("target", root.GetProperty("workbook_session_id").GetString());
+        Assert.Equal("Inspect pending edits.", Assert.Single(root.GetProperty("warnings").EnumerateArray()).GetString());
+        Assert.True(root.GetProperty("partialState").GetProperty("open").GetBoolean());
+        Assert.False(root.TryGetProperty("saved", out _));
+    }
+
+    [Theory]
+    [InlineData("close", """{"save":false}""")]
+    [InlineData("save", null)]
+    public async Task SuccessfulOutcome_PreservesActualDataAndWarnings(string action, string? expectedArgs)
+    {
+        var call = await _fixture.CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = action,
+            ["workbook_session_id"] = "target"
+        }, new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"sessionId":"target","message":"Session already closed.","warnings":["No save was performed."],"partialState":{"changed":false}}"""
+        }, "session." + action, expectedSessionId: "target", expectedArgsJson: expectedArgs);
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        var root = result.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal("target", root.GetProperty("workbook_session_id").GetString());
+        Assert.Equal("Session already closed.", root.GetProperty("message").GetString());
+        Assert.Equal("No save was performed.", Assert.Single(root.GetProperty("warnings").EnumerateArray()).GetString());
+        Assert.False(root.GetProperty("partialState").GetProperty("changed").GetBoolean());
+        Assert.False(root.TryGetProperty("saved", out _));
+    }
+
+    [Theory]
     [InlineData("enable-editing", false)]
     [InlineData("enable-connections", false)]
     [InlineData("enable-macros", false)]
@@ -90,7 +141,7 @@ public sealed class FileToolRecordingContractTests(
                 ["action"] = "save",
                 ["workbook_session_id"] = "save-session"
             },
-            new ServiceResponse { Success = true, Result = """{"success":true,"saved":true}""" },
+            new ServiceResponse { Success = true, Result = """{"success":true,"sessionId":"save-session","saved":true}""" },
             "session.save",
             expectedSessionId: "save-session",
             expectedArgsJson: null);
@@ -135,7 +186,7 @@ public sealed class FileToolRecordingContractTests(
         Assert.True(root.GetProperty("success").GetBoolean());
         Assert.Equal("attached-session", root.GetProperty("workbook_session_id").GetString());
         Assert.Equal("Book1", root.GetProperty("name").GetString());
-        Assert.Equal("Excel AutoSave is off.", root.GetProperty("warning").GetString());
+        Assert.Equal("Excel AutoSave is off.", Assert.Single(root.GetProperty("warnings").EnumerateArray()).GetString());
         Assert.False(root.TryGetProperty("filePath", out _));
         Assert.False(root.TryGetProperty("autoSaveOn", out _));
     }
@@ -378,8 +429,8 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(1, result.RootElement.GetProperty("count").GetInt32());
         var session = Assert.Single(
             result.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.Equal("session-list", session.GetProperty("workbook_session_id").GetString());
-        Assert.False(session.TryGetProperty("sessionId", out _));
+        Assert.Equal("session-list", session.GetProperty("sessionId").GetString());
+        Assert.False(session.TryGetProperty("workbook_session_id", out _));
         Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
         Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
@@ -430,7 +481,7 @@ public sealed class FileToolRecordingContractTests(
 
         using var result = JsonDocument.Parse(call.JsonResult);
         var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.Equal("pending-native-query", session.GetProperty("workbook_session_id").GetString());
+        Assert.Equal("pending-native-query", session.GetProperty("sessionId").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
         Assert.Equal("Check the Excel window and respond there.\nDialog text: The database is unavailable.", session.GetProperty("blockingMessage").GetString());
@@ -466,7 +517,7 @@ public sealed class FileToolRecordingContractTests(
             JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions));
         using var result = JsonDocument.Parse(call.JsonResult);
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.True(result.RootElement.GetProperty("isError").GetBoolean());
+        Assert.True(call.Result.IsError);
         Assert.Equal("Busy", result.RootElement.GetProperty("errorCategory").GetString());
         Assert.Equal(message, result.RootElement.GetProperty("errorMessage").GetString());
         Assert.Equal("busy-session", result.RootElement.GetProperty("workbook_session_id").GetString());
@@ -528,7 +579,7 @@ public sealed class FileToolRecordingContractTests(
 
         using var result = JsonDocument.Parse(call.JsonResult);
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        Assert.True(result.RootElement.GetProperty("isError").GetBoolean());
+        Assert.True(call.Result.IsError);
         Assert.Equal(
             "SessionNotFound",
             result.RootElement.GetProperty("errorCategory").GetString());
@@ -583,7 +634,7 @@ public sealed class FileToolRecordingContractTests(
             using (var failedResult = JsonDocument.Parse(failedCall.JsonResult))
             {
                 Assert.False(failedResult.RootElement.GetProperty("success").GetBoolean());
-                Assert.True(failedResult.RootElement.GetProperty("isError").GetBoolean());
+                Assert.True(failedCall.Result.IsError);
                 Assert.Equal(
                     "WorkbookAccess",
                     failedResult.RootElement.GetProperty("errorCategory").GetString());

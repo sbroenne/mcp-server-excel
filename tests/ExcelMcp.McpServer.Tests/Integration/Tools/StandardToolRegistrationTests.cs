@@ -446,7 +446,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("file_read", "complete")]
     [InlineData("file_read", "workbooks")]
     [InlineData("file", "autoSaveOn")]
-    [InlineData("file", "warning")]
+    [InlineData("file", "warnings")]
     [InlineData("screenshot", "mimeType")]
     public async Task OutputSchemas_DescribeActionSpecificFields(string toolName, string propertyName)
     {
@@ -484,12 +484,12 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "workbook_session_id", "filePath", "workbookName", "isAttached", "isExcelVisible", "activeOperations", "operationPending", "canClose", "excelState", "blockingReason", "blockingMessage" })
+        foreach (var name in new[] { "sessionId", "filePath", "workbookName", "isAttached", "isExcelVisible", "activeOperations", "operationPending", "canClose", "excelState", "blockingReason", "blockingMessage" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");
         }
-        Assert.False(properties.TryGetProperty("sessionId", out _));
+        Assert.False(properties.TryGetProperty("workbook_session_id", out _));
     }
 
     [Fact]

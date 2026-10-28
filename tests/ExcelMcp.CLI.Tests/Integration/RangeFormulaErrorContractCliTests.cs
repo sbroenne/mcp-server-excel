@@ -58,8 +58,8 @@ public sealed class RangeFormulaErrorContractCliTests
         using var document = JsonDocument.Parse(result.Stdout);
         var root = document.RootElement;
         Assert.True(root.GetProperty("success").GetBoolean());
-        Assert.Equal("#REF!", root.GetProperty("values")[0][0].GetString());
-        var error = Assert.Single(root.GetProperty("cellErrors").EnumerateArray());
+        Assert.Equal("#REF!", root.GetProperty("data").GetProperty("values")[0][0].GetString());
+        var error = Assert.Single(root.GetProperty("data").GetProperty("cellErrors").EnumerateArray());
         Assert.Equal("A1", error.GetProperty("cellAddress").GetString());
         Assert.Equal("#REF!", error.GetProperty("errorName").GetString());
         Assert.Equal("=INDIRECT(\"A0\")", error.GetProperty("formula").GetString());

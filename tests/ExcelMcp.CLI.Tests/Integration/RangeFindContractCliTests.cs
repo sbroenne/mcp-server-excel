@@ -74,10 +74,10 @@ public sealed class RangeFindContractCliTests
         using var document = JsonDocument.Parse(result.Stdout);
         var root = document.RootElement;
         Assert.True(root.GetProperty("success").GetBoolean());
-        Assert.Equal(25, root.GetProperty("totalCount").GetInt64());
-        Assert.Equal(returnedCount, root.GetProperty("returnedCount").GetInt32());
-        Assert.Equal(25 > returnedCount, root.GetProperty("truncated").GetBoolean());
-        Assert.Equal(returnedCount, root.GetProperty("matchingCells").GetArrayLength());
+        Assert.Equal(25, root.GetProperty("data").GetProperty("totalCount").GetInt64());
+        Assert.Equal(returnedCount, root.GetProperty("data").GetProperty("returnedCount").GetInt32());
+        Assert.Equal(25 > returnedCount, root.GetProperty("data").GetProperty("truncated").GetBoolean());
+        Assert.Equal(returnedCount, root.GetProperty("data").GetProperty("matchingCells").GetArrayLength());
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class RangeFindContractCliTests
         Assert.NotEqual(0, result.ExitCode);
         using var document = JsonDocument.Parse(result.Stdout);
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains(limit, document.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Contains(limit, document.RootElement.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -178,7 +178,7 @@ public sealed class RangeFindContractCliTests
         Assert.Equal(maxMatches, args.RootElement.GetProperty("maxMatches").GetInt32());
         using var document = JsonDocument.Parse(result.Stdout);
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("maxMatches", document.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Contains("maxMatches", document.RootElement.GetProperty("error").GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

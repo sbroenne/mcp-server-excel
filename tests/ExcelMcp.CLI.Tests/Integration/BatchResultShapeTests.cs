@@ -11,14 +11,88 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "Batch")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
-public sealed class BatchCommandSummaryTests
+public sealed class BatchResultShapeTests
 {
+    [Fact]
+    public async Task Batch_SessionListSelection_PassesActualSessionValidation()
+    {
+        using var service = new ExcelMcpService();
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            request => service.ProcessAsync(request).GetAwaiter().GetResult(),
+            """{"command":"session.list","args":{"fields":["sessions.workbookName"]}}""");
+
+        Assert.Equal(0, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Empty(output.RootElement.GetProperty("data").GetProperty("sessions").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("session.list", """{"fields":["sessions.workbookName"]}""", """{"sessions":[]}""")]
+    [InlineData("session.discover", """{"fields":["workbooks.name"]}""", """{"workbooks":[]}""")]
+    [InlineData("session.notices", """{"fields":["notices.protectedView"]}""", """{"notices":{"protectedView":false}}""")]
+    [InlineData("session.test", """{"filePath":"C:\\synthetic\\book.xlsx","fields":["extension"]}""", """{"canOpen":true,"extension":".xlsx"}""")]
+    public async Task Batch_ManualReadSelection_RemainsAdapterLocal(string command, string args, string response)
+    {
+        var calls = 0;
+        var result = await InProcessCliHelper.RunAsync(["batch", "--session", "target"],
+            request =>
+            {
+                calls++;
+                using var sent = JsonDocument.Parse(request.Args!);
+                Assert.False(sent.RootElement.TryGetProperty("fields", out _));
+                return new ServiceResponse { Success = true, Result = response };
+            },
+            JsonSerializer.Serialize(new { command, args = JsonSerializer.Deserialize<JsonElement>(args) }));
+        Assert.Equal(1, calls);
+        Assert.Equal(0, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Batch_InvalidTypePreservesOriginalCauseWithoutDispatch()
+    {
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            input: """{"command":"calculationmode.calculate","args":{"scope":5}}""");
+        Assert.Equal(1, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        var error = output.RootElement.GetProperty("error");
+        Assert.Equal("ArgumentException", error.GetProperty("exceptionType").GetString());
+        Assert.Contains("String", error.GetProperty("innerError").GetString());
+    }
+
+    [Fact]
+    public async Task Batch_ItemTimingExcludesEarlierCommands()
+    {
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            request =>
+            {
+                if (request.Command == "diag.ping")
+                    Thread.Sleep(300);
+                return new ServiceResponse { Success = true, Result = """{"success":true,"message":"done"}""" };
+            },
+            """
+            {"command":"diag.ping"}
+            {"command":"diag.echo","args":{"message":"fast"}}
+            """);
+        Assert.Equal(0, result.ExitCode);
+        var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        using var first = JsonDocument.Parse(lines[0]);
+        using var second = JsonDocument.Parse(lines[1]);
+        Assert.True(first.RootElement.GetProperty("durationMs").GetInt64() >= 300);
+        Assert.InRange(second.RootElement.GetProperty("durationMs").GetInt64(), 0, 250);
+        Assert.Equal("diag.echo", second.RootElement.GetProperty("command").GetString());
+        Assert.Equal("done", second.RootElement.GetProperty("data").GetProperty("message").GetString());
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task Batch_RepeatedCommands_HaveDistinctSummaries(bool arrayInput, bool fileInput)
+    public async Task Batch_RepeatedCommands_HaveDistinctIndexes(bool arrayInput, bool fileInput)
     {
         const string first = """{"command":"range.set-values","args":{"sheetName":"Sales","rangeAddress":"A2:B3","values":[["private-value",2],[3,4]]}}""";
         const string second = """{"command":"range.set-values","args":{"values":[[5,6]],"rangeAddress":"B5:C5","sheetName":"Forecast"}}""";
@@ -45,20 +119,16 @@ public sealed class BatchCommandSummaryTests
             AssertProgress(result.Stderr, 2, (1, "range.set-values", true), (2, "range.set-values", true));
             var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             Assert.Equal(2, lines.Length);
-            var summaries = new[]
-            {
-                "range.set-values: Sales!A2:B3 (2 rows x 2 columns)",
-                "range.set-values: Forecast!B5:C5 (1 row x 2 columns)"
-            };
             for (var index = 0; index < lines.Length; index++)
             {
                 using var json = JsonDocument.Parse(lines[index]);
                 var item = json.RootElement;
                 Assert.Equal(index, item.GetProperty("index").GetInt32());
                 Assert.Equal("range.set-values", item.GetProperty("command").GetString());
-                Assert.Equal(summaries[index], item.GetProperty("commandSummary").GetString());
+                Assert.False(item.TryGetProperty("commandSummary", out _));
+                Assert.True(item.GetProperty("durationMs").GetInt64() >= 0);
                 Assert.True(item.GetProperty("success").GetBoolean());
-                Assert.True(item.GetProperty("result").GetProperty("success").GetBoolean());
+                Assert.False(item.TryGetProperty("result", out _));
             }
             Assert.Equal(2, requests.Count);
             Assert.All(requests, request =>
@@ -89,7 +159,7 @@ public sealed class BatchCommandSummaryTests
     [InlineData("negative-result", true)]
     [InlineData("communication", false)]
     [InlineData("communication", true)]
-    public async Task Batch_Failures_KeepSummariesAndStopBehavior(string failure, bool stopOnError)
+    public async Task Batch_Failures_PreserveDetailsAndStopBehavior(string failure, bool stopOnError)
     {
         var first = failure == "validation"
             ? """{"command":"range.get-values","args":{"sheetName":"Sales"}}"""
@@ -135,34 +205,34 @@ public sealed class BatchCommandSummaryTests
         var item = json.RootElement;
         Assert.Equal(0, item.GetProperty("index").GetInt32());
         Assert.Equal("range.get-values", item.GetProperty("command").GetString());
-        Assert.Equal(failure == "validation" ? "range.get-values: sheetName=Sales" : "range.get-values: Sales!A1",
-            item.GetProperty("commandSummary").GetString());
+        Assert.False(item.TryGetProperty("commandSummary", out _));
         Assert.False(item.GetProperty("success").GetBoolean());
-        Assert.False(string.IsNullOrWhiteSpace(item.GetProperty("errorMessage").GetString()));
+        var error = item.GetProperty("error");
+        Assert.False(string.IsNullOrWhiteSpace(error.GetProperty("message").GetString()));
         if (failure == "service")
         {
-            Assert.Equal("Synthetic service failure", item.GetProperty("errorMessage").GetString());
-            Assert.Equal("Synthetic", item.GetProperty("errorCategory").GetString());
-            Assert.Equal("SyntheticException", item.GetProperty("exceptionType").GetString());
-            Assert.Equal("0x800A03EC", item.GetProperty("hresult").GetString());
-            Assert.Equal("Synthetic cause", item.GetProperty("innerError").GetString());
+            Assert.Equal("Synthetic service failure", error.GetProperty("message").GetString());
+            Assert.Equal("Synthetic", error.GetProperty("category").GetString());
+            Assert.Equal("SyntheticException", error.GetProperty("exceptionType").GetString());
+            Assert.Equal("0x800A03EC", error.GetProperty("hresult").GetString());
+            Assert.Equal("Synthetic cause", error.GetProperty("innerError").GetString());
             Assert.True(item.GetProperty("partialState").GetProperty("changed").GetBoolean());
         }
         if (failure == "communication")
         {
-            Assert.Equal("Communication error: Synthetic pipe failure", item.GetProperty("errorMessage").GetString());
+            Assert.Equal("Communication error: Synthetic pipe failure", error.GetProperty("message").GetString());
         }
         if (failure == "negative-result")
         {
-            Assert.Equal("Synthetic operation failure", item.GetProperty("errorMessage").GetString());
-            Assert.False(item.GetProperty("result").GetProperty("success").GetBoolean());
+            Assert.Equal("Synthetic operation failure", error.GetProperty("message").GetString());
+            Assert.False(item.TryGetProperty("result", out _));
         }
         Assert.Equal((failure == "validation" ? 0 : 1) + (stopOnError ? 0 : 1), requests.Count);
         if (!stopOnError)
         {
             using var next = JsonDocument.Parse(lines[1]);
             Assert.Equal(1, next.RootElement.GetProperty("index").GetInt32());
-            Assert.Equal("diag.ping", next.RootElement.GetProperty("commandSummary").GetString());
+            Assert.Equal("diag.ping", next.RootElement.GetProperty("command").GetString());
             Assert.True(next.RootElement.GetProperty("success").GetBoolean());
         }
     }
@@ -170,7 +240,7 @@ public sealed class BatchCommandSummaryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Batch_AllInvalid_ProducesSummariesWithoutConnecting(bool stopOnError)
+    public async Task Batch_AllInvalid_ReportsIndexesWithoutConnecting(bool stopOnError)
     {
         var result = await InProcessCliHelper.RunAsync(
             stopOnError ? ["batch", "--stop-on-error"] : ["batch"],
@@ -184,11 +254,13 @@ public sealed class BatchCommandSummaryTests
         var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(stopOnError ? 1 : 2, lines.Length);
         using var first = JsonDocument.Parse(lines[0]);
-        Assert.Equal("range.get-values: sheetName=Sales", first.RootElement.GetProperty("commandSummary").GetString());
+        Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
+        Assert.Equal("InvalidInput", first.RootElement.GetProperty("error").GetProperty("category").GetString());
         if (!stopOnError)
         {
             using var second = JsonDocument.Parse(lines[1]);
-            Assert.Equal("range.get-values: sheetName=Forecast", second.RootElement.GetProperty("commandSummary").GetString());
+            Assert.Equal(1, second.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("InvalidInput", second.RootElement.GetProperty("error").GetProperty("category").GetString());
         }
     }
 
@@ -199,7 +271,7 @@ public sealed class BatchCommandSummaryTests
     [InlineData(@"\uD800", false, false)]
     [InlineData(@"\uD800", false, true)]
     [InlineData(@"\uD800", true, true)]
-    public async Task Batch_UndecodableSummary_PreservesValidationErrorAndContinuation(
+    public async Task Batch_InvalidUnicodeInput_PreservesValidationErrorAndContinuation(
         string escapedName, bool includeFollowingCommand, bool stopOnError)
     {
         var original = await InProcessCliHelper.RunAsync(["batch"], input: """{"command":"nonexistent.action"}""");
@@ -224,17 +296,17 @@ public sealed class BatchCommandSummaryTests
         using var failed = JsonDocument.Parse(lines[0]);
         Assert.Equal(0, failed.RootElement.GetProperty("index").GetInt32());
         Assert.Equal("nonexistent.action", failed.RootElement.GetProperty("command").GetString());
-        Assert.Equal("nonexistent.action", failed.RootElement.GetProperty("commandSummary").GetString());
+        Assert.False(failed.RootElement.TryGetProperty("commandSummary", out _));
         Assert.False(failed.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal(originalJson.RootElement.GetProperty("errorMessage").GetString(),
-            failed.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal(originalJson.RootElement.GetProperty("error").GetProperty("message").GetString(),
+            failed.RootElement.GetProperty("error").GetProperty("message").GetString());
         Assert.Equal(continued ? 1 : 0, requests.Count);
         if (continued)
         {
             Assert.Equal("diag.ping", requests[0].Command);
             using var next = JsonDocument.Parse(lines[1]);
             Assert.Equal(1, next.RootElement.GetProperty("index").GetInt32());
-            Assert.Equal("diag.ping", next.RootElement.GetProperty("commandSummary").GetString());
+            Assert.Equal("diag.ping", next.RootElement.GetProperty("command").GetString());
             Assert.True(next.RootElement.GetProperty("success").GetBoolean());
         }
     }
@@ -242,7 +314,7 @@ public sealed class BatchCommandSummaryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Batch_LaterValidationFailure_KeepsPriorResultsAndSummary(bool stopOnError)
+    public async Task Batch_LaterValidationFailure_KeepsPriorResultsAndIndexes(bool stopOnError)
     {
         var requests = new List<ServiceRequest>();
         var result = await InProcessCliHelper.RunAsync(
@@ -269,18 +341,18 @@ public sealed class BatchCommandSummaryTests
         using var first = JsonDocument.Parse(lines[0]);
         Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
         Assert.True(first.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("diag.ping", first.RootElement.GetProperty("commandSummary").GetString());
+        Assert.Equal("diag.ping", first.RootElement.GetProperty("command").GetString());
         using var failed = JsonDocument.Parse(lines[1]);
         Assert.Equal(1, failed.RootElement.GetProperty("index").GetInt32());
         Assert.False(failed.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("range.get-values: sheetName=Sales", failed.RootElement.GetProperty("commandSummary").GetString());
-        Assert.Contains("rangeAddress", failed.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("range.get-values", failed.RootElement.GetProperty("command").GetString());
+        Assert.Contains("rangeAddress", failed.RootElement.GetProperty("error").GetProperty("message").GetString());
         if (!stopOnError)
         {
             using var last = JsonDocument.Parse(lines[2]);
             Assert.Equal(2, last.RootElement.GetProperty("index").GetInt32());
             Assert.True(last.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal("diag.ping", last.RootElement.GetProperty("commandSummary").GetString());
+            Assert.Equal("diag.ping", last.RootElement.GetProperty("command").GetString());
         }
     }
 

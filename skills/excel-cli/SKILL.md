@@ -48,7 +48,15 @@ they do not block a new service. `service stop` always stops the service; if a
 workbook was busy or its state could not be confirmed, that Excel copy is left
 as it is and reported in `shutdownWarning`. Use discovery and explicit attachment to inspect
 them; unknown or incomplete information is not permission to end Excel.
-For JSON errors, read `errorMessage` as the single error-text field; use
-`errorCategory` when present to guide recovery.
+Operation JSON has `command`, `success`, `durationMs`, and optional `data`,
+`warnings`, `error`, and `partialState`. Read workbook fields under `data`,
+including `data.sessionId` after open/attach. Batch items use the same shape
+and add only `index`. For failures, read `error.message` and `error.category`.
+List/read commands accept `--fields` with comma-separated, case-sensitive
+business paths; batch input uses `args.fields` as an array. Action-specific
+help lists generated paths. Field selection never hides warnings, errors,
+partial state, or inspection boundaries and does not skip Excel checks.
+Power Query lists omit formula previews unless `queries.formulaPreview`
+is selected; use `powerquery view` for full M code.
 Load `excel-cli-report-formatting` only for requested report presentation, not
 ordinary Excel reads or targeted updates.

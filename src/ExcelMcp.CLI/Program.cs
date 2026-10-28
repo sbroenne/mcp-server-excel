@@ -1,4 +1,6 @@
 using System.Reflection;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -29,6 +31,7 @@ internal sealed class Program
         if (Service.ExcelController.IsWorkerMode(args))
             return await Service.ExcelController.RunWorkerAsync(args);
         using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
+        InitializeOperation(args);
         try
         {
             try
@@ -37,10 +40,9 @@ internal sealed class Program
             }
             catch (InvalidOperationException ex)
             {
-                CliCommandRuntime.Current.Error.WriteLine(ex.Message);
-                return 1;
+                return CliErrorOutput.WriteException(ex);
             }
-            return await RunAsync(args, runtime);
+            return await RunAsync(args, runtime, initializeOperation: false);
         }
         finally
         {
@@ -52,7 +54,8 @@ internal sealed class Program
         Justification = "Top-level CLI boundary writes the exact exception as JSON or stderr diagnostics and returns nonzero; it must not let a fatal command failure appear successful.")]
     internal static async Task<int> RunAsync(
         string[] args,
-        CliCommandRuntime? runtime = null)
+        CliCommandRuntime? runtime = null,
+        bool initializeOperation = true)
     {
         if (runtime is null)
         {
@@ -60,6 +63,8 @@ internal sealed class Program
         }
 
         using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
+        if (initializeOperation)
+            InitializeOperation(args);
 
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
@@ -67,7 +72,6 @@ internal sealed class Program
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
         var isPiped = CliCommandRuntime.Current.IsOutputRedirected;
         var showBanner = !isQuiet && !isPiped;
-        var jsonOutputMode = isQuiet || isPiped;
 
         // Remove quiet flags and normalize standalone dash option values before Spectre parsing.
         var filteredArgs = NormalizeStandaloneDashOptionValues(
@@ -88,6 +92,14 @@ internal sealed class Program
         if (ActionHelp.TryWrite(filteredArgs))
         {
             return 0;
+        }
+        try
+        {
+            filteredArgs = ExtractManualFields(filteredArgs);
+        }
+        catch (ArgumentException ex)
+        {
+            return CliErrorOutput.WriteException(ex, "InvalidInput");
         }
 
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
@@ -122,13 +134,7 @@ internal sealed class Program
             config.Settings.StrictParsing = true;
             config.SetExceptionHandler((ex, _) =>
             {
-                if (jsonOutputMode)
-                {
-                    CliErrorOutput.WriteException(ex);
-                    return;
-                }
-
-                WriteDiagnosticMarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
+                CliErrorOutput.WriteException(ex);
             });
 
             // Service lifecycle commands
@@ -188,38 +194,33 @@ internal sealed class Program
         try
         {
             var telemetryObserver = CliCommandRuntime.Current.TelemetryObserver;
-            return await (telemetryObserver == null
+            var exitCode = await (telemetryObserver == null
                 ? CliTelemetry.TrackCliInvocationAsync(filteredArgs, () => app.RunAsync(filteredArgs))
                 : CliTelemetry.TrackCliInvocationAsync(
                     filteredArgs,
                     () => app.RunAsync(filteredArgs),
                     telemetryObserver));
+            ActionHelp.WriteManualResultFields(filteredArgs);
+            return exitCode;
         }
         catch (CommandRuntimeException ex)
         {
-            if (jsonOutputMode)
-            {
-                return CliErrorOutput.WriteException(ex);
-            }
-
-            WriteDiagnosticMarkupLine($"[red]Command error:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
+            return CliErrorOutput.WriteException(ex, "InvalidInput");
         }
         catch (Exception ex)
         {
-            if (jsonOutputMode)
-            {
-                return CliErrorOutput.WriteException(ex);
-            }
-
-            WriteDiagnosticMarkupLine($"[red]Fatal error:[/] {ex.Message.EscapeMarkup()}");
-            var errorConsole = CreateErrorConsole();
-            if (errorConsole.Profile.Capabilities.Ansi)
-            {
-                errorConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
-            }
-            return 1;
+            return CliErrorOutput.WriteException(ex);
         }
+    }
+
+    private static void InitializeOperation(string[] args)
+    {
+        CliCommandRuntime.Current.OperationTimer.Restart();
+        var parts = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase))
+            .TakeWhile(arg => !arg.StartsWith('-')).Take(2).ToArray();
+        CliCommandRuntime.Current.CommandName = parts.Length > 0 && parts[0] is "batch" or "list-actions"
+            ? parts[0]
+            : string.Join(".", parts).ToLowerInvariant();
     }
 
     internal static string[] NormalizeStandaloneDashOptionValues(string[] args)
@@ -241,6 +242,33 @@ internal sealed class Program
         }
 
         return [.. normalized];
+    }
+
+    private static string[] ExtractManualFields(string[] args)
+    {
+        CliCommandRuntime.Current.ResultFields = null;
+        if (args.Length < 2 || args[0] is not ("session" or "service"))
+            return args;
+        var result = new List<string>();
+        for (var index = 0; index < args.Length; index++)
+        {
+            var argument = args[index];
+            if (argument == "--fields" || argument.StartsWith("--fields=", StringComparison.Ordinal))
+            {
+                if (CliCommandRuntime.Current.ResultFields is not null)
+                    throw new ArgumentException("Supply --fields only once.");
+                var fields = argument == "--fields"
+                    ? ++index < args.Length ? args[index] : throw new ArgumentException("--fields requires result field paths.")
+                    : argument["--fields=".Length..];
+                CliCommandRuntime.Current.ResultFields = ResultJson.ParseFields(fields);
+                ResultJson.ValidateFields(CliCommandRuntime.Current.CommandName,
+                    CliCommandRuntime.Current.ResultFields,
+                    ServiceRegistry.GetResultContract(CliCommandRuntime.Current.CommandName));
+            }
+            else
+                result.Add(argument);
+        }
+        return [.. result];
     }
 
     private static void RenderHeader()

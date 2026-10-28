@@ -38,7 +38,10 @@ public sealed class PivotSharedCacheContractCliTests
         Assert.Equal("Overview", actual.RootElement.GetProperty("shareCacheWithSheet").GetString());
         using var expected = JsonDocument.Parse(response);
         using var returned = JsonDocument.Parse(result.Stdout);
-        Assert.True(JsonElement.DeepEquals(expected.RootElement, returned.RootElement));
+        var data = returned.RootElement.GetProperty("data");
+        Assert.Equal(expected.RootElement.EnumerateObject().Count() - 1, data.EnumerateObject().Count());
+        foreach (var property in expected.RootElement.EnumerateObject().Where(property => property.Name != "success"))
+            Assert.True(JsonElement.DeepEquals(property.Value, data.GetProperty(property.Name)), property.Name);
     }
 
     [Theory]

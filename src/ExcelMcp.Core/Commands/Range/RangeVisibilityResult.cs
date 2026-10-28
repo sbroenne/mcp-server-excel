@@ -27,6 +27,7 @@ public sealed class RangeVisibilityResult : OperationResult
     /// <summary>Whether the worksheet is currently in filter mode.</summary>
     public bool SheetFilterMode { get; set; }
     /// <summary>Row/column state is native; the cause of hiding cannot be established reliably.</summary>
+    [ResultContext]
     public string CauseCoverage { get; } = "Native Hidden has no cause flag; filter/outline context is not proof of the cause.";
     /// <summary>Every distinct intersecting row/column, sorted by index.</summary>
     public List<DimensionVisibility> Items { get; set; } = [];

@@ -1,18 +1,20 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
 /// <summary>
-/// Classifies a service result payload the same way the MCP Server does: a JSON object
-/// whose root reports <c>success: false</c> or <c>isError: true</c> is a failed operation,
-/// even when the service delivered it without an exception.
+/// Uses shared operation-outcome rules for telemetry, including authoritative
+/// nested failures, without allowing malformed payloads to interrupt reporting.
 /// </summary>
 internal static class ServiceResultOutcome
 {
     internal static bool TryReadNegative(
         string? resultJson,
         out string? errorMessage,
-        out string? errorCategory)
+        out string? errorCategory,
+        string command = "invocation")
     {
         errorMessage = null;
         errorCategory = null;
@@ -23,33 +25,16 @@ internal static class ServiceResultOutcome
 
         try
         {
-            using var document = JsonDocument.Parse(resultJson);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-
-            var negative =
-                (root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) ||
-                (root.TryGetProperty("isError", out var isError) && isError.ValueKind == JsonValueKind.True);
-            if (!negative)
-            {
-                return false;
-            }
-
-            errorMessage = ReadString(root, "errorMessage");
-            errorCategory = ReadString(root, "errorCategory");
+            var outcome = ResultJson.Read(resultJson, command, contract: ServiceRegistry.GetResultContract(command));
+            errorMessage = outcome.Error?["message"]?.GetValue<string>();
+            errorCategory = outcome.Error?["category"]?.GetValue<string>();
+            return !outcome.Success;
+        }
+        catch (JsonException exception)
+        {
+            errorMessage = exception.Message;
+            errorCategory = "InvalidResponse";
             return true;
         }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
-
-    private static string? ReadString(JsonElement root, string name) =>
-        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
 }
