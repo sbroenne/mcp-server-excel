@@ -571,7 +571,7 @@ internal static class DaemonAutoStart
         }
 
         // A missing pipe would make the connect wait out its whole timeout.
-        if (!PipeExists(ServiceClient.GetControlPipeName(pipeName)))
+        if (!ControlPipeExists(pipeName))
         {
             return false;
         }
@@ -588,9 +588,9 @@ internal static class DaemonAutoStart
         return response.Success;
     }
 
-    private static bool PipeExists(string pipeName)
+    internal static bool ControlPipeExists(string pipeName)
     {
-        var path = @"\\.\pipe\" + pipeName;
+        var path = @"\\.\pipe\" + ServiceClient.GetControlPipeName(pipeName);
         return Directory.EnumerateFiles(@"\\.\pipe\")
             .Any(existing => string.Equals(existing, path, StringComparison.OrdinalIgnoreCase));
     }

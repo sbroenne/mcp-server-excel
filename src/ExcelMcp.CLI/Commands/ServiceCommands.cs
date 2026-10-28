@@ -66,7 +66,16 @@ internal sealed class ServiceStopCommand : AsyncCommand
             var request = new ServiceRequest { Command = "service.shutdown" };
             var response = await CliTelemetry.TrackCommandAsync(
                 request,
-                () => client.SendAsync(request, ShutdownRequestTimeout, cancellationToken));
+                // A missing pipe would make the connect wait out its whole timeout.
+                () => !DaemonAutoStart.IsDaemonMutexHeld(pipeName) && !DaemonAutoStart.ControlPipeExists(pipeName)
+                    ? Task.FromResult(new ServiceResponse
+                    {
+                        Success = false,
+                        Command = request.Command,
+                        ErrorCategory = "ServiceUnavailable",
+                        ErrorMessage = "Cannot connect to service. Is it running?"
+                    })
+                    : client.SendAsync(request, ShutdownRequestTimeout, cancellationToken));
             if (!response.Success
                 && !client.HasConnected
                 && DaemonConnectionPolicy.IsTransportFailure(response)
