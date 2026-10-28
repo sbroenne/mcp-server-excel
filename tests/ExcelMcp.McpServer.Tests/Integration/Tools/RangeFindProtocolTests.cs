@@ -84,10 +84,6 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         Assert.Equal(typeof(int?), parameter.ParameterType);
         Assert.Null(parameter.DefaultValue);
         Assert.Contains("2147483647", parameter.GetCustomAttribute<DescriptionAttribute>()?.Description, StringComparison.Ordinal);
-        var outputProperties = Assert.IsType<JsonElement>(tool.ReturnJsonSchema).GetProperty("properties");
-        Assert.True(outputProperties.TryGetProperty("totalCount", out _));
-        Assert.True(outputProperties.TryGetProperty("returnedCount", out _));
-        Assert.True(outputProperties.TryGetProperty("truncated", out _));
     }
 
     [Theory]

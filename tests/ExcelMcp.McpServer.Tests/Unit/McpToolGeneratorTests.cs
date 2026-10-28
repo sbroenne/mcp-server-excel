@@ -56,7 +56,7 @@ public sealed class McpToolGeneratorTests
     }
 
     [Fact]
-    public void ScreenshotResult_GeneratesImageHelperAndMetadataOnlyOutputSchema()
+    public void ScreenshotResult_GeneratesImageHelperWithoutOutputSchema()
     {
         var generated = Generate("""
             using System;
@@ -85,9 +85,8 @@ public sealed class McpToolGeneratorTests
 
         var screenshot = Assert.Single(generated);
         Assert.Contains("ScreenshotImageResult.CreateToolResult", screenshot);
-        Assert.Contains("public string? MimeType", screenshot);
-        Assert.Contains("public int? Width", screenshot);
-        Assert.DoesNotContain("public string? ImageBase64", screenshot);
+        Assert.DoesNotContain("OutputSchema", screenshot);
+        Assert.DoesNotContain("UseStructuredContent", screenshot);
     }
 
     private static GeneratorRunResult Generate(string source)
@@ -191,7 +190,7 @@ public sealed class McpToolGeneratorTests
         var types = generated.SelectMany(item => item.SyntaxTree.GetRoot()
             .DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
             .Select(type => type.Identifier.ValueText)).ToArray();
-        Assert.Equal(9, types.Length);
+        Assert.Equal(6, types.Length);
         Assert.Equal(types.Length, types.Distinct(StringComparer.Ordinal).Count());
         var methods = generated.SelectMany(item => item.SyntaxTree.GetRoot()
             .DescendantNodes().OfType<MethodDeclarationSyntax>()

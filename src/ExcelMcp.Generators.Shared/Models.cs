@@ -192,27 +192,19 @@ public sealed class ExposedParameter
     /// Returns the description with required-by-actions suffix appended.
     /// E.g., "Name of the PivotTable (required for: read, delete, refresh)"
     /// or "Name of the PivotTable (required)" if required for all actions.
+    /// Applicable-action lists are omitted: both entry points reject parameters an
+    /// action does not use and name the valid ones.
     /// </summary>
     public string? DescriptionWithRequired
     {
         get
         {
-            var suffixes = new List<string>();
-            if (RequiredByActions.Count > 0)
-            {
-                suffixes.Add(RequiredByActions.Count == TotalActionCount
-                    ? "(required)"
-                    : $"(required for: {string.Join(", ", RequiredByActions)})");
-            }
-            if (ApplicableByActions.Count > 0 && ApplicableByActions.Count < TotalActionCount)
-            {
-                suffixes.Add($"(valid for: {string.Join(", ", ApplicableByActions)})");
-            }
-
-            if (suffixes.Count == 0)
+            if (RequiredByActions.Count == 0)
                 return Description;
 
-            var suffix = string.Join(" ", suffixes);
+            var suffix = RequiredByActions.Count == TotalActionCount
+                ? "(required)"
+                : $"(required for: {string.Join(", ", RequiredByActions)})";
             return string.IsNullOrEmpty(Description) ? suffix : $"{Description} {suffix}";
         }
     }

@@ -42,8 +42,7 @@ public static partial class ExcelFileTool
     /// <param name="approved">Explicit approval of the selected workbook security action. Only valid for enable-editing, enable-connections, enable-macros; default false.</param>
     /// <param name="allow_remembered_trust">Approval that Excel can remember this file as trusted. Required true for enable-editing and enable-connections; default false.</param>
     /// <param name="allow_reopen">Separate approval to close and reopen the saved workbook, allowing opening event macros to run. Required true for enable-macros; default false. Never saves or discards unsaved work.</param>
-    [McpServerTool(Name = "file", Title = "File Operations", Destructive = true,
-        UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
+    [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial Task<CallToolResult> ExcelFile(
@@ -95,7 +94,7 @@ public static partial class ExcelFileTool
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled.</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
-        Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
+        Destructive = false)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial Task<CallToolResult> ExcelFileRead(

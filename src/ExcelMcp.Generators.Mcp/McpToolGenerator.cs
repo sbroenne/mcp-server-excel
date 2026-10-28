@@ -212,8 +212,6 @@ public class McpToolGenerator : IIncrementalGenerator
         GenerateToolMethod(sb, info, hasProgress);
 
         sb.AppendLine("}");
-        sb.AppendLine();
-        GenerateOutputSchemaClass(sb, info);
         return sb.ToString();
     }
 
@@ -286,7 +284,7 @@ public class McpToolGenerator : IIncrementalGenerator
         var title = info.McpToolTitle ?? $"Excel {info.CategoryPascal} Operations";
         var destructive = info.McpToolDestructive ? "true" : "false";
         var readOnly = info.McpToolReadOnly ? "true" : "false";
-        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive}, ReadOnly = {readOnly}, UseStructuredContent = true, OutputSchemaType = typeof({GetOutputSchemaClassName(info)}))]");
+        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive}, ReadOnly = {readOnly})]");
 
         var category = info.McpToolCategory ?? "data";
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
@@ -353,172 +351,9 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
-    private static void GenerateOutputSchemaClass(StringBuilder sb, ServiceInfo info)
-    {
-        var nestedTypes = new Dictionary<ITypeSymbol, string>(SymbolEqualityComparer.Default);
-        var properties = GetOutputSchemaProperties(info, GetSchemaTypeName);
-        sb.AppendLine($"internal sealed class {GetOutputSchemaClassName(info)}");
-        sb.AppendLine("{");
-
-        foreach (var property in properties)
-        {
-            if (property.Name == "SessionId")
-                sb.AppendLine("    [JsonPropertyName(\"workbook_session_id\")]");
-            sb.AppendLine("    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]");
-            sb.AppendLine($"    public {property.TypeName} {property.Name} {{ get; set; }}");
-        }
-
-        sb.AppendLine("}");
-
-        var emitted = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-        while (nestedTypes.Any(type => !emitted.Contains(type.Key)))
-        {
-            var entry = nestedTypes.First(type => !emitted.Contains(type.Key));
-            emitted.Add(entry.Key);
-            sb.AppendLine($"internal sealed class {entry.Value}");
-            sb.AppendLine("{");
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            for (var type = entry.Key as INamedTypeSymbol; type is not null; type = type.BaseType)
-            {
-                foreach (var property in type.GetMembers().OfType<IPropertySymbol>())
-                {
-                    if (property.IsStatic || property.IsIndexer || property.GetMethod is null ||
-                        property.DeclaredAccessibility != Accessibility.Public || !names.Add(property.Name))
-                        continue;
-                    var ignore = property.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass?.Name == "JsonIgnoreAttribute");
-                    if (ignore is not null && ignore.NamedArguments.Length == 0)
-                        continue;
-                    var alias = property.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass?.Name == "JsonPropertyNameAttribute");
-                    if (alias?.ConstructorArguments[0].Value is string jsonName)
-                        sb.AppendLine($"    [JsonPropertyName(\"{jsonName}\")]");
-                    sb.AppendLine("    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]");
-                    sb.AppendLine($"    public {GetSchemaTypeName(property.Type)} {property.Name} {{ get; set; }}");
-                }
-            }
-            sb.AppendLine("}");
-        }
-
-        string GetSchemaTypeName(ITypeSymbol type)
-        {
-            if (type is IArrayTypeSymbol array)
-                return GetSchemaTypeName(array.ElementType) + "[" + new string(',', array.Rank - 1) + "]?";
-            if (type.SpecialType == SpecialType.System_Object)
-                return "System.Text.Json.JsonElement?";
-            if (type is not INamedTypeSymbol named || type.SpecialType != SpecialType.None ||
-                type.TypeKind == TypeKind.Enum)
-                return GetOptionalSchemaTypeName(type);
-            if (named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
-                return GetSchemaTypeName(named.TypeArguments[0]);
-            var dictionary = named.AllInterfaces.Concat(new[] { named }).FirstOrDefault(candidate =>
-                candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IDictionary<TKey, TValue>" ||
-                candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>");
-            if (dictionary is not null)
-                return $"System.Collections.Generic.Dictionary<{TypeNameHelper.GetTypeName(dictionary.TypeArguments[0], dictionary.TypeArguments[0].NullableAnnotation)}, {GetSchemaTypeName(dictionary.TypeArguments[1])}>?";
-            var sequence = named.AllInterfaces.Concat(new[] { named }).FirstOrDefault(candidate =>
-                candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
-            if (sequence is not null)
-                return $"System.Collections.Generic.List<{GetSchemaTypeName(sequence.TypeArguments[0])}>?";
-            if (named.ContainingNamespace.ToDisplayString().StartsWith("System", StringComparison.Ordinal))
-                return GetOptionalSchemaTypeName(type);
-            if (!nestedTypes.TryGetValue(type, out var name))
-            {
-                name = GetOutputSchemaClassName(info) + "Nested" + nestedTypes.Count;
-                nestedTypes.Add(type, name);
-            }
-            return name + "?";
-        }
-    }
-
-    private static string GetOutputSchemaClassName(ServiceInfo info) =>
-        $"{GetToolIdentifier(info)}ToolOutputSchema";
-
-    private static OutputSchemaProperty[] GetOutputSchemaProperties(ServiceInfo info, Func<ITypeSymbol, string> getSchemaTypeName)
-    {
-        var properties = new Dictionary<string, OutputSchemaProperty>(StringComparer.Ordinal);
-        properties.Add("SessionId", new("SessionId", "string?"));
-        properties.Add("Warnings", new("Warnings", "System.Text.Json.JsonElement?"));
-        properties.Add("Success", new("Success", "bool?"));
-        properties.Add("ErrorMessage", new("ErrorMessage", "string?"));
-        properties.Add("ErrorCategory", new("ErrorCategory", "string?"));
-        properties.Add("ExceptionType", new("ExceptionType", "string?"));
-        properties.Add("Hresult", new("Hresult", "string?"));
-        properties.Add("InnerError", new("InnerError", "string?"));
-        properties.Add("PartialState", new("PartialState", "System.Text.Json.JsonElement?"));
-
-        foreach (var method in info.Methods)
-        {
-            if (method.ReturnTypeSymbol is not INamedTypeSymbol returnType || !HasObjectResultFields(returnType))
-            {
-                if (method.ReturnTypeSymbol.SpecialType != SpecialType.System_Void)
-                {
-                    var typeName = getSchemaTypeName(method.ReturnTypeSymbol);
-                    if (properties.TryGetValue("Result", out var existing) && existing.TypeName != typeName)
-                    {
-                        properties["Result"] = new("Result", "System.Text.Json.JsonElement?");
-                    }
-                    else
-                    {
-                        properties["Result"] = new("Result", typeName);
-                    }
-                }
-
-                continue;
-            }
-
-            for (var type = returnType; type is not null; type = type.BaseType)
-            {
-                foreach (var property in type.GetMembers().OfType<IPropertySymbol>())
-                {
-                    if (property.IsStatic || property.IsIndexer ||
-                        property.DeclaredAccessibility != Accessibility.Public || property.GetMethod is null)
-                        continue;
-                    if (HasImageResult(info) && property.Name == "ImageBase64")
-                        continue;
-
-                    var typeName = getSchemaTypeName(property.Type);
-                    if (properties.TryGetValue(property.Name, out var existing) && existing.TypeName != typeName)
-                    {
-                        properties[property.Name] = new(property.Name, "System.Text.Json.JsonElement?");
-                    }
-                    else
-                    {
-                        properties[property.Name] = new(property.Name, typeName);
-                    }
-                }
-            }
-        }
-
-        return properties.Values
-            .OrderBy(p => p.Name == "Success" ? 0 : 1)
-            .ThenBy(p => p.Name, StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private static string GetOptionalSchemaTypeName(ITypeSymbol type)
-    {
-        var typeName = TypeNameHelper.GetTypeName(type, type.NullableAnnotation);
-        if (!typeName.EndsWith("?", StringComparison.Ordinal))
-            typeName += "?";
-
-        return typeName;
-    }
-
-    private static bool HasObjectResultFields(INamedTypeSymbol type) =>
-        type.SpecialType == SpecialType.None &&
-        type.TypeKind != TypeKind.Enum &&
-        !type.ContainingNamespace.ToDisplayString().StartsWith("System", StringComparison.Ordinal) &&
-        !type.AllInterfaces.Any(candidate =>
-            candidate.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
-
     private static bool HasImageResult(ServiceInfo info) =>
         info.Methods.All(method => method.ReturnTypeSymbol.ToDisplayString() ==
             "Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotResult");
-
-    private sealed class OutputSchemaProperty(string name, string typeName)
-    {
-        public string Name { get; } = name;
-        public string TypeName { get; } = typeName;
-    }
 
     /// <summary>
     /// Generates the method body that calls ServiceRegistry.RouteAction.

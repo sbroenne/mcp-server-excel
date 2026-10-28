@@ -89,8 +89,6 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         Assert.False(properties.TryGetProperty("session_id", out _));
         Assert.Equal(required, schema.GetProperty("required").EnumerateArray()
             .Any(property => property.GetString() == "workbook_session_id"));
-        var returnSchema = Assert.IsType<JsonElement>(tool.ReturnJsonSchema);
-        Assert.True(returnSchema.GetProperty("properties").TryGetProperty("workbook_session_id", out _));
 
         // The dictionary is sent through tools/call, not a direct tool method invocation.
         var arguments = Arguments(action);
