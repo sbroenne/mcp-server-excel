@@ -58,10 +58,32 @@ public sealed class MissingOptionValueCliTests
     }
 
     [Fact]
-    public async Task OptionValue_TypedByUser_IsForwardedUnchanged()
+    public async Task OtherOptionTypedAsPlaceholder_DoesNotHideMissingValue()
+    {
+        var dispatched = 0;
+        var result = await InProcessCliHelper.RunAsync(
+            ["range", "get-values", "--session", "session-1", "--sheet-name", "__default_command", "--range-address"],
+            _ =>
+            {
+                dispatched++;
+                return new ServiceResponse { Success = true };
+            });
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Equal(0, dispatched);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(
+            "Option '--range-address' requires a value.",
+            output.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("--session", "__default_command")]
+    [InlineData("--session=__default_command")]
+    public async Task OptionValue_TypedByUser_IsForwardedUnchanged(params string[] sessionArguments)
     {
         ServiceRequest? captured = null;
-        var result = await InProcessCliHelper.RunAsync(["sheet", "list", "--session", "__default_command"], request =>
+        var result = await InProcessCliHelper.RunAsync(["sheet", "list", .. sessionArguments], request =>
         {
             captured = request;
             return new ServiceResponse
