@@ -24,11 +24,11 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
     internal sealed class Settings : CommandSettings
     {
         [CommandOption("-i|--input <FILE>")]
-        [Description("JSON file with command array. Use '-' for stdin (NDJSON, one command per line). If omitted, reads from stdin.")]
+        [Description("JSON array or NDJSON (one command per line), from a file or stdin. Use '-' or omit --input for stdin.")]
         public string? InputFile { get; init; }
 
         [CommandOption("-s|--session <SESSION>")]
-        [Description("Default session ID for all commands. Overridden by per-command sessionId. Auto-captured from session.open/create if not set.")]
+        [Description("Default session ID. Overridden by per-command sessionId. Captured from session.open/create/attach if not set.")]
         public string? SessionId { get; init; }
 
         [CommandOption("--stop-on-error")]
@@ -48,12 +48,13 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
         catch (Exception ex)
         {
+            CliCommandRuntime.Current.Error.WriteLine(BatchHelp.InputHint);
             return CliErrorOutput.WriteException(ex);
         }
 
         if (commands.Count == 0)
         {
-            WriteError("No commands provided.");
+            WriteError($"No commands provided. {BatchHelp.InputHint}");
             return 1;
         }
 
@@ -62,7 +63,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         {
             if (string.IsNullOrWhiteSpace(commands[i].Command))
             {
-                WriteError($"Command at index {i} is missing the 'command' field.");
+                WriteError($"Command at index {i} is missing the 'command' field. {BatchHelp.InputHint}");
                 return 1;
             }
         }
@@ -200,6 +201,33 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         return hasErrors ? 1 : 0;
     }
 
+    private static string ExplainValidationError(string command, string error)
+    {
+        var parts = command.Split('.', 2);
+        if (parts.Length == 2 &&
+            _CliCategoryMetadata.ActionParametersByCommand.TryGetValue(parts[0], out var actions) &&
+            actions.ContainsKey(parts[1]))
+        {
+            return $"{error} See 'excelcli {parts[0]} {parts[1]} --help' for batch argument names.";
+        }
+
+        var words = command.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 2 &&
+            _CliCategoryMetadata.ActionParametersByCommand.TryGetValue(words[0], out var validActions))
+        {
+            var action = validActions.Keys.FirstOrDefault(candidate =>
+                string.Equals(candidate, words[1], StringComparison.OrdinalIgnoreCase));
+            if (action != null)
+            {
+                var group = _CliCategoryMetadata.Categories.Single(category =>
+                    string.Equals(category.CliCommandName, words[0], StringComparison.OrdinalIgnoreCase));
+                return $"{error} Use '{group.CliCommandName}.{action}' for the command field. {BatchHelp.InputHint}";
+            }
+        }
+
+        return $"{error} Batch commands use 'group.action', for example 'diag.ping'. {BatchHelp.InputHint}";
+    }
+
     private static void WriteValidationError(int index, BatchEntry entry, Exception error, long durationMs)
     {
         CliResultOutput.Write(new ServiceResponse
@@ -207,7 +235,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             Command = entry.Command,
             Success = false,
             ErrorCategory = "InvalidInput",
-            ErrorMessage = error.Message,
+            ErrorMessage = ExplainValidationError(entry.Command, error.Message),
             ExceptionType = error.GetType().Name,
             HResult = OperationFailureClassifier.GetComHResult(error),
             InnerError = error.InnerException?.Message

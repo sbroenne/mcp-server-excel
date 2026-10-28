@@ -530,10 +530,13 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(error.ToString());
     }
 
-    [Fact]
-    public async Task SessionOpen_SharePointUrl_ForwardsUrlAndVisibilityToSharedService()
+    [Theory]
+    [InlineData("https://contoso-my.sharepoint.com/personal/test/Documents/Test.xlsx?web=1", true)]
+    [InlineData("https://d.docs.live.net/123/Documents/Test.xlsx?download=1", false)]
+    [InlineData("http://example.com:8080/Test.csv?download=1#data", false)]
+    [InlineData(@"C:\Imports\Test.txt", false)]
+    public async Task SessionOpen_ForwardsOriginalLocationAndVisibilityToSharedService(string url, bool show)
     {
-        const string url = "https://contoso-my.sharepoint.com/personal/test/Documents/Test.xlsx?web=1";
         var factory = new RecordingClientFactory(new ServiceResponse
         {
             Success = true,
@@ -542,7 +545,7 @@ public sealed class InProcessCliCommandTests
         var output = new StringWriter();
         var error = new StringWriter();
         var exitCode = await Program.RunAsync(
-            ["--quiet", "session", "open", url, "--show"],
+            show ? ["--quiet", "session", "open", url, "--show"] : ["--quiet", "session", "open", url],
             CreateRuntime(factory, output, error));
 
         Assert.Equal(0, exitCode);
@@ -550,7 +553,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("session.open", request.Command);
         using var args = JsonDocument.Parse(request.Args!);
         Assert.Equal(url, args.RootElement.GetProperty("filePath").GetString());
-        Assert.True(args.RootElement.GetProperty("show").GetBoolean());
+        Assert.Equal(show, args.RootElement.GetProperty("show").GetBoolean());
         using var result = JsonDocument.Parse(output.ToString());
         Assert.Equal("remote-session", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());
         Assert.Empty(error.ToString());
@@ -685,6 +688,229 @@ public sealed class InProcessCliCommandTests
         _CliCategoryMetadata.ValidActionsByCommand.Keys
             .Order(StringComparer.Ordinal)
             .Select(command => new object[] { command });
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BatchDiscovery_MainHelpAndInitialUsageExplainWhenToBatch(bool showHelp)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            showHelp ? ["--quiet", "--help"] : ["--quiet"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        var text = Regex.Replace(output.ToString() + error, @"\s+", " ");
+        Assert.Contains("known sequence", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("batch --help", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_BatchHelpExplainsInputSessionsAndFailures()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--help"], CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        var text = output.ToString();
+        foreach (var expected in new[]
+                 {
+                     "group.action", "command", "args", "sessionId", "sheetName", "rangeAddress",
+                     "case-sensitive", "JSON array", "one command per line", "--input -",
+                     "session.open/create/attach", "--stop-on-error", "default: continue",
+                     "earlier changes", "index", "$LASTEXITCODE", "stderr", "expected",
+                     "excelcli.exe batch", "range.set-values"
+                 })
+        {
+            Assert.Contains(expected, text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_DiagnosticExampleExecutesAsPrinted()
+    {
+        var help = new StringWriter();
+        await Program.RunAsync(
+            ["--quiet", "batch", "--help"],
+            CreateRuntime(new RecordingClientFactory(), help, new StringWriter()));
+        var example = Regex.Match(help.ToString(), @"(?s)@'\r?\n(.*?)\r?\n'@");
+        Assert.True(example.Success, "Batch help must include a runnable PowerShell input example.");
+        var input = example.Groups[1].Value;
+        using var entries = JsonDocument.Parse(input);
+        Assert.Equal(2, entries.RootElement.GetArrayLength());
+
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"message":"pong"}""" },
+            new ServiceResponse { Success = true, Result = """{"message":"hello"}""" });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--stop-on-error"],
+            CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(0, exit);
+        Assert.Collection(factory.Requests,
+            request => Assert.Equal("diag.ping", request.Command),
+            request =>
+            {
+                Assert.Equal("diag.echo", request.Command);
+                Assert.Equal("""{"message":"hello"}""", request.Args);
+            });
+        var lines = output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            using var result = JsonDocument.Parse(lines[index]);
+            Assert.Equal(index, result.RootElement.GetProperty("index").GetInt32());
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(index == 0 ? "pong" : "hello",
+                result.RootElement.GetProperty("data").GetProperty("message").GetString());
+        }
+        Assert.Contains("started", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("started", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [MemberData(nameof(GeneratedCommandNames))]
+    public async Task BatchDiscovery_ActionHelpMapsExactArgumentsWithoutConnecting(string command)
+    {
+        foreach (var (action, parameters) in _CliCategoryMetadata.ActionParametersByCommand[command])
+        {
+            var factory = new RecordingClientFactory();
+            var output = new StringWriter();
+            var error = new StringWriter();
+            var exit = await Program.RunAsync(
+                ["--quiet", command, action, "--help"], CreateRuntime(factory, output, error));
+
+            Assert.Equal(0, exit);
+            Assert.Equal(0, factory.ConnectionCount);
+            Assert.Empty(error.ToString());
+            var text = output.ToString();
+            var section = text.IndexOf("Batch input", StringComparison.Ordinal);
+            Assert.True(section >= 0, $"Missing batch help for {command}.{action}.");
+            var batchHelp = text[section..];
+            Assert.Contains($"\"command\":\"{command}.{action}\"", batchHelp, StringComparison.Ordinal);
+            foreach (var parameter in parameters)
+                Assert.Contains($"args.{parameter}", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("args.sessionId", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("args.outputPath", batchHelp, StringComparison.Ordinal);
+            Assert.DoesNotContain("--output", batchHelp, StringComparison.Ordinal);
+            var category = _CliCategoryMetadata.Categories.Single(item => item.CliCommandName == command);
+            if (category.RequiresSession)
+                Assert.Contains("--session", batchHelp, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_RangeHelpIncludesValidNativeJsonExample()
+    {
+        var output = new StringWriter();
+        await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--help"],
+            CreateRuntime(new RecordingClientFactory(), output, new StringWriter()));
+
+        var text = output.ToString();
+        Assert.Contains("args.sheetName", text, StringComparison.Ordinal);
+        Assert.Contains("args.rangeAddress", text, StringComparison.Ordinal);
+        var example = text.Split('\n')
+            .Last(line => line.StartsWith("{\"command\":\"range.set-values\"", StringComparison.Ordinal));
+        using var entry = JsonDocument.Parse(example);
+        var args = entry.RootElement.GetProperty("args");
+        Assert.Equal("Sales", args.GetProperty("sheetName").GetString());
+        Assert.Equal("A1:B2", args.GetProperty("rangeAddress").GetString());
+        Assert.Equal(42, args.GetProperty("values")[1][1].GetInt32());
+        ServiceRegistry.ValidateCommandArguments("range.set-values", args.GetRawText());
+    }
+
+    [Theory]
+    [InlineData("diag ping", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("DIAG PING", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("diag\tping", "Unknown command group", "Use 'diag.ping'")]
+    [InlineData("diag not-an-action", "Unknown command group", "group.action")]
+    [InlineData("diag.not-an-action", "Unknown action", "group.action")]
+    public async Task BatchDiscovery_CommandErrorsSuggestButNeverExecute(
+        string command, string originalError, string hint)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var input = JsonSerializer.Serialize(new[] { new { command } });
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch", "--stop-on-error"],
+            CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        var item = result.RootElement;
+        Assert.False(item.GetProperty("success").GetBoolean());
+        Assert.Equal(0, item.GetProperty("index").GetInt32());
+        Assert.Equal(command, item.GetProperty("command").GetString());
+        Assert.True(item.GetProperty("durationMs").GetInt64() >= 0);
+        var message = item.GetProperty("error").GetProperty("message").GetString();
+        Assert.Contains(originalError, message, StringComparison.Ordinal);
+        Assert.Contains(hint, message, StringComparison.Ordinal);
+        Assert.Contains("batch --help", message, StringComparison.Ordinal);
+        if (command.Contains("not-an-action", StringComparison.Ordinal))
+            Assert.DoesNotContain("Use 'diag.not-an-action'", message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("[]", "No commands provided")]
+    [InlineData("[", "BytePositionInLine")]
+    [InlineData("""{"args":{}}""", "missing the 'command' field")]
+    [InlineData("""{"command":"diag.ping","unexpected":true}""", "unexpected")]
+    public async Task BatchDiscovery_InputErrorsKeepDetailsAndPointToHelp(string input, string originalError)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch"], CreateRuntime(factory, output, error, input));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        var failure = result.RootElement.GetProperty("error");
+        var message = failure.GetProperty("message").GetString();
+        Assert.Contains(originalError, message, StringComparison.Ordinal);
+        Assert.Contains("batch --help", message + error.ToString(), StringComparison.Ordinal);
+        if (input == "[" || input.Contains("unexpected", StringComparison.Ordinal))
+            Assert.Equal(nameof(JsonException), failure.GetProperty("exceptionType").GetString());
+    }
+
+    [Fact]
+    public async Task BatchDiscovery_WrongArgumentKeysPointToActionHelp()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "batch"],
+            CreateRuntime(factory, output, error,
+                """{"command":"range.set-values","args":{"sheet":"Sales","range":"A1","values":[[42]]}}"""));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        var message = result.RootElement.GetProperty("error").GetProperty("message").GetString();
+        Assert.Contains("Unknown or non-canonical", message, StringComparison.Ordinal);
+        Assert.Contains("sheetName", message, StringComparison.Ordinal);
+        Assert.Contains("rangeAddress", message, StringComparison.Ordinal);
+        Assert.Contains("excelcli range set-values --help", message, StringComparison.Ordinal);
+    }
 
     [Theory]
     [MemberData(nameof(GeneratedCommandNames))]
@@ -1586,12 +1812,14 @@ public sealed class InProcessCliCommandTests
         private readonly Queue<ServiceResponse> _responses = new(responses);
 
         internal List<ServiceRequest> Requests { get; } = [];
+        internal int ConnectionCount { get; private set; }
         internal Task<ServiceResponse>? PendingResponse { get; init; }
         internal Func<ServiceRequest, Task<ServiceResponse>>? Responder { get; init; }
         internal TaskCompletionSource RequestSent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken)
         {
+            ConnectionCount++;
             return Task.FromResult<ICliRequestClient>(new RecordingClient(this));
         }
 

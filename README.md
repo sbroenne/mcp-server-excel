@@ -50,8 +50,8 @@ copilot plugin install excel-mcp@awesome-copilot
 copilot plugin install excel-cli@awesome-copilot
 ```
 
-Close open Excel workbooks before starting; ExcelMcp requires exclusive access
-while automating them.
+For a workbook already open in Excel, use discovery and attachment to keep
+working in that workbook. Excel determines whether newly opened files are read-only.
 
 ## What You Can Automate
 

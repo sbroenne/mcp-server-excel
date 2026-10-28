@@ -324,7 +324,10 @@ For complete VBA command usage and a macro-enabled workbook example, see
 
 ### "Workbook is locked" or "Cannot open file"
 
-**Solution:** Close all Excel windows before running ExcelMcp. ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
+Use `excelcli session discover` and `excelcli session attach --workbook-id <ID>`
+to connect to the intended workbook if it is already open. For a new open, Excel
+handles file access and may open the file read-only. Check `excelcli workbook get-info`
+for `readOnly` before editing, and respond to any prompts in Excel.
 
 ### Permission Issues
 

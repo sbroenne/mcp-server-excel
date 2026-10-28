@@ -1,6 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using System.Runtime.InteropServices;
 using Xunit;
 using Xunit.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
@@ -34,43 +36,61 @@ public class ExcelSessionTests : IDisposable
     }
 
     [Fact]
-    public void BeginBatch_WithNonExistentFile_ThrowsFileNotFoundException()
+    public void BeginBatch_WithNonExistentFile_PreservesExcelOpenFailure()
     {
         // Arrange
         string nonExistentFile = Path.Join(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.xlsx");
 
         // Act & Assert
-        Assert.Throws<FileNotFoundException>(() =>
+        var exception = Assert.Throws<COMException>(() =>
         {
             using var batch = ExcelSession.BeginBatch(nonExistentFile);
         });
         Assert.False(File.Exists(nonExistentFile));
-
-        _output.WriteLine("✓ Correctly throws FileNotFoundException for non-existent file");
+        Assert.Contains(Path.GetFileName(nonExistentFile), exception.Message, StringComparison.OrdinalIgnoreCase);
+        _output.WriteLine($"Excel rejected the missing file: 0x{exception.HResult:X8}");
     }
 
-    [Fact]
-    public void BeginBatch_WithInvalidExtension_ThrowsArgumentException()
+    [Theory]
+    [InlineData(".txt")]
+    [InlineData(".csv")]
+    public void BeginBatch_WithTextFile_OpensItsContentsInExcel(string extension)
     {
         // Arrange
-        string invalidFile = Path.Join(Path.GetTempPath(), $"test-{Guid.NewGuid():N}.txt");
-        File.WriteAllText(invalidFile, "dummy");
+        string textFile = Path.Join(Path.GetTempPath(), $"test-{Guid.NewGuid():N}{extension}");
+        File.WriteAllText(textFile, "native-open-marker");
 
         try
         {
-            // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() =>
+            using (var batch = ExcelSession.BeginBatch(textFile))
             {
-                using var batch = ExcelSession.BeginBatch(invalidFile);
-            });
-
-            Assert.Contains("Invalid file extension", exception.Message);
-            Assert.Equal("dummy", File.ReadAllText(invalidFile));
-            _output.WriteLine("✓ Correctly rejects non-Excel file extension");
+                batch.Execute((context, _) =>
+                {
+                    Excel.Sheets? sheets = null;
+                    Excel.Worksheet? sheet = null;
+                    Excel.Range? cell = null;
+                    try
+                    {
+                        sheets = context.Book.Worksheets;
+                        sheet = (Excel.Worksheet)sheets[1];
+                        cell = sheet.Range["A1"];
+                        Assert.Equal("native-open-marker", (string)cell.Value2);
+                        Assert.False(context.Book.ReadOnly);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                        ComUtilities.Release(ref sheet);
+                        ComUtilities.Release(ref sheets);
+                    }
+                });
+                Assert.IsType<ExcelBatch>(batch).Close();
+            }
+            Assert.Equal("native-open-marker", File.ReadAllText(textFile));
         }
         finally
         {
-            if (File.Exists(invalidFile)) File.Delete(invalidFile);
+            if (File.Exists(textFile)) File.Delete(textFile);
         }
     }
 }

@@ -72,6 +72,53 @@ public sealed class BatchResultShapeTests
         Assert.Contains("fields", output.RootElement.GetProperty("error").GetProperty("message").GetString());
     }
 
+    [Theory]
+    [InlineData("service.status", """{"fields":["running"]}""")]
+    [InlineData("service.shutdown", """{"fields":["running"]}""")]
+    [InlineData("service.ping", """{"fields":["running"]}""")]
+    [InlineData("service.status", """{"fields":null}""")]
+    [InlineData("service.shutdown", """{"fields":null}""")]
+    [InlineData("service.ping", """{"fields":null}""")]
+    public async Task Batch_ServiceArguments_AreRejectedWithoutConnecting(string command, string args)
+    {
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            input: $$$"""{"command":"{{{command}}}","args":{{{args}}}}""");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Empty(result.Stderr);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(command, output.RootElement.GetProperty("command").GetString());
+        Assert.Equal(0, output.RootElement.GetProperty("index").GetInt32());
+        Assert.False(output.RootElement.GetProperty("success").GetBoolean());
+        var error = output.RootElement.GetProperty("error");
+        Assert.Equal("InvalidInput", error.GetProperty("category").GetString());
+        Assert.Contains("fields", error.GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("service.status")]
+    [InlineData("service.shutdown")]
+    [InlineData("service.ping")]
+    public async Task Batch_ServiceWithoutArguments_DispatchesNormally(string command)
+    {
+        var calls = 0;
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            request =>
+            {
+                calls++;
+                Assert.Equal(command, request.Command);
+                Assert.Equal("{}", request.Args);
+                return new ServiceResponse { Success = true, Result = """{"running":true}""" };
+            },
+            $$$"""{"command":"{{{command}}}","args":{}}""");
+
+        Assert.Equal(1, calls);
+        Assert.Equal(0, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(output.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
+    }
+
     [Fact]
     public async Task Batch_InvalidTypePreservesOriginalCauseWithoutDispatch()
     {

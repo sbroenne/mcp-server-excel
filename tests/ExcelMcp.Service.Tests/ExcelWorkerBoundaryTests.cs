@@ -89,7 +89,8 @@ public sealed class ExcelWorkerBoundaryTests
         var worker = new ExcelWorkerClient(registration, WorkerProcess.Current, "generation");
         var newer = new WorkerSnapshot(registration, [],
             new ServiceResponse { Success = true, Result = """{"sessions":[]}""" },
-            "pending-operation", "range.set-values", Revision: 2);
+            "pending-operation", "range.set-values",
+            new Dictionary<string, IReadOnlyList<string>>(), Revision: 2);
         worker.RecordSnapshot(newer);
         var retained = worker.RecordSnapshot(newer with { PendingOperation = null, Revision = 1 });
         Assert.Same(newer, retained);

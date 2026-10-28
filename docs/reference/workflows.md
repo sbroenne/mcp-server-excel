@@ -20,6 +20,39 @@ MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
 repeated process startup for a known sequence. It is not a transaction.
 Use individual commands when the next step needs inspection.
 
+The executable provides the discovery path without a skill or external guide:
+
+```cli
+excelcli.exe --help
+excelcli.exe batch --help
+excelcli.exe range set-values --help
+```
+
+Batch help includes runnable PowerShell examples, input fields, session rules,
+and result checks. Action-specific help maps its CLI flags to the exact
+batch argument names. In particular, `--sheet` maps to `sheetName`, and `--range`
+maps to `rangeAddress`; the short CLI aliases are not accepted as batch keys.
+The entry's `sessionId` stays outside `args`. Arrays and objects are supplied
+directly as JSON values, not strings containing JSON.
+
+Both `--input <file>` and stdin accept a JSON array or one command per line.
+Omitting `--input` or passing `--input -` reads stdin. For example, this
+PowerShell check needs no workbook:
+
+```cli
+@'
+[
+  {"command":"diag.ping"},
+  {"command":"diag.echo","args":{"message":"hello"}}
+]
+'@ | excelcli.exe batch --stop-on-error
+```
+
+An unrecognized space-separated command such as `diag ping` is rejected, with
+the verified dotted spelling suggested when available. It is not automatically
+corrected or executed. Invalid argument errors retain the accepted names and
+point to action help; malformed input errors point to batch help.
+
 Commands still run one at a time through the same execution path as individual
 CLI calls. Standard output contains only the JSON result lines and is flushed
 after each command. Standard error shows when each command starts, completes,

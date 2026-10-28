@@ -103,33 +103,13 @@ public static class ExcelSession
         if (filePaths == null || filePaths.Length == 0)
             throw new ArgumentException("At least one file path is required", nameof(filePaths));
 
-        string[] fullPaths = new string[filePaths.Length];
-        for (int i = 0; i < filePaths.Length; i++)
-        {
-            string fullPath = WorkbookLocation.Normalize(filePaths[i]);
-
-            // Validate file exists
-            if (!WorkbookLocation.IsRemote(fullPath) && !File.Exists(fullPath))
-            {
-                throw new FileNotFoundException($"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead of 'open'.", fullPath);
-            }
-
-            // Security: Validate file extension
-            string extension = WorkbookLocation.GetExtension(fullPath);
-            if (extension is not (".xlsx" or ".xlsm" or ".xlsb" or ".xls"))
-            {
-                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xlsb, .xls) are supported.");
-            }
-
-            fullPaths[i] = fullPath;
-        }
-
         if (!deferStartup && TemporaryBatchOwner.Value is { } owner)
-            return owner(fullPaths, show, operationTimeout, startupTimeout);
+            return owner(filePaths.Select(path => WorkbookLocation.IsRemote(path)
+                ? path : WorkbookLocation.Normalize(path)).ToArray(), show, operationTimeout, startupTimeout);
 
         // Create batch - it will create Excel/workbook on its own STA thread
         var batch = new ExcelBatch(
-            fullPaths,
+            filePaths,
             logger: null,
             show: show,
             operationTimeout: operationTimeout ?? (!deferStartup ? TemporaryBatchTimeoutForTests : null),
@@ -152,26 +132,10 @@ public static class ExcelSession
         TimeSpan? operationTimeout,
         bool deferStartup = false)
     {
-        var fullPath = WorkbookLocation.Normalize(filePath);
-        if (!WorkbookLocation.IsRemote(fullPath) && !File.Exists(fullPath))
-        {
-            throw new FileNotFoundException(
-                $"Excel file not found: {fullPath}.",
-                fullPath);
-        }
-
-        var extension = WorkbookLocation.GetExtension(fullPath);
-        if (extension is not (".xlsx" or ".xlsm" or ".xlsb" or ".xls"))
-        {
-            throw new ArgumentException(
-                $"Invalid file extension '{extension}'. Validation supports .xlsx, .xlsm, .xlsb and .xls only.",
-                nameof(filePath));
-        }
-
         return new ExcelBatch(
-            [fullPath],
+            [filePath],
             logger: null,
-            show: WorkbookLocation.IsRemote(fullPath),
+            show: WorkbookLocation.IsRemote(filePath),
             operationTimeout: operationTimeout,
             openReadOnly: true,
             deferStartup: deferStartup);
