@@ -98,4 +98,42 @@ public sealed class MissingOptionValueCliTests
         Assert.Equal("sheet.list", captured.Command);
         Assert.Equal("__default_command", captured.SessionId);
     }
+
+    [Fact]
+    public async Task RepeatedOption_TypedPlaceholderDoesNotHideMissingFinalValue()
+    {
+        var dispatched = 0;
+        var result = await InProcessCliHelper.RunAsync(
+            ["vba", "run", "--session", "session-1", "--procedure-name", "Module1.MySub",
+                "--parameters", "__default_command", "--parameters"],
+            _ =>
+            {
+                dispatched++;
+                return new ServiceResponse { Success = true };
+            });
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Equal(0, dispatched);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(
+            "Option '--parameters' requires a value.",
+            output.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("session", "open", "--show", "__default_command")]
+    [InlineData("session", "open", "__default_command", "--show")]
+    public async Task FilePath_TypedAsPlaceholder_IsForwarded(params string[] arguments)
+    {
+        ServiceRequest? captured = null;
+        var result = await InProcessCliHelper.RunAsync(arguments, request =>
+        {
+            captured ??= request;
+            return new ServiceResponse { Success = false, ErrorMessage = "stop here" };
+        });
+
+        Assert.NotNull(captured);
+        Assert.DoesNotContain("requires a value", result.Stdout, StringComparison.Ordinal);
+        Assert.DoesNotContain("is required", result.Stdout, StringComparison.Ordinal);
+    }
 }
