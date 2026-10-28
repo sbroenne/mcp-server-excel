@@ -59,7 +59,7 @@ internal sealed class SessionSecurityCommand : AsyncCommand<SessionSecurityComma
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--approved")]
-        [Description("Explicit approval of this action on this workbook")]
+        [Description("Explicit approval of this action on this workbook. Approval flags are not confirmation prompts and do not bypass company policy.")]
         public bool Approved { get; init; }
 
         [CommandOption("--allow-remembered-trust")]

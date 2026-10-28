@@ -1471,6 +1471,23 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine("        },");
         }
         sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Maps CLI commands and actions to their Core method documentation.</summary>");
+        sb.AppendLine("    public static readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string>> ActionDescriptionsByCommand = new(System.StringComparer.OrdinalIgnoreCase)");
+        sb.AppendLine("    {");
+        foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
+        {
+            sb.AppendLine($"        [\"{cat.Category}\"] = new(System.StringComparer.OrdinalIgnoreCase)");
+            sb.AppendLine("        {");
+            foreach (var method in cat.Methods)
+            {
+                var description = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+                    method.XmlDocSummary ?? string.Empty, quote: true);
+                sb.AppendLine($"            [\"{method.ActionName}\"] = {description},");
+            }
+            sb.AppendLine("        },");
+        }
+        sb.AppendLine("    };");
         sb.AppendLine("}");
 
         return sb.ToString();

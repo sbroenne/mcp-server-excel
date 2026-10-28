@@ -34,6 +34,12 @@ internal static class ActionHelp
         var output = new StringBuilder();
         output.AppendLine(CultureInfo.InvariantCulture, $"Usage: excelcli {arguments[0]} {arguments[1]} [OPTIONS]");
         output.AppendLine();
+        var actionDescription = _CliCategoryMetadata.ActionDescriptionsByCommand[arguments[0]][arguments[1]];
+        if (!string.IsNullOrWhiteSpace(actionDescription))
+        {
+            output.AppendLine(actionDescription);
+            output.AppendLine();
+        }
         output.AppendLine("Options:");
         foreach (var parameterName in parameterNames)
         {
