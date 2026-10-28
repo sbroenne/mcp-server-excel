@@ -563,9 +563,15 @@ internal static class DaemonAutoStart
             : $"{duration.TotalMilliseconds:0} ms";
     }
 
-    private static async Task<bool> PingAsync(string pipeName, TimeSpan connectTimeout, CancellationToken cancellationToken)
+    internal static async Task<bool> PingAsync(string pipeName, TimeSpan connectTimeout, CancellationToken cancellationToken)
     {
         if (connectTimeout <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        // A missing pipe would make the connect wait out its whole timeout.
+        if (!PipeExists(ServiceClient.GetControlPipeName(pipeName)))
         {
             return false;
         }
@@ -580,5 +586,12 @@ internal static class DaemonAutoStart
             connectTimeout,
             cancellationToken);
         return response.Success;
+    }
+
+    private static bool PipeExists(string pipeName)
+    {
+        var path = @"\\.\pipe\" + pipeName;
+        return Directory.EnumerateFiles(@"\\.\pipe\")
+            .Any(existing => string.Equals(existing, path, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -1104,8 +1104,8 @@ public sealed class InProcessCliCommandTests
     [InlineData("session", "attach", "--workbook-id")]
     [InlineData("session", "close", "--save")]
     [InlineData("service", null, "stop")]
-    [InlineData("range", null, "--sheet")]
-    [InlineData("range", null, "--range")]
+    [InlineData("range", null, "--sheet-name")]
+    [InlineData("range", null, "--range-address")]
     [InlineData("range", null, "--values")]
     public async Task CommandHelp_ExposesLifecycleCommandsAndNativeOptionsWithoutConnecting(
         string command, string? branch, string option)

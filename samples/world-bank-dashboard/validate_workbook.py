@@ -202,8 +202,8 @@ def validate(excel, logs, live):
     for sheet, stem in [("World Overview", "overview"), ("Growth & Resilience", "growth"),
                         ("Prosperity & Progress", "progress")]:
         values(excel, sheet, "A1:AN39")
-        excel.invoke("screenshot", "capture", "--session", excel.session, "--sheet", sheet,
-                     "--range", "A1:AN39", "--quality", "High", "--output", logs / f"{stem}.png")
+        excel.invoke("screenshot", "capture", "--session", excel.session, "--sheet-name", sheet,
+                     "--range-address", "A1:AN39", "--quality", "High", "--output", logs / f"{stem}.png")
     excel.call("window.set-zoom", sheetName="World Overview", zoom=90)
     return {"loadedObservations": len(rows), "modelCountryYears": len(dax["rows"]),
             "offlineRefresh": "passed", "liveRefresh": "passed" if live else "not run",

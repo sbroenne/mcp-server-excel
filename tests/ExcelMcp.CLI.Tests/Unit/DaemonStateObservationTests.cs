@@ -188,6 +188,51 @@ public sealed class DaemonStateObservationTests
     }
 
     [Fact]
+    public async Task PingAsync_NoDaemonPipe_ReturnsWithoutWaitingForConnectTimeout()
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var responded = await DaemonAutoStart.PingAsync(
+            $"missing-daemon-{Guid.NewGuid():N}",
+            TimeSpan.FromSeconds(5),
+            CancellationToken.None);
+
+        Assert.False(responded);
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task PingAsync_RunningDaemon_ReturnsTrue()
+    {
+        var pipeName = $"ping-daemon-{Guid.NewGuid():N}";
+        using var service = new Sbroenne.ExcelMcp.Service.ExcelController(
+            launcher: new Sbroenne.ExcelMcp.Service.Workers.ProductProcessLauncher(
+                Sbroenne.ExcelMcp.CLI.Tests.Helpers.CliProcessHelper.GetExePath(), []));
+        var server = service.RunAsync(pipeName);
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            var responded = false;
+            while (!responded && DateTime.UtcNow < deadline)
+            {
+                responded = await DaemonAutoStart.PingAsync(
+                    pipeName,
+                    TimeSpan.FromSeconds(2),
+                    CancellationToken.None);
+                if (!responded)
+                    await Task.Delay(100);
+            }
+
+            Assert.True(responded);
+        }
+        finally
+        {
+            await service.RequestShutdownAsync();
+            await server.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
     public async Task EnsureAndConnectCoreAsync_FinalDaemonAndMarkerAppearAfterMutexGap_WaitsForStartup()
     {
         var daemonObservations = new Queue<bool>([true, false, true]);

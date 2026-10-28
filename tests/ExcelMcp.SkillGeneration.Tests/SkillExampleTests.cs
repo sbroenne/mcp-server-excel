@@ -22,7 +22,7 @@ public sealed class SkillExampleTests
                 # Workflow
                 Shared policy uses sessionId responses.
                 ```cli
-                excelcli -q range get-values --session $sessionId --sheet Sales --range A1
+                excelcli -q range get-values --session $sessionId --sheet-name Sales --range-address A1
                 ```
                 ```mcp
                 range(action: 'get-values', workbook_session_id: sessionId, sheet_name: 'Sales', range_address: 'A1')

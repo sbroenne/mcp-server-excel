@@ -50,7 +50,7 @@ class SavedWorkbookChecks(unittest.TestCase):
         self.directory.cleanup()
 
     def _write(self, cells, address):
-        self._command("range", "set-values", "--sheet", "Sheet1", "--range", address,
+        self._command("range", "set-values", "--sheet-name", "Sheet1", "--range-address", address,
                       "--values", json.dumps(cells), "--overwrite-policy", "allow")
 
     def _inspect(self, source_range="A1:E9"):
@@ -78,7 +78,7 @@ class SavedWorkbookChecks(unittest.TestCase):
 
     def test_in_memory_probe_recalculates_without_saving(self):
         self._write([[6]], "B3")
-        self._command("range", "set-formulas", "--sheet", "Sheet1", "--range", "A3", "--formulas", '[["=B3*2"]]')
+        self._command("range", "set-formulas", "--sheet-name", "Sheet1", "--range-address", "A3", "--formulas", '[["=B3*2"]]')
         self._command("session", "close", "--save")
         self.session = None
         before = hashlib.sha256(self.path.read_bytes()).digest()
@@ -117,11 +117,11 @@ class SavedWorkbookChecks(unittest.TestCase):
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("Reuse the existing session", refused.stderr)
         self.assertEqual(self._cli("session", "list")["sessions"][0]["sessionId"], self.session)
-        self._command("sheet", "create", "--sheet", "Sales")
+        self._command("sheet", "create", "--sheet-name", "Sales")
         for fail in (False, True):
             with self.subTest(fail=fail):
                 self._write([["Original1"], ["Original2"]], "A1:A2")
-                self._command("range", "clear-contents", "--sheet", "Sales", "--range", "A1:B2")
+                self._command("range", "clear-contents", "--sheet-name", "Sales", "--range-address", "A1:B2")
                 self._command("session", "close", "--save")
                 self.session = None
                 code = recipe
@@ -137,16 +137,16 @@ class SavedWorkbookChecks(unittest.TestCase):
                 self.assertEqual(result.returncode == 0, not fail, result.stderr)
                 self.assertEqual(self._cli("session", "list")["sessions"], [])
                 self._reopen()
-                values = self._command("range", "get-values", "--sheet", "Sheet1", "--range", "A1:A2")["values"]
+                values = self._command("range", "get-values", "--sheet-name", "Sheet1", "--range-address", "A1:A2")["values"]
                 self.assertEqual(values, [["Original1"], ["Original2"]])
-                sales = self._command("range", "get-values", "--sheet", "Sales", "--range", "A1:B2")["values"]
+                sales = self._command("range", "get-values", "--sheet-name", "Sales", "--range-address", "A1:B2")["values"]
                 self.assertEqual(sales, [[None, None], [None, None]] if fail
                                  else [["Product", "Amount"], ["Widget", 1250]])
 
     def test_snapshot_distinguishes_formulas_formats_and_query_identity(self):
         self._write([["X"], [7]], "A1:A2")
-        self._command("range", "set-formulas", "--sheet", "Sheet1", "--range", "B2", "--formulas", '[["=A2*3"]]')
-        self._command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2", "--format-code", "0.00")
+        self._command("range", "set-formulas", "--sheet-name", "Sheet1", "--range-address", "B2", "--formulas", '[["=A2*3"]]')
+        self._command("range", "set-number-format", "--sheet-name", "Sheet1", "--range-address", "B2", "--format-code", "0.00")
         self._command("powerquery", "create", "--query-name", "A",
                       "--load-destination", "connection-only", "--m-code", "#table(type table [X=number], {{1}})")
         self._command("powerquery", "create", "--query-name", "AA",
@@ -166,7 +166,7 @@ class SavedWorkbookChecks(unittest.TestCase):
         code = "#table(type table [X=number], {{1}})"
         self._command("powerquery", "evaluate", "--m-code", code)
         self._command("powerquery", "update", "--query-name", "ReviewQuery", "--m-code", code)
-        result = self._command("range", "get-values", "--sheet", "QueryData", "--range", "A1:A2")
+        result = self._command("range", "get-values", "--sheet-name", "QueryData", "--range-address", "A1:A2")
         self.assertEqual(result["values"], [["X"], [1]])
 
     def test_column_chart_values_labels_and_real_overlap(self):
@@ -175,7 +175,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             ["January", 50000, 35000], ["February", 55000, 38000],
             ["March", 48000, 32000], ["April", 62000, 41000], ["May", 58000, 39000],
         ], "A1:C6")
-        self._command("chart", "create-from-range", "--sheet", "Sheet1", "--source-range-address", "A1:C6",
+        self._command("chart", "create-from-range", "--sheet-name", "Sheet1", "--source-range-address", "A1:C6",
                       "--chart-type", "ColumnClustered", "--chart-name", "ReviewChart", "--target-range", "A8:H22")
         snapshot = self._inspect("A1:C6")
         assert_chart(snapshot, below=True)
@@ -191,7 +191,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             with self.subTest(defect=defect), self.assertRaises(AssertionError):
                 assert_chart(bad, below=True)
         self._reopen()
-        self._command("chart", "fit-to-range", "--sheet", "Sheet1", "--chart-name", "ReviewChart", "--range", "A1:H15")
+        self._command("chart", "fit-to-range", "--sheet-name", "Sheet1", "--chart-name", "ReviewChart", "--range-address", "A1:H15")
         with self.assertRaises(AssertionError):
             assert_chart(self._inspect("A1:C6"), below=True)
 
@@ -200,8 +200,8 @@ class SavedWorkbookChecks(unittest.TestCase):
             ["Product", "Q1", "Q2", "Q3"], ["Widget", 100, 150, 120],
             ["Gadget", 80, 90, 110], ["Device", 200, 180, 220], ["Tool", 50, 60, 75],
         ], "A1:D5")
-        self._command("table", "create", "--sheet", "Sheet1", "--range", "A1:D5", "--table-name", "ProductSales")
-        self._command("chart", "create-from-table", "--sheet", "Sheet1", "--table-name", "ProductSales",
+        self._command("table", "create", "--sheet-name", "Sheet1", "--range-address", "A1:D5", "--table-name", "ProductSales")
+        self._command("chart", "create-from-table", "--sheet-name", "Sheet1", "--table-name", "ProductSales",
                       "--chart-type", "Line", "--chart-name", "Products", "--target-range", "F2:M16")
         assert_chart(self._inspect("A1:D5"), below=False)
 
@@ -213,7 +213,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             ["Sales", "Eve", "Active", 65000], ["Sales", "Frank", "Inactive", 62000],
             ["Engineering", "Grace", "Active", 88000], ["Sales", "Henry", "Active", 71000],
         ], "A1:D9")
-        self._command("table", "create", "--sheet", "Sheet1", "--range", "A1:D9", "--table-name", "Employees")
+        self._command("table", "create", "--sheet-name", "Sheet1", "--range-address", "A1:D9", "--table-name", "Employees")
         for field, position, selected in (("Department", "F2", "Engineering"), ("Status", "H2", "Active")):
             self._command("slicer", "create-table-slicer", "--table-name", "Employees", "--column-name", field,
                           "--slicer-name", f"{field}Slicer", "--destination-sheet", "Sheet1", "--position", position)
@@ -226,7 +226,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             assert_table_slicers(self._inspect())
 
     def _pivot(self, table, sheet, row, value):
-        self._command("sheet", "create", "--sheet", sheet)
+        self._command("sheet", "create", "--sheet-name", sheet)
         self._command("pivottable", "create-from-table", "--table-name", table, "--destination-sheet", sheet,
                       "--destination-cell", "A1", "--pivot-table-name", "SummaryPivot")
         self._command("pivottablefield", "add-row-field", "--pivot-table-name", "SummaryPivot", "--field-name", row)
@@ -241,7 +241,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             ["South", "Laptop", "Q1", 12000], ["South", "Phone", "Q1", 7500],
             ["South", "Laptop", "Q2", 14000], ["South", "Phone", "Q2", 8200],
         ], "A1:D9")
-        self._command("table", "create", "--sheet", "Sheet1", "--range", "A1:D9", "--table-name", "SalesData")
+        self._command("table", "create", "--sheet-name", "Sheet1", "--range-address", "A1:D9", "--table-name", "SalesData")
         self._pivot("SalesData", "Analysis", "Region", "Sales")
         self._command("slicer", "create-slicer", "--pivot-table-name", "SummaryPivot", "--field-name", "Region",
                       "--slicer-name", "RegionSlicer", "--destination-sheet", "Analysis", "--position", "E2")
@@ -260,7 +260,7 @@ class SavedWorkbookChecks(unittest.TestCase):
             ["Furniture", "Desk", "West", 25, 350], ["Furniture", "Chair", "West", 40, 175],
             ["Furniture", "Desk", "East", 30, 350], ["Furniture", "Chair", "East", 55, 175],
         ], "A1:E9")
-        self._command("table", "create", "--sheet", "Sheet1", "--range", "A1:E9", "--table-name", "Inventory")
+        self._command("table", "create", "--sheet-name", "Sheet1", "--range-address", "A1:E9", "--table-name", "Inventory")
         self._pivot("Inventory", "Summary", "Category", "Stock")
         self._command("slicer", "create-table-slicer", "--table-name", "Inventory", "--column-name", "Warehouse",
                       "--slicer-name", "WarehouseSlicer", "--destination-sheet", "Sheet1", "--position", "G2")

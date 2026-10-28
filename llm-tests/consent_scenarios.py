@@ -101,10 +101,10 @@ def consent_workbook(tmp_path: Path) -> Iterator[ConsentWorkbook]:
     )
     try:
         session = workbook.cli("session", "create", str(workbook.path))["sessionId"]
-        workbook.cli("range", "set-values", "--session", session, "--sheet", "Sheet1",
-                     "--range", "A1:C8", "--values", json.dumps(_BASE_VALUES))
-        workbook.cli("range", "set-formulas", "--session", session, "--sheet", "Sheet1",
-                     "--range", "C5", "--formulas", '[["=SUM(C2:C3)"]]')
+        workbook.cli("range", "set-values", "--session", session, "--sheet-name", "Sheet1",
+                     "--range-address", "A1:C8", "--values", json.dumps(_BASE_VALUES))
+        workbook.cli("range", "set-formulas", "--session", session, "--sheet-name", "Sheet1",
+                     "--range-address", "C5", "--formulas", '[["=SUM(C2:C3)"]]')
         workbook.cli("session", "close", "--session", session, "--save")
         workbook.original_hash = hashlib.sha256(workbook.path.read_bytes()).hexdigest()
         yield workbook
@@ -249,7 +249,7 @@ def assert_consent_outcome(
         session = workbook.cli("session", "open", str(workbook.path))["sessionId"]
         formula_address = "C4" if scenario == "authorized-delete" else "C5"
         formulas = workbook.cli("range", "get-formulas", "--session", session,
-                                "--sheet", "Sheet1", "--range", formula_address)["formulas"]
+                                "--sheet-name", "Sheet1", "--range-address", formula_address)["formulas"]
         assert formulas == [["=SUM(C2:C3)"]], formulas
         workbook.cli("session", "close", "--session", session)
     snapshot = read_saved_workbook(str(workbook.path), "A1:C8")

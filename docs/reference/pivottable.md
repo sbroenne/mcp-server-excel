@@ -78,7 +78,7 @@ another report's existing cache. Unlike creation-time sharing, this keeps both
 reports in place. Unlike `set-source`, it does not create a replacement cache.
 
 ```cli
-excelcli -q pivottable share-cache --session $sessionId --sheet Summary --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Overview
+excelcli -q pivottable share-cache --session $sessionId --sheet-name Summary --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Overview
 ```
 
 ```mcp
@@ -128,7 +128,7 @@ selected members, native label/value filters, and Values-field settings. It
 does not return report cell values,
 refresh the PivotTable, or save the workbook.
 
-Use MCP `sheet_name` (CLI `--sheet`) to choose the exact worksheet when
+Use MCP `sheet_name` (CLI `--sheet-name`) to choose the exact worksheet when
 PivotTable names may repeat. MCP `max_selected_members` (CLI
 `--max-selected-members`) sets the maximum number of selected member names
 returned across all fields; it defaults to 100 and accepts 1 through 1000.
@@ -157,7 +157,7 @@ pivottable_read(action: 'read', workbook_session_id: sessionId, pivot_table_name
 ```
 
 ```cli
-excelcli -q pivottable read --session $sessionId --pivot-table-name SalesPivot --sheet Summary --max-selected-members 50
+excelcli -q pivottable read --session $sessionId --pivot-table-name SalesPivot --sheet-name Summary --max-selected-members 50
 ```
 
 For an existing cube measure, `add-value-field` accepts its exact qualified
@@ -411,8 +411,8 @@ pivottable_field(action: 'get-report-filter', workbook_session_id: sessionId, sh
 ```
 
 ```cli
-excelcli -q pivottablefield set-report-filter --session $sessionId --sheet Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]' --selected-items '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]'
-excelcli -q pivottablefield get-report-filter --session $sessionId --sheet Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]'
+excelcli -q pivottablefield set-report-filter --session $sessionId --sheet-name Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]' --selected-items '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]'
+excelcli -q pivottablefield get-report-filter --session $sessionId --sheet-name Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]'
 ```
 
 The write result separates `requestedItems` from `selectedItems`, which reports
@@ -450,8 +450,8 @@ pivottable(action: 'set-connection', workbook_session_id: sessionId, sheet_name:
 ```
 
 ```cli
-excelcli -q pivottable get-connection --session $sessionId --sheet Summary --pivot-table-name SalesPivot
-excelcli -q pivottable set-connection --session $sessionId --sheet Summary --pivot-table-name SalesPivot --connection-name CurrentConnection
+excelcli -q pivottable get-connection --session $sessionId --sheet-name Summary --pivot-table-name SalesPivot
+excelcli -q pivottable set-connection --session $sessionId --sheet-name Summary --pivot-table-name SalesPivot --connection-name CurrentConnection
 ```
 
 The result reports the actual connection name and cache index, worksheet-qualified

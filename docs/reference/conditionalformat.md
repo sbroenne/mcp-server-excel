@@ -47,8 +47,8 @@ conditionalformat(action: 'set-rule-priority', workbook_session_id: sessionId, s
 ```
 
 ```cli
-excelcli -q conditionalformat update-rule --session $sessionId --sheet Data --rule-priority $selectedPriority --expected-fingerprint $selectedFingerprint --options '{"formula1":"150","stopIfTrue":false,"appliesTo":"B2:B100"}'
-excelcli -q conditionalformat set-rule-priority --session $sessionId --sheet Data --rule-priority $freshPriority --expected-fingerprint $freshFingerprint --new-priority 1
+excelcli -q conditionalformat update-rule --session $sessionId --sheet-name Data --rule-priority $selectedPriority --expected-fingerprint $selectedFingerprint --options '{"formula1":"150","stopIfTrue":false,"appliesTo":"B2:B100"}'
+excelcli -q conditionalformat set-rule-priority --session $sessionId --sheet-name Data --rule-priority $freshPriority --expected-fingerprint $freshFingerprint --new-priority 1
 ```
 
 The example assumes the selection came from a current listing and is refreshed

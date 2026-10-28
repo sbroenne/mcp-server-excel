@@ -67,7 +67,7 @@ class SpreadsheetBenchWorkbookChecks(unittest.TestCase):
         self.assertEqual(hashlib.sha256(task.path.read_bytes()).hexdigest(), saved_hash)
         task.session = task.cli("session", "open", str(task.path))["sessionId"]
         task.command(
-            "range", "set-formulas", "--sheet", "Sheet1", "--range", "I4:I7",
+            "range", "set-formulas", "--sheet-name", "Sheet1", "--range-address", "I4:I7",
             "--formulas", json.dumps([["=22"], ["=12"], ["=9"], ["=4"]]),
         )
         task.command("session", "close", "--save")

@@ -917,22 +917,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         return typeName.IndexOf("TimeSpan", StringComparison.Ordinal) >= 0;
     }
 
-    /// <summary>
-    /// Returns a short alias for backward compatibility with pre-generator CLI parameter names.
-    /// Before code generation, CLI used short names like --sheet and --range.
-    /// Now generator creates kebab-case from Core camelCase (e.g., sheetName -> --sheet-name).
-    /// This method provides short aliases to maintain backward compatibility.
-    /// </summary>
-    private static string? GetShortAlias(string parameterName)
-    {
-        return parameterName switch
-        {
-            "sheetName" => "sheet",
-            "rangeAddress" => "range",
-            _ => null
-        };
-    }
-
     private static void GenerateCliSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allParams)
     {
         // Note: These types require Spectre.Console reference in consuming project
@@ -988,13 +972,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 escapedDescription += $" Whole seconds only; range {minimumSeconds}-2147483.";
             }
 
-            // Add short aliases for backward compatibility with pre-generator CLI parameter names
-            var shortAlias = GetShortAlias(p.Name);
-            var optionSpec = shortAlias != null
-                ? $"--{shortAlias}|--{optionName} <{valuePlaceholder}>"
-                : $"--{optionName} <{valuePlaceholder}>";
-
-            sb.AppendLine($"            [Spectre.Console.Cli.CommandOption(\"{optionSpec}\")]");
+            sb.AppendLine($"            [Spectre.Console.Cli.CommandOption(\"--{optionName} <{valuePlaceholder}>\")]");
             sb.AppendLine($"            [System.ComponentModel.Description(\"{escapedDescription}\")]");
             sb.AppendLine($"            public {cliTypeName} {StringHelper.ToPascalCase(p.Name)} {{ get; init; }}");
             sb.AppendLine();
