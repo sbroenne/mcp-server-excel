@@ -244,7 +244,9 @@ public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper o
             Assert.True(result.ExitCode == 0, $"{result.Stdout}\n{result.Stderr}");
             using var document = JsonDocument.Parse(result.Stdout);
             Assert.True(document.RootElement.GetProperty("success").GetBoolean(), result.Stdout);
-            return document.RootElement.Clone();
+            return document.RootElement.TryGetProperty("data", out var data)
+                ? data.Clone()
+                : document.RootElement.Clone();
         }
     }
 

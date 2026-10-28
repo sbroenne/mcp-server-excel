@@ -74,7 +74,7 @@ chart_read(action: 'read', workbook_session_id: sessionId, chart_name: 'MonthlyS
 ```
 
 ```cli
-excelcli -q chart create-from-range --session $sessionId --sheet Sheet1 --source-range-address A1:C6 --chart-type ColumnClustered --chart-name MonthlySales --target-range A8:H22
+excelcli -q chart create-from-range --session $sessionId --sheet-name Sheet1 --source-range-address A1:C6 --chart-type ColumnClustered --chart-name MonthlySales --target-range A8:H22
 excelcli -q chartconfig set-title --session $sessionId --chart-name MonthlySales --title 'Monthly sales'
 excelcli -q chart read --session $sessionId --chart-name MonthlySales
 ```
@@ -144,12 +144,12 @@ chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: '
 ```
 
 ```cli
-excelcli -q range set-values --session $sessionId --sheet Details --range F1:G1 --values '[["Product","Revenue"]]'
-excelcli -q range set-formulas --session $sessionId --sheet Details --range F2:G4 --formulas '[["=A2&\" - \"&LEFT(B2,18)","=C2"],["=A3&\" - \"&LEFT(B3,18)","=C3"],["=A4&\" - \"&LEFT(B4,18)","=C4"]]'
-excelcli -q calculationmode calculate --session $sessionId --scope Sheet --sheet Details
-excelcli -q range get-formulas --session $sessionId --sheet Details --range F2:G4
-excelcli -q range get-values --session $sessionId --sheet Details --range F1:G4
-excelcli -q chart create-from-range --session $sessionId --sheet Details --source-range-address F1:G4 --chart-type BarClustered --chart-name ProductRevenue
+excelcli -q range set-values --session $sessionId --sheet-name Details --range-address F1:G1 --values '[["Product","Revenue"]]'
+excelcli -q range set-formulas --session $sessionId --sheet-name Details --range-address F2:G4 --formulas '[["=A2&\" - \"&LEFT(B2,18)","=C2"],["=A3&\" - \"&LEFT(B3,18)","=C3"],["=A4&\" - \"&LEFT(B4,18)","=C4"]]'
+excelcli -q calculationmode calculate --session $sessionId --scope Sheet --sheet-name Details
+excelcli -q range get-formulas --session $sessionId --sheet-name Details --range-address F2:G4
+excelcli -q range get-values --session $sessionId --sheet-name Details --range-address F1:G4
+excelcli -q chart create-from-range --session $sessionId --sheet-name Details --source-range-address F1:G4 --chart-type BarClustered --chart-name ProductRevenue
 ```
 
 Check each result before continuing, including label uniqueness and unchanged
@@ -181,12 +181,12 @@ chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: '
 ```
 
 ```cli
-excelcli -q range set-values --session $sessionId --sheet Summary --range A1:B3 --values '[["Month","Revenue"],["2025-12-01",null],["2026-01-01",null]]'
-excelcli -q range set-formulas --session $sessionId --sheet Summary --range B2:B3 --formulas '[["=SUMIFS(Transactions[Revenue],Transactions[Date],\">=\"&A2,Transactions[Date],\"<\"&EDATE(A2,1))"],["=SUMIFS(Transactions[Revenue],Transactions[Date],\">=\"&A3,Transactions[Date],\"<\"&EDATE(A3,1))"]]'
-excelcli -q range set-number-format --session $sessionId --sheet Summary --range A2:A3 --format-code 'mmm yyyy'
-excelcli -q calculationmode calculate --session $sessionId --scope Sheet --sheet Summary
-excelcli -q range get-values --session $sessionId --sheet Summary --range A1:B3
-excelcli -q chart create-from-range --session $sessionId --sheet Summary --source-range-address A1:B3 --chart-type Line --chart-name MonthlyRevenue
+excelcli -q range set-values --session $sessionId --sheet-name Summary --range-address A1:B3 --values '[["Month","Revenue"],["2025-12-01",null],["2026-01-01",null]]'
+excelcli -q range set-formulas --session $sessionId --sheet-name Summary --range-address B2:B3 --formulas '[["=SUMIFS(Transactions[Revenue],Transactions[Date],\">=\"&A2,Transactions[Date],\"<\"&EDATE(A2,1))"],["=SUMIFS(Transactions[Revenue],Transactions[Date],\">=\"&A3,Transactions[Date],\"<\"&EDATE(A3,1))"]]'
+excelcli -q range set-number-format --session $sessionId --sheet-name Summary --range-address A2:A3 --format-code 'mmm yyyy'
+excelcli -q calculationmode calculate --session $sessionId --scope Sheet --sheet-name Summary
+excelcli -q range get-values --session $sessionId --sheet-name Summary --range-address A1:B3
+excelcli -q chart create-from-range --session $sessionId --sheet-name Summary --source-range-address A1:B3 --chart-type Line --chart-name MonthlyRevenue
 ```
 
 Reconcile representative monthly totals with the underlying transactions. For
@@ -213,7 +213,7 @@ excelcli -q pivottablefield group-by-date --session $sessionId --pivot-table-nam
 excelcli -q pivottablefield list-fields --session $sessionId --pivot-table-name RevenuePivot
 excelcli -q pivottable refresh --session $sessionId --pivot-table-name RevenuePivot
 excelcli -q pivottablecalc get-data --session $sessionId --pivot-table-name RevenuePivot
-excelcli -q chart create-from-pivottable --session $sessionId --sheet Summary --pivot-table-name RevenuePivot --chart-type Line --chart-name InteractiveRevenue
+excelcli -q chart create-from-pivottable --session $sessionId --sheet-name Summary --pivot-table-name RevenuePivot --chart-type Line --chart-name InteractiveRevenue
 ```
 
 Inspect the generated fields rather than assuming their localized names. Check

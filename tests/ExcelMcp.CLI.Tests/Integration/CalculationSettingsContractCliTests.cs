@@ -94,7 +94,7 @@ public sealed class CalculationSettingsContractCliTests
             "--quiet", "calculationmode", "calculate", "--session", "session-1", "--scope", scope
         ];
         if (sheetName is not null)
-            arguments.AddRange(["--sheet", sheetName]);
+            arguments.AddRange(["--sheet-name", sheetName]);
         ServiceRequest? captured = null;
         var result = await InProcessCliHelper.RunAsync([.. arguments], request =>
         {

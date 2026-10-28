@@ -123,6 +123,7 @@ internal sealed class Program
             config.SetApplicationName("excelcli");
             config.SetApplicationVersion(GetCurrentVersion());
             config.Settings.StrictParsing = true;
+            config.SetInterceptor(new MissingValueInterceptor(filteredArgs));
             config.SetExceptionHandler((ex, _) =>
             {
                 CliErrorOutput.WriteException(ex);

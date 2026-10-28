@@ -35,8 +35,8 @@ screenshot(action: 'capture', workbook_session_id: sessionId, sheet_name: 'Sales
 ```
 
 ```cli
-excelcli -q chart create-from-range --session $sessionId --sheet Sales --source-range-address A1:D20 --chart-type ColumnClustered --target-range F2:K15
-excelcli -q screenshot capture --session $sessionId --sheet Sales --range A1:M25 --quality High --output screenshot.png
+excelcli -q chart create-from-range --session $sessionId --sheet-name Sales --source-range-address A1:D20 --chart-type ColumnClustered --target-range F2:K15
+excelcli -q screenshot capture --session $sessionId --sheet-name Sales --range-address A1:M25 --quality High --output screenshot.png
 ```
 
 Check each result. Leave room between charts and check again after meaningful

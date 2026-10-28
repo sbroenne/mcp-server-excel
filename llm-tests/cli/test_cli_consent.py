@@ -36,8 +36,8 @@ async def test_cli_audit_preserves_existing_unsaved_session(
     workbook = consent_workbook
     session = workbook.cli("session", "open", str(workbook.path))["sessionId"]
     workbook.cli("calculationmode", "set-settings", "--session", session, "--mode", "manual")
-    workbook.cli("range", "set-values", "--session", session, "--sheet", "Sheet1",
-                 "--range", "B7", "--values", '[["Unsaved user note"]]')
+    workbook.cli("range", "set-values", "--session", session, "--sheet-name", "Sheet1",
+                 "--range-address", "B7", "--values", '[["Unsaved user note"]]')
     questions = []
     agent = record_questions(build_excel_cli_eval(
         "cli-audit-existing-session",
@@ -50,8 +50,8 @@ async def test_cli_audit_preserves_existing_unsaved_session(
     assert not questions
     sessions = workbook.cli("session", "list")["sessions"]
     assert len(sessions) == 1 and sessions[0]["sessionId"] == session, sessions
-    assert workbook.cli("range", "get-values", "--session", session, "--sheet", "Sheet1", "--range", "B7")["values"] == [["Unsaved user note"]]
-    assert workbook.cli("range", "get-formulas", "--session", session, "--sheet", "Sheet1", "--range", "C5")["formulas"] == [["=SUM(C2:C3)"]]
+    assert workbook.cli("range", "get-values", "--session", session, "--sheet-name", "Sheet1", "--range-address", "B7")["values"] == [["Unsaved user note"]]
+    assert workbook.cli("range", "get-formulas", "--session", session, "--sheet-name", "Sheet1", "--range-address", "C5")["formulas"] == [["=SUM(C2:C3)"]]
     assert workbook.cli("calculationmode", "get-settings", "--session", session)["mode"] == "manual"
     assert workbook.cli("window", "get-info", "--session", session)["isVisible"] is False
     assert workbook.cli("workbook", "get-info", "--session", session)["saved"] is False

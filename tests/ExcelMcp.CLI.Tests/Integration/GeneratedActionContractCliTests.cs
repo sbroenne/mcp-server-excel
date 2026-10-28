@@ -140,15 +140,15 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "timeout",
         "2147483")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2 --chart-type 999",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2 --chart-type 999",
         "chartType",
         "999")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2 --chart-type 51",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2 --chart-type 51",
         "chartType",
         "51")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2",
         "chartType",
         "required")]
     public async Task DirectCommand_RejectsInvalidGeneratedContractBeforeDaemonDispatch(

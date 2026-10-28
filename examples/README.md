@@ -20,9 +20,9 @@ Run these commands from PowerShell on Windows:
 $session = (excelcli session create test-session.xlsx | ConvertFrom-Json).sessionId
 
 # 2. Perform multiple operations against the same Excel instance
-excelcli sheet create --session $session --sheet Sales
-excelcli sheet create --session $session --sheet Customers
-excelcli sheet create --session $session --sheet Products
+excelcli sheet create --session $session --sheet-name Sales
+excelcli sheet create --session $session --sheet-name Customers
+excelcli sheet create --session $session --sheet-name Products
 excelcli sheet list --session $session
 excelcli powerquery list --session $session
 

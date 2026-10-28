@@ -40,16 +40,16 @@ class SkillValuePreparation(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     check_snapshot("financial-formatting", task.before, task.before)
                 task.session = task.cli("session", "open", str(task.path))["sessionId"]
-                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "A1:C1",
+                task.command("rangeformat", "format", "--sheet-name", "Sheet1", "--range-addresses", "A1:C1",
                              "--format-options", '{"bold":true}')
-                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "B2:C4",
+                task.command("rangeformat", "format", "--sheet-name", "Sheet1", "--range-addresses", "B2:C4",
                              "--format-options", '{"fontColor":"#0000FF"}')
-                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "B5:C5",
+                task.command("rangeformat", "format", "--sheet-name", "Sheet1", "--range-addresses", "B5:C5",
                              "--format-options", '{"fontColor":"#000000"}')
-                task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2:B5",
+                task.command("range", "set-number-format", "--sheet-name", "Sheet1", "--range-address", "B2:B5",
                              "--format-code", '$#,##0.00;($#,##0.00);"-"')
-                task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "C2:C5", "--format-code", "0.0%")
-                task.command("rangeformat", "auto-fit-columns", "--sheet", "Sheet1", "--range", "A:C")
+                task.command("range", "set-number-format", "--sheet-name", "Sheet1", "--range-address", "C2:C5", "--format-code", "0.0%")
+                task.command("rangeformat", "auto-fit-columns", "--sheet-name", "Sheet1", "--range-address", "A:C")
                 task.command("session", "close", "--save")
                 task.session = None
                 after = read_saved_workbook(str(task.path), task.source_range, include_presentation=True)
@@ -79,7 +79,7 @@ class SkillValuePreparation(unittest.TestCase):
                         task.session = task.cli("session", "open", str(task.path))["sessionId"]
                         task.command("calculationmode", "set-settings", "--mode", "manual")
                         task.values("Sheet1", "B7", [["Unsaved user note"]])
-                        values = task.command("range", "get-values", "--sheet", "Sheet1", "--range", "A1:C8")
+                        values = task.command("range", "get-values", "--sheet-name", "Sheet1", "--range-address", "A1:C8")
                         call = ToolCall(
                             "excel_execute", {"args": "range get-values"},
                             result=json.dumps({"exit_code": 0, "stdout": json.dumps(values)}),
@@ -103,12 +103,12 @@ class SkillValuePreparation(unittest.TestCase):
                     if name == "control":
                         task.values("Sheet1", "A1:C4", [["Month", "Revenue", "Expenses"],
                                                        ["January", 135, 82], ["February", 210, 119], ["March", 178, 96]])
-                        task.command("table", "create", "--sheet", "Sheet1", "--range", "A1:C4", "--table-name", "SalesReport")
-                        task.command("range", "set-formulas", "--sheet", "Sheet1", "--range", "B6:C6",
+                        task.command("table", "create", "--sheet-name", "Sheet1", "--range-address", "A1:C4", "--table-name", "SalesReport")
+                        task.command("range", "set-formulas", "--sheet-name", "Sheet1", "--range-address", "B6:C6",
                                      "--formulas", '[["=SUM(B2:B4)","=SUM(C2:C4)"]]')
-                        task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2:C4",
+                        task.command("range", "set-number-format", "--sheet-name", "Sheet1", "--range-address", "B2:C4",
                                      "--format-code", "0.00")
-                        task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B6:C6",
+                        task.command("range", "set-number-format", "--sheet-name", "Sheet1", "--range-address", "B6:C6",
                                      "--format-code", "0.00")
                     elif name == "bulk-update":
                         task.values("Sheet1", "B2:B61", [[100 + i * 2] for i in range(1, 61)])

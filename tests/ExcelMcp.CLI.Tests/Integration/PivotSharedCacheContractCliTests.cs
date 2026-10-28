@@ -21,7 +21,7 @@ public sealed class PivotSharedCacheContractCliTests
         string response = $$"""{"success":true,"changed":{{(changed ? "true" : "false")}},"previousCacheIndex":{{(changed ? 3 : 2)}},"cacheIndex":2,"targetCacheIndex":2,"sharedPivotTables":[{"sheetName":"Overview","pivotTableName":"First"},{"sheetName":"Summary","pivotTableName":"Second"}],"previousCacheUsers":[]}""";
         ServiceRequest? captured = null;
         var result = await InProcessCliHelper.RunAsync(
-            ["pivottable", "share-cache", "--session", "session-1", "--sheet", "Summary",
+            ["pivottable", "share-cache", "--session", "session-1", "--sheet-name", "Summary",
                 "--pivot-table-name", "Second", "--share-cache-with", "First", "--share-cache-with-sheet", "Overview"],
             request =>
             {
@@ -45,13 +45,13 @@ public sealed class PivotSharedCacheContractCliTests
     }
 
     [Theory]
-    [InlineData("--sheet")]
+    [InlineData("--sheet-name")]
     [InlineData("--pivot-table-name")]
     [InlineData("--share-cache-with")]
     [InlineData("--share-cache-with-sheet")]
     public async Task ShareExistingCache_MissingRequiredInputDoesNotDispatch(string missing)
     {
-        string[] options = ["--sheet", "Summary", "--pivot-table-name", "Second",
+        string[] options = ["--sheet-name", "Summary", "--pivot-table-name", "Second",
             "--share-cache-with", "First", "--share-cache-with-sheet", "Overview"];
         var args = new List<string> { "pivottable", "share-cache", "--session", "session-1" };
         for (int i = 0; i < options.Length; i += 2)

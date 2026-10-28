@@ -684,6 +684,31 @@ public sealed class InProcessCliCommandTests
         }
     }
 
+    [Fact]
+    public async Task ServiceStop_NoService_ReturnsWithoutWaitingForConnectTimeout()
+    {
+        var previousPipe = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE");
+        var output = new StringWriter();
+        var factory = new RecordingClientFactory();
+        try
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_CLI_PIPE", $"excelmcp-stop-{Guid.NewGuid():N}");
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var exitCode = await Program.RunAsync(
+                ["--quiet", "service", "stop"], CreateRuntime(factory, output, new StringWriter()));
+            stopwatch.Stop();
+
+            Assert.Equal(0, exitCode);
+            using var result = JsonDocument.Parse(output.ToString());
+            Assert.Equal("Service not running.", result.RootElement.GetProperty("data").GetProperty("message").GetString());
+            Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_CLI_PIPE", previousPipe);
+        }
+    }
+
     public static IEnumerable<object[]> GeneratedCommandNames =>
         _CliCategoryMetadata.ValidActionsByCommand.Keys
             .Order(StringComparer.Ordinal)
@@ -1104,8 +1129,8 @@ public sealed class InProcessCliCommandTests
     [InlineData("session", "attach", "--workbook-id")]
     [InlineData("session", "close", "--save")]
     [InlineData("service", null, "stop")]
-    [InlineData("range", null, "--sheet")]
-    [InlineData("range", null, "--range")]
+    [InlineData("range", null, "--sheet-name")]
+    [InlineData("range", null, "--range-address")]
     [InlineData("range", null, "--values")]
     public async Task CommandHelp_ExposesLifecycleCommandsAndNativeOptionsWithoutConnecting(
         string command, string? branch, string option)

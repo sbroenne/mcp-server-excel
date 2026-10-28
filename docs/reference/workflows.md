@@ -30,8 +30,8 @@ excelcli.exe range set-values --help
 
 Batch help includes runnable PowerShell examples, input fields, session rules,
 and result checks. Action-specific help maps its CLI flags to the exact
-batch argument names. In particular, `--sheet` maps to `sheetName`, and `--range`
-maps to `rangeAddress`; the short CLI aliases are not accepted as batch keys.
+batch argument names. For example, `--sheet-name` maps to `sheetName`, and
+`--range-address` maps to `rangeAddress`.
 The entry's `sessionId` stays outside `args`. Arrays and objects are supplied
 directly as JSON values, not strings containing JSON.
 
