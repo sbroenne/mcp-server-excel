@@ -98,13 +98,15 @@ internal sealed class Program
             && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
         {
             string? pipeNameOverride = null;
-            for (int i = 2; i < filteredArgs.Length - 1; i++)
+            for (int i = 2; i < filteredArgs.Length; i++)
             {
-                if (string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
-                {
-                    pipeNameOverride = filteredArgs[i + 1];
-                    break;
-                }
+                if (!string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
+                    return CliErrorOutput.WriteError($"Unexpected argument '{filteredArgs[i]}' for service run. Only --pipe-name <name> is supported.");
+                if (i + 1 == filteredArgs.Length ||
+                    (filteredArgs[i + 1].StartsWith('-') && filteredArgs[i + 1] != "-"))
+                    return CliErrorOutput.WriteError("--pipe-name requires a name for service run.");
+                pipeNameOverride ??= filteredArgs[i + 1];
+                i++;
             }
             CliTelemetry.StartDaemonReporting();
             var daemonRunner = CliCommandRuntime.Current.ServiceDaemonRunner ?? RunServiceDaemon;
