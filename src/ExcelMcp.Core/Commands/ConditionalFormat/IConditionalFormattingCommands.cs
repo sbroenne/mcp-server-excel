@@ -75,8 +75,6 @@ public interface IConditionalFormattingCommands
 
     /// <summary>
     /// Adds a conditional formatting rule to a range.
-    /// Excel COM: Range.FormatConditions.Add / AddColorScale / AddDatabar /
-    /// AddIconSetCondition / AddTop10 / AddAboveAverage / AddUniqueValues.
     ///
     /// Basic rules (cellValue, expression) use operatorType/formula1/formula2 plus the
     /// interior/font/border format parameters. Visual rules use their own dedicated
@@ -194,7 +192,6 @@ public interface IConditionalFormattingCommands
 
     /// <summary>
     /// Removes all conditional formatting from range
-    /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Target worksheet name (empty for active sheet)</param>
@@ -208,7 +205,6 @@ public interface IConditionalFormattingCommands
 
     /// <summary>
     /// Lists existing conditional formatting rules for a range.
-    /// Excel COM: Range.FormatConditions enumeration.
     /// Returns rule type, operator, formulas, applies-to range, priority, and formatting
     /// (interior/font/borders). Colors are returned as #RRGGBB hex strings. Rules are returned
     /// in priority order. Visual rule types also return their type-specific configuration:
@@ -228,7 +224,6 @@ public interface IConditionalFormattingCommands
 
     /// <summary>
     /// Lists all conditional formatting rules on an entire worksheet.
-    /// Excel COM: Worksheet.Cells.FormatConditions enumeration.
     /// Each rule includes its applies-to range so rules can be grouped by range. Colors are
     /// returned as #RRGGBB hex strings and rules are returned in priority order.
     /// </summary>

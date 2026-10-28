@@ -361,6 +361,8 @@ public static class ServiceInfoExtractor
             doc.LoadXml($"<root>{xmlComment}</root>");
 
             var summary = doc.SelectSingleNode("//summary")?.InnerText?.Trim();
+            if (summary is not null)
+                summary = Regex.Replace(summary, @"\s+", " ");
             var parameters = new Dictionary<string, string>();
 
             var paramNodes = doc.SelectNodes("//param");

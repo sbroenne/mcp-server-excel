@@ -38,15 +38,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Write values and formulas, set number formats, copy ranges, and clear content or formatting. set-formulas accepts reference_style='a1' (default) or 'r1c1'; range addresses stay A1. Relative R1C1 references use each destination cell. " +
-        "copy: Required paste_kind (all/values/formulas/formats/validation); transpose and skip_blanks default false. Formats/validation preserve content and need no overwrite permission. Formats include number formats, protection, and applicable conditional rules. All kinds require unmerged rectangular sources/destinations and a single-cell anchor or dimensions that are whole multiples of the source's paste dimensions, including transpose. Uses Excel's clipboard and clears owned copy mode on exit. " +
-        "OVERWRITE POLICY: set-values, set-formulas, and content-writing copy kinds default to overwrite_policy='reject-nonempty'. Existing values, whitespace, errors, and formulas displaying blank are occupied. Copy checks exclude skipped source blanks. Conflicts or failed inspection stop before writing; errors list at most 10 conflicting addresses. Use overwrite_policy='allow' when the user's request authorizes replacement, without redundant confirmation. Never automatically retry a rejected write with allow. Checks cover direct destinations, including expanded copy targets, not future spills, rollback, or interactive Excel edits. " +
-        "CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort/fill/auto-fill/create-series. Use range_format for styling/validation. Use range_link for hyperlinks/protection. " +
-        "Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Verify the mode when subsequent work depends on it; manual mode needs explicit calculation. Use calculation_mode for recalculation. " +
-        "EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. " +
-        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. In set-values, strings starting with '=' are written as formulas and every other cell keeps its value; prefix text with an apostrophe (\"'=\") when it must stay text. " +
-        "MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. " +
-        "FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. Use clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Write values and formulas, set number formats, copy ranges, and clear content or formatting. " +
+        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. In set-values, strings starting with '=' are written as formulas and strict ISO dates such as '2025-01-15' become Excel dates; prefix an apostrophe to keep either as text. set-formulas accepts reference_style='a1' (default) or 'r1c1'; range addresses stay A1, and relative R1C1 references use each destination cell. FILE INPUT: values_file/formulas_file (.json or .csv) replace inline values/formulas; prefer them for large data. NAMED RANGES: sheet_name='' and range_address=name. " +
+        "OVERWRITE POLICY: set-values, set-formulas, and content-writing copy kinds default to overwrite_policy='reject-nonempty'. Values, whitespace, errors, and formulas displaying blank count as occupied. Conflicts or failed inspection stop before writing; errors list at most 10 conflicting addresses. Checks cover direct destinations, not future spills. Use overwrite_policy='allow' when the user's request authorizes replacement, without redundant confirmation. Never automatically retry a rejected write with allow. " +
+        "COPY: Required paste_kind (all/values/formulas/formats/validation); transpose and skip_blanks default false. Formats/validation preserve content and need no overwrite permission; formats include number formats, protection, and applicable conditional rules. Copy checks exclude skipped source blanks. Source and destination must be unmerged rectangles; the destination is one anchor cell or a whole multiple of the (transposed) source size. Uses Excel's clipboard. " +
+        "MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell. " +
+        "CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents keeps formatting; clear-formats keeps content. " +
+        "Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Verify the mode when later work depends on it; manual mode needs calculation_mode calculate. " +
+        "To create an Excel Table use table create, not range. Use range_edit for insert/delete/find/sort/fill, range_format for styling/validation, and range_link for hyperlinks/protection.")]
 [McpReadOnlyActions("get-values", "get-formulas", "get-spill-info", "validate-formulas", "get-number-formats",
     "get-used-range", "get-current-region", "get-info", "get-special-cells", "trace-precedents", "trace-dependents")]
 public interface IRangeCommands
@@ -202,7 +201,6 @@ public interface IRangeCommands
     /// <summary>
     /// Clears all content (values, formulas, formats) from range.
     /// No tool-level undo. Check the intended target before clearing.
-    /// Excel COM: Range.Clear()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -213,7 +211,6 @@ public interface IRangeCommands
     /// <summary>
     /// Clears only values and formulas (preserves formatting).
     /// No tool-level undo. Check the intended target before clearing.
-    /// Excel COM: Range.ClearContents()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -224,7 +221,6 @@ public interface IRangeCommands
     /// <summary>
     /// Clears only formatting (preserves values and formulas).
     /// No tool-level undo. Check the intended target before clearing.
-    /// Excel COM: Range.ClearFormats()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -262,7 +258,6 @@ public interface IRangeCommands
 
     /// <summary>
     /// Gets number format codes from range (2D array matching range dimensions).
-    /// Excel COM: Range.NumberFormat
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -273,7 +268,6 @@ public interface IRangeCommands
 
     /// <summary>
     /// Sets uniform number format for entire range.
-    /// Excel COM: Range.NumberFormat = formatCode
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -285,7 +279,6 @@ public interface IRangeCommands
     /// <summary>
     /// Sets number formats cell-by-cell from 2D array or file.
     /// Provide EITHER formats (inline JSON 2D array) OR formatsFile (path to .json file), not both.
-    /// Excel COM: Range.NumberFormat (per cell)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -299,7 +292,6 @@ public interface IRangeCommands
 
     /// <summary>
     /// Gets the used range (all non-empty cells) from worksheet.
-    /// Excel COM: Worksheet.UsedRange
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -308,7 +300,6 @@ public interface IRangeCommands
 
     /// <summary>
     /// Gets the current region (contiguous data block) around a cell.
-    /// Excel COM: Range.CurrentRegion
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -318,7 +309,6 @@ public interface IRangeCommands
 
     /// <summary>
     /// Gets range information (address, dimensions, number formats).
-    /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>

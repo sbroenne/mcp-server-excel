@@ -201,7 +201,6 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Executes a DAX EVALUATE query against the Data Model and returns the results.
-    /// Uses ADOConnection.Execute for direct DAX query execution via MSOLAP provider.
     /// The query should start with EVALUATE and return a table result.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
@@ -214,7 +213,6 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Executes a DMV (Dynamic Management View) query against the Data Model and returns the results.
-    /// Uses ADOConnection.Execute for SQL-like DMV query execution via MSOLAP provider.
     /// DMV queries retrieve metadata about the Data Model (tables, columns, measures, relationships, etc.).
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
