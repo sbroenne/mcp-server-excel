@@ -37,7 +37,7 @@ internal static class BatchHelp
 
             Results and failures:
               stdout has one JSON result per executed or rejected entry.
-              Invalid JSON or missing command fields produce a JSON error on stderr.
+              Invalid JSON or missing command fields produce a JSON error on stdout.
               Match each result to its input using the zero-based index.
               Check every success flag, the expected result count, and $LASTEXITCODE:
               0 means all succeeded; 1 means an error occurred.

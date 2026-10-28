@@ -13,7 +13,7 @@ public sealed class WorkbookLocationTests
     [InlineData("https://contoso.sharepoint.com/sites/Test/Shared Documents/Test $1.xlsx?web=1")]
     [InlineData("https://CONTOSO.sharepoint.com/sites/Test/Shared%20Documents/Test%20%241.xlsx?web=0")]
     [InlineData("https://contoso.sharepoint.com:443/sites/Test/Shared%20Documents/Test%20$1.xlsx")]
-    public void Normalize_EquivalentUrls_HaveOneSessionIdentity(string input)
+    public void Normalize_EquivalentUrls_HaveOneReportedLocation(string input)
     {
         const string expected = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test%20%241.xlsx";
         Assert.Equal(expected, WorkbookLocation.Normalize(input));
@@ -51,6 +51,45 @@ public sealed class WorkbookLocationTests
 
         Assert.Equal("https://d.docs.live.net/123/Documents/Test%20File.xlsx",
             WorkbookLocation.Normalize(input));
+    }
+
+    [Fact]
+    public void OwnershipKeys_DistinguishQueriesWithoutExposingTheirValues()
+    {
+        const string endpoint = "https://example.com/export.xlsx";
+        const string first = endpoint + "?report=one&token=test-first";
+        const string second = endpoint + "?report=two&token=test-second";
+        var firstKey = WorkbookLocation.GetOwnershipKey(first);
+        var secondKey = WorkbookLocation.GetOwnershipKey(second);
+
+        Assert.NotEqual(firstKey, secondKey);
+        Assert.NotEqual(WorkbookLocation.GetOwnershipKey(endpoint), firstKey);
+        Assert.Equal(firstKey, WorkbookLocation.GetOwnershipKey(first + "#worksheet"));
+        Assert.Equal(endpoint, WorkbookLocation.Normalize(firstKey));
+        Assert.Equal(endpoint, WorkbookLocation.Normalize(secondKey));
+        Assert.DoesNotContain("test-first", firstKey);
+        Assert.DoesNotContain("report=", firstKey);
+        Assert.DoesNotContain("test-second", secondKey);
+    }
+
+    [Fact]
+    public void OwnershipKeys_LocalAliasesAndFileUrls_UseOneCanonicalPath()
+    {
+        const string path = @"C:\Books\Test File.xlsx";
+        Assert.Equal(path, WorkbookLocation.GetOwnershipKey(@"C:\Books\.\Test File.xlsx"));
+        Assert.Equal(path, WorkbookLocation.GetOwnershipKey("file:///C:/Books/Test%20File.xlsx"));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Books\Test.xlsx", @"C:\Books\Test.xlsx")]
+    [InlineData("https://example.com/export.xlsx?report=one&token=test-first", "https://example.com/export.xlsx")]
+    [InlineData("https://example.com/export.xlsx?report=two&token=test-second", "https://example.com/export.xlsx")]
+    public void OwnershipKeys_CanFindTheSessionAtItsReportedLocation(string openingLocation, string reportedLocation)
+    {
+        var key = WorkbookLocation.GetOwnershipKey(openingLocation);
+        Assert.True(WorkbookLocation.MatchesReportedLocation(key, reportedLocation));
+        Assert.False(WorkbookLocation.MatchesReportedLocation(key, reportedLocation + ".other"));
+        Assert.False(WorkbookLocation.MatchesReportedLocation(key, null));
     }
 
     [Theory]

@@ -104,7 +104,8 @@ public static class ExcelSession
             throw new ArgumentException("At least one file path is required", nameof(filePaths));
 
         if (!deferStartup && TemporaryBatchOwner.Value is { } owner)
-            return owner(filePaths, show, operationTimeout, startupTimeout);
+            return owner(filePaths.Select(path => WorkbookLocation.IsRemote(path)
+                ? path : WorkbookLocation.Normalize(path)).ToArray(), show, operationTimeout, startupTimeout);
 
         // Create batch - it will create Excel/workbook on its own STA thread
         var batch = new ExcelBatch(

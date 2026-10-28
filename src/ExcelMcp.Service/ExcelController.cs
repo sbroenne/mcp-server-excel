@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
@@ -129,7 +130,7 @@ internal sealed class ExcelController : IDisposable
                     var path = arguments.RootElement.TryGetProperty(operand, out var value) ? value.GetString() : null;
                     if (string.IsNullOrWhiteSpace(path))
                         return ExcelWorkerHost.Failure(request, "InvalidInput", $"{operand} is required");
-                    var normalized = FilePathValidation.NormalizeWorkbookLocation(path);
+                    var normalized = WorkbookLocation.GetOwnershipKey(path);
                     if (reservedPaths.Contains(normalized, StringComparer.OrdinalIgnoreCase))
                         continue;
                     if (!_paths.TryAdd(normalized, reservation))
@@ -150,12 +151,20 @@ internal sealed class ExcelController : IDisposable
                 worker = selectedWorkbook.Worker;
                 if (selectedWorkbook.Workbook.Location is { } location)
                 {
-                    if (!_paths.TryGetValue(location, out var existing)
-                        || existing.SessionId is null || existing.SessionId != selectedWorkbook.Workbook.SessionId)
+                    var keys = selectedWorkbook.Workbook.SessionId is { } selectedSession
+                        && worker.Snapshot is { } snapshot
+                        ? RecordedPaths(snapshot, selectedSession).Where(key =>
+                            WorkbookLocation.MatchesReportedLocation(key, location)).ToArray()
+                        : [WorkbookLocation.GetOwnershipKey(location)];
+                    foreach (var key in keys)
                     {
-                        if (!_paths.TryAdd(location, reservation))
-                            return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is reserved by another session or pending request.");
-                        reservedPaths.Add(location);
+                        if (!_paths.TryGetValue(key, out var existing)
+                            || existing.SessionId is null || existing.SessionId != selectedWorkbook.Workbook.SessionId)
+                        {
+                            if (!_paths.TryAdd(key, reservation))
+                                return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is reserved by another session or pending request.");
+                            reservedPaths.Add(key);
+                        }
                     }
                 }
             }
@@ -349,15 +358,8 @@ internal sealed class ExcelController : IDisposable
         || JsonNode.Parse(snapshot.SessionList.Result!)!["sessions"]!.AsArray()
             .Any(session => session?["operationPending"]?.GetValue<bool>() == true);
 
-    private static HashSet<string> RecordedPaths(WorkerSnapshot snapshot, string sessionId)
-    {
-        using var list = JsonDocument.Parse(snapshot.SessionList.Result!);
-        var session = list.RootElement.GetProperty("sessions").EnumerateArray()
-            .Single(entry => entry.GetProperty("sessionId").GetString() == sessionId);
-        return session.GetProperty("filePaths").EnumerateArray()
-            .Select(path => path.GetString()!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    }
+    private static HashSet<string> RecordedPaths(WorkerSnapshot snapshot, string sessionId) =>
+        snapshot.OwnershipKeys[sessionId].ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     internal async Task<ExcelWorkerClient> StartWorkerAsync(ExcelProcessIdentity? excel, CancellationToken cancellationToken)
     {
@@ -450,7 +452,8 @@ internal sealed class ExcelController : IDisposable
                         {
                             foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker
                                 && entry.Value.Workbook.SessionId == session.SessionId
-                                && !currentPaths.Contains(entry.Value.Workbook.Location ?? string.Empty)))
+                                && !currentPaths.Any(key => WorkbookLocation.MatchesReportedLocation(key,
+                                    entry.Value.Workbook.Location))))
                                 _selections[selection.Key] = (worker, selection.Value.Workbook with { Location = path });
                             foreach (var old in _paths.Where(entry => entry.Value.Token == "recorded"
                                 && entry.Value.SessionId == session.SessionId

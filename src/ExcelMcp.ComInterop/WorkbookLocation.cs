@@ -1,12 +1,27 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
-/// Normalizes workbook identities without treating remote locations as disk paths.
+/// Separates reported workbook locations from private, query-sensitive ownership keys.
 /// </summary>
 internal static class WorkbookLocation
 {
     internal static bool IsRemote(string location) =>
         Uri.TryCreate(location, UriKind.Absolute, out var uri) && !uri.IsFile;
+
+    internal static string GetOwnershipKey(string location)
+    {
+        var normalized = Normalize(location);
+        if (!IsRemote(location) || new Uri(location).Query is not { Length: > 0 } query)
+            return normalized;
+
+        return normalized + "#" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(query)));
+    }
+
+    internal static bool MatchesReportedLocation(string ownershipKey, string? location) =>
+        string.Equals(Normalize(ownershipKey), location, StringComparison.OrdinalIgnoreCase);
 
     internal static string Normalize(string location)
     {

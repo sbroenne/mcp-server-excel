@@ -34,7 +34,8 @@ internal sealed class ExcelWorkerHost : IDisposable
     {
         _service = service ?? new ExcelMcpService();
         _registration = registration;
-        _snapshot = new(registration, [], EmptySessionList(), null, null);
+        _snapshot = new(registration, [], EmptySessionList(), null, null,
+            new Dictionary<string, IReadOnlyList<string>>());
         _server = new DaemonHost(registration.PipeName, pipe =>
             new JsonRpc(pipe, pipe.ReadSlice(DaemonHost.MaximumConnectionInputBytes),
                 new Target(this, WorkerPipeIdentity.GetClient(pipe.SafePipeHandle)))
@@ -185,7 +186,9 @@ internal sealed class ExcelWorkerHost : IDisposable
                 }
                 lock (_stateLock)
                 {
-                    _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand);
+                    _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand,
+                        OwnershipKeys: sessions.ToDictionary(session => session.SessionId,
+                            session => _service.SessionManager.GetOwnedFilePathKeys(session.SessionId)));
                     _statusError = null;
                 }
                 return;

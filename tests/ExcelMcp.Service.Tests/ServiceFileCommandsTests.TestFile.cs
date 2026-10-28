@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -12,19 +13,26 @@ public sealed partial class ServiceFileCommandsTests
     [Theory]
     [InlineData("https://d.docs.live.net/123/Documents/Test.xlsx?download=1#sheet")]
     [InlineData("http://example.com:8080/Test.csv?download=1#sheet")]
+    [InlineData("https://example.com/export.xlsx?report=one&token=test-first")]
+    [InlineData("https://example.com/export.xlsx?report=two&token=test-second")]
     public async Task Open_RemoteLocation_ReachesExcelUnchangedWithoutRequiringVisibility(string location)
     {
         const string stoppedBeforeNetworkAccess = "Stopped at Excel opening boundary.";
         string? receivedLocation = null;
+        IReadOnlyList<string>? reportedPaths = null;
+        IReadOnlyList<string>? ownershipKeys = null;
         var previousHook = ExcelBatch.BeforeWorkbookOpenHook;
+        using var service = new ExcelMcpService();
         try
         {
             ExcelBatch.BeforeWorkbookOpenHook = (path, _) =>
             {
                 receivedLocation = path;
+                var session = Assert.Single(service.SessionManager.ActiveSessionIds);
+                reportedPaths = service.SessionManager.GetOwnedFilePaths(session);
+                ownershipKeys = service.SessionManager.GetOwnedFilePathKeys(session);
                 throw new InvalidOperationException(stoppedBeforeNetworkAccess);
             };
-            using var service = new ExcelMcpService();
             var response = await service.ProcessAsync(new ServiceRequest
             {
                 Command = "session.open",
@@ -32,6 +40,8 @@ public sealed partial class ServiceFileCommandsTests
             });
 
             Assert.Equal(location, receivedLocation);
+            Assert.Equal(WorkbookLocation.Normalize(location), Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<string>>(reportedPaths)));
+            Assert.Equal(WorkbookLocation.GetOwnershipKey(location), Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<string>>(ownershipKeys)));
             Assert.False(response.Success);
             Assert.Contains(stoppedBeforeNetworkAccess, response.ErrorMessage, StringComparison.Ordinal);
             Assert.Equal(0, service.SessionCount);

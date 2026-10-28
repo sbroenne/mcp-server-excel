@@ -757,7 +757,7 @@ public sealed class InProcessCliCommandTests
             Assert.Equal(index, result.RootElement.GetProperty("index").GetInt32());
             Assert.True(result.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal(index == 0 ? "pong" : "hello",
-                result.RootElement.GetProperty("result").GetProperty("message").GetString());
+                result.RootElement.GetProperty("data").GetProperty("message").GetString());
         }
         Assert.Contains("started", error.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("started", output.ToString(), StringComparison.Ordinal);
@@ -841,8 +841,8 @@ public sealed class InProcessCliCommandTests
         Assert.False(item.GetProperty("success").GetBoolean());
         Assert.Equal(0, item.GetProperty("index").GetInt32());
         Assert.Equal(command, item.GetProperty("command").GetString());
-        Assert.Equal(command.Replace('\t', ' '), item.GetProperty("commandSummary").GetString());
-        var message = item.GetProperty("errorMessage").GetString();
+        Assert.True(item.GetProperty("durationMs").GetInt64() >= 0);
+        var message = item.GetProperty("error").GetProperty("message").GetString();
         Assert.Contains(originalError, message, StringComparison.Ordinal);
         Assert.Contains(hint, message, StringComparison.Ordinal);
         Assert.Contains("batch --help", message, StringComparison.Ordinal);
@@ -852,7 +852,7 @@ public sealed class InProcessCliCommandTests
 
     [Theory]
     [InlineData("[]", "No commands provided")]
-    [InlineData("[", "Failed to read commands")]
+    [InlineData("[", "BytePositionInLine")]
     [InlineData("""{"args":{}}""", "missing the 'command' field")]
     [InlineData("""{"command":"diag.ping","unexpected":true}""", "unexpected")]
     public async Task BatchDiscovery_InputErrorsKeepDetailsAndPointToHelp(string input, string originalError)
@@ -865,12 +865,14 @@ public sealed class InProcessCliCommandTests
 
         Assert.Equal(1, exit);
         Assert.Equal(0, factory.ConnectionCount);
-        Assert.Empty(output.ToString());
-        using var result = JsonDocument.Parse(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
-        var message = result.RootElement.GetProperty("errorMessage").GetString();
+        var failure = result.RootElement.GetProperty("error");
+        var message = failure.GetProperty("message").GetString();
         Assert.Contains(originalError, message, StringComparison.Ordinal);
-        Assert.Contains("batch --help", message, StringComparison.Ordinal);
+        Assert.Contains("batch --help", message + error.ToString(), StringComparison.Ordinal);
+        if (input == "[" || input.Contains("unexpected", StringComparison.Ordinal))
+            Assert.Equal(nameof(JsonException), failure.GetProperty("exceptionType").GetString());
     }
 
     [Fact]
@@ -888,7 +890,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, factory.ConnectionCount);
         Assert.Empty(error.ToString());
         using var result = JsonDocument.Parse(output.ToString());
-        var message = result.RootElement.GetProperty("errorMessage").GetString();
+        var message = result.RootElement.GetProperty("error").GetProperty("message").GetString();
         Assert.Contains("Unknown or non-canonical", message, StringComparison.Ordinal);
         Assert.Contains("sheetName", message, StringComparison.Ordinal);
         Assert.Contains("rangeAddress", message, StringComparison.Ordinal);

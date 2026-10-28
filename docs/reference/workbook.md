@@ -69,6 +69,8 @@ AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
 edits automatically, even without an explicit save.
 For remote workbooks, reported locations exclude URL credentials, query
 parameters, and fragments; the original address is passed to Excel when opening.
+Addresses with different values after `?` are still tracked separately,
+so opening one does not prevent Excel from opening the other.
 This includes personal OneDrive workbooks: Excel may report their web address
 after opening them through a synced Windows path. Discovery keeps the existing
 session, and attachment can reconnect to a workbook already open in Excel.
