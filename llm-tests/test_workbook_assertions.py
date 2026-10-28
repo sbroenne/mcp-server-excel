@@ -104,7 +104,8 @@ class SavedWorkbookChecks(unittest.TestCase):
     def test_documented_batch_saves_only_a_complete_job(self):
         guide = self.exe.parents[5] / "docs" / "reference" / "workflows.md"
         content = guide.read_text(encoding="utf-8")
-        recipe = content.split("```cli\n", 1)[1].split("\n```", 1)[0]
+        batch_section = content.split("### Running a batch job\n", 1)[1].split("\n### ", 1)[0]
+        recipe = batch_section.split("```cli\n", 1)[1].split("\n```", 1)[0]
         environment = {**self.env, "PATH": f"{self.exe.parent}{os.pathsep}{self.env['PATH']}"}
         script = Path(self.directory.name) / "batch-example.ps1"
         script.write_text("param([string]$path)\n" + recipe, encoding="utf-8")

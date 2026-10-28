@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Window;
 public sealed class WindowContextResult : OperationResult
 {
     /// <summary>available or no-windows.</summary>
+    [ResultContext]
     public string Availability { get; set; } = string.Empty;
     /// <summary>Visibility of the session's Excel application.</summary>
     public bool IsApplicationVisible { get; set; }
@@ -25,6 +26,7 @@ public sealed class WorkbookWindowContext
     /// <summary>Native active sheet name where supported.</summary>
     public string? SheetName { get; set; }
     /// <summary>range, chart, shapes, unsupported, or unavailable.</summary>
+    [ResultContext]
     public string SelectionKind { get; set; } = string.Empty;
     /// <summary>Native address only when the actual selection is a range.</summary>
     public string? SelectedRangeAddress { get; set; }
@@ -33,5 +35,6 @@ public sealed class WorkbookWindowContext
     /// <summary>Native active chart name, if any.</summary>
     public string? ActiveChartName { get; set; }
     /// <summary>Why a native selection cannot be reported.</summary>
+    [ResultContext]
     public string? SelectionDiagnostic { get; set; }
 }

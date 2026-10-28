@@ -94,6 +94,42 @@ public sealed class ResultJsonTests
     }
 
     [Theory]
+    [InlineData("unavailable", "Native window selection is unavailable: Excel rejected the read (HRESULT 0x800A03EC).")]
+    [InlineData("unsupported", "The native selection does not expose a supported range/chart/shape interface.")]
+    [InlineData("range", null)]
+    [InlineData("chart", null)]
+    [InlineData("shapes", null)]
+    public void WindowSelection_KeepsSelectionKindAndNativeDiagnostic(string selectionKind, string? selectionDiagnostic)
+    {
+        const string command = "window.get-context";
+        var address = selectionKind == "range" ? "$A$1" : null;
+        var result = ResultJson.Read(JsonSerializer.Serialize(new
+        {
+            success = true,
+            availability = "available",
+            windows = new[] { new { selectionKind, selectionDiagnostic, selectedRangeAddress = address } }
+        }), command);
+        result.Select(command, ["windows.selectedRangeAddress"], ServiceRegistry.GetResultContract(command));
+        Assert.True(result.Success);
+        Assert.Equal("available", result.Data!["availability"]!.GetValue<string>());
+        var window = Assert.Single(result.Data["windows"]!.AsArray())!;
+        Assert.Equal(selectionKind, window["selectionKind"]!.GetValue<string>());
+        Assert.Equal(selectionDiagnostic, window["selectionDiagnostic"]?.GetValue<string>());
+        Assert.Equal(address, window["selectedRangeAddress"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public void WindowSelection_KeepsNoWindowsAvailability()
+    {
+        const string command = "window.get-context";
+        var result = ResultJson.Read("""{"success":true,"availability":"no-windows","windows":[]}""", command);
+        result.Select(command, ["windows.selectedRangeAddress"], ServiceRegistry.GetResultContract(command));
+        Assert.True(result.Success);
+        Assert.Equal("no-windows", result.Data!["availability"]!.GetValue<string>());
+        Assert.Empty(result.Data["windows"]!.AsArray());
+    }
+
+    [Theory]
     [InlineData("rangeedit.get-filters")]
     [InlineData("tablecolumn.get-filters")]
     public void FilterSelection_KeepsUnavailableCriterionAndNativeCause(string command)
