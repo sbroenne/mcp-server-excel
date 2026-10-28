@@ -4,19 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace Sbroenne.ExcelMcp.Core.Models;
 
-/// <summary>Marks result fields that must remain visible when selecting business data.</summary>
-[AttributeUsage(AttributeTargets.Property)]
-public sealed class ResultContextAttribute : Attribute;
-
 /// <summary>Marks nested operation results whose failures make the enclosing operation fail.</summary>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class ResultOutcomeAttribute : Attribute;
 
-/// <summary>Published result paths generated from an operation's source return type.</summary>
+/// <summary>Outcome information generated from an operation's source return type.</summary>
 public sealed record ResultContract(
     bool ReadOnly,
-    string[] Fields,
-    string[] ContextFields,
     string[] OutcomePaths);
 
 /// <summary>One interpreted operation outcome, independent of its delivery protocol.</summary>
@@ -124,6 +118,10 @@ public sealed class ResultJson
                 result.Data = null;
                 result.HasData = false;
             }
+            if (!failed && command.Equals("powerquery.list", StringComparison.OrdinalIgnoreCase) &&
+                root["queries"] is JsonArray queries)
+                foreach (var query in queries.OfType<JsonObject>())
+                    query.Remove("formulaPreview");
         }
         return result;
     }
@@ -140,65 +138,6 @@ public sealed class ResultJson
         failure.Warnings = Warnings?.DeepClone();
         failure.PartialState ??= PartialState?.DeepClone();
         return failure;
-    }
-
-    /// <summary>Parses CLI field paths without silently accepting empty selections.</summary>
-    public static string[]? ParseFields(string? fields) =>
-        fields is null ? null : fields.Split(',').Select(field => field.Trim()).ToArray();
-
-    /// <summary>Reads the optional field array from batch or Service arguments.</summary>
-    public static string[]? ReadFields(string? argsJson)
-    {
-        if (string.IsNullOrWhiteSpace(argsJson))
-            return null;
-        using var args = JsonDocument.Parse(argsJson);
-        if (args.RootElement.ValueKind != JsonValueKind.Object)
-            throw new ArgumentException("Command args must be a JSON object.");
-        if (!args.RootElement.TryGetProperty("fields", out var fields))
-            return null;
-        if (fields.ValueKind != JsonValueKind.Array ||
-            fields.EnumerateArray().Any(field => field.ValueKind != JsonValueKind.String))
-            throw new ArgumentException("fields must be a non-empty array of result field paths.");
-        return fields.EnumerateArray().Select(field => field.GetString()!).ToArray();
-    }
-
-    /// <summary>Adds selection to existing arguments without changing their business values.</summary>
-    public static object? WithFields(object? args, string[]? fields)
-    {
-        if (fields is null)
-            return args;
-        var node = args is null ? new JsonObject() : JsonSerializer.SerializeToNode(args, Options)!.AsObject();
-        node["fields"] = JsonSerializer.SerializeToNode(fields, Options);
-        return node;
-    }
-
-    /// <summary>Rejects unsupported fields using contracts, including for empty results.</summary>
-    public static void ValidateFields(string command, string[]? fields, ResultContract? contract)
-    {
-        if (fields is null)
-            return;
-        if (contract is not { ReadOnly: true })
-            throw new ArgumentException($"fields is only supported for list and read operations, not '{command}'.");
-        var invalid = fields.Where(field => !contract.Fields.Contains(field, StringComparer.Ordinal)).ToArray();
-        if (fields.Length == 0 || invalid.Length != 0)
-            throw new ArgumentException(
-                $"Invalid result fields for '{command}': {string.Join(", ", invalid)}. " +
-                $"Accepted fields: {string.Join(", ", contract.Fields)}.");
-    }
-
-    /// <summary>Selects business fields without filtering diagnostics, rows, or array positions.</summary>
-    public void Select(string command, string[]? fields, ResultContract? contract)
-    {
-        if (!Success)
-            return;
-        ValidateFields(command, fields, contract);
-        if (Data is null)
-            return;
-        if (fields is not null && contract!.Fields is not ["result"])
-            Data = Project(Data, "", fields.Concat(contract!.ContextFields).ToArray());
-        else if (command == "powerquery.list" && Data is JsonObject root && root["queries"] is JsonArray queries)
-            foreach (var query in queries.OfType<JsonObject>())
-                query.Remove("formulaPreview");
     }
 
     /// <summary>Returns the business payload in MCP's existing object form.</summary>
@@ -246,29 +185,6 @@ public sealed class ResultJson
         if (PartialState is not null)
             root["partialState"] = PartialState.DeepClone();
         return root.ToJsonString(Options);
-    }
-
-    private static JsonNode? Project(JsonNode? node, string path, string[] fields)
-    {
-        if (node is JsonArray array)
-        {
-            var result = new JsonArray();
-            foreach (var item in array)
-                result.Add(Project(item, path, fields));
-            return result;
-        }
-        if (node is not JsonObject obj)
-            return node?.DeepClone();
-        var selected = new JsonObject();
-        foreach (var property in obj)
-        {
-            var childPath = path.Length == 0 ? property.Key : path + "." + property.Key;
-            if (fields.Any(field => childPath == field || childPath.StartsWith(field + ".", StringComparison.Ordinal)))
-                selected[property.Key] = property.Value?.DeepClone();
-            else if (fields.Any(field => field.StartsWith(childPath + ".", StringComparison.Ordinal)))
-                selected[property.Key] = Project(property.Value, childPath, fields);
-        }
-        return selected;
     }
 
     private static IEnumerable<JsonNode?> EnumerateAt(JsonNode? node, string[] path, int offset = 0)

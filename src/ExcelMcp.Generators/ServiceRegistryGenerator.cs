@@ -130,13 +130,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (compilation.GetTypeByMetadataName(typeName) is { } type)
                 Emit(command, type, true);
         sb.AppendLine("""
-                   ["service.status"] = new(true,
-                       ["daemonState", "running", "processId", "sessionCount", "startTime", "uptime", "retainedExcelProcessCount", "retainedExcelProcesses", "recoveryMessage", "retainedExcelError"],
-                       ["daemonState", "running", "retainedExcelProcesses", "retainedExcelError", "recoveryMessage"], []),
+                   ["service.status"] = new(true, []),
             """);
         sb.AppendLine("""
                 };
-                /// <summary>Source-derived published result fields for an operation.</summary>
+                /// <summary>Source-derived outcome information for an operation.</summary>
                 public static Sbroenne.ExcelMcp.Core.Models.ResultContract? GetResultContract(string command) =>
                     ResultContracts.TryGetValue(command, out var contract) ? contract : null;
             """);
@@ -154,18 +152,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         void Emit(string command, ITypeSymbol type, bool readOnly)
         {
-            var fields = new List<string>();
-            var context = new List<string>();
             var outcomes = new List<string>();
             Visit(type, "", new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default));
-            if (fields.Count == 0 && readOnly)
-                fields.Add("result");
-            if (command == "session.discover")
-            {
-                context.Add("errors");
-                context.Add("complete");
-            }
-            sb.AppendLine($"        [\"{command}\"] = new({readOnly.ToString().ToLowerInvariant()}, {BuildStringArrayExpression(fields)}, {BuildStringArrayExpression(context)}, {BuildStringArrayExpression(outcomes)}),");
+            sb.AppendLine($"        [\"{command}\"] = new({readOnly.ToString().ToLowerInvariant()}, {BuildStringArrayExpression(outcomes)}),");
 
             void Visit(ITypeSymbol current, string prefix, HashSet<ITypeSymbol> ancestors)
             {
@@ -205,18 +194,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                         var ignore = property.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass?.Name == "JsonIgnoreAttribute");
                         if (ignore is not null && ignore.NamedArguments.Length == 0)
                             continue;
-                        if (prefix.Length == 0 && (property.Name is "Success" or "IsError" or "ErrorMessage" or "Warning" or "Warnings" or "PartialState" ||
-                            property.Name == "FilePath" && !command.StartsWith("session.", StringComparison.Ordinal) &&
-                            command != "chart.export-image"))
-                            continue;
                         var alias = property.GetAttributes().FirstOrDefault(attribute => attribute.AttributeClass?.Name == "JsonPropertyNameAttribute");
                         var name = alias?.ConstructorArguments[0].Value as string ??
                             char.ToLowerInvariant(property.Name[0]) + property.Name.Substring(1);
                         var path = prefix.Length == 0 ? name : prefix + "." + name;
-                        if (!fields.Contains(path))
-                            fields.Add(path);
-                        if (property.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "ResultContextAttribute"))
-                            context.Add(path);
                         if (property.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "ResultOutcomeAttribute"))
                             outcomes.Add(path);
                         Visit(property.Type, path, ancestors);
@@ -584,11 +565,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var serviceParameters = GetActionParameterNames(method, includeFileParameters: false);
             var routeParameters = GetActionParameterNames(method, includeFileParameters: true);
-            if (method.McpToolReadOnly)
-            {
-                serviceParameters.Add("fields");
-                routeParameters.Add("fields");
-            }
             if (serviceParameters.SequenceEqual(routeParameters, StringComparer.Ordinal))
             {
                 sb.AppendLine($"                \"{method.ActionName}\" => {BuildStringArrayExpression(serviceParameters)},");
@@ -650,7 +626,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         sb.AppendLine("            var rawPropertyNames = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true);");
         sb.AppendLine(
-            $"            var canonicalPropertyNames = new System.Collections.Generic.HashSet<string>({BuildStringArrayExpression(allExposedParams.Select(parameter => parameter.Name).Append("fields").ToList())}, System.StringComparer.Ordinal);");
+            $"            var canonicalPropertyNames = new System.Collections.Generic.HashSet<string>({BuildStringArrayExpression(allExposedParams.Select(parameter => parameter.Name).ToList())}, System.StringComparer.Ordinal);");
         sb.AppendLine("            var invalidPropertyNames = rawPropertyNames");
         sb.AppendLine("                .Where(parameter => !canonicalPropertyNames.Contains(parameter))");
         sb.AppendLine("                .Distinct(System.StringComparer.Ordinal)");
@@ -662,7 +638,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("                    $\"Unknown or non-canonical parameter(s): {string.Join(\", \", invalidPropertyNames)}. Parameter names are case-sensitive. {DescribeValidParameters(action, allowFileParameters: true)}\");");
         sb.AppendLine("            }");
         sb.AppendLine("            ValidateActionParameters(action, rawPropertyNames, allowFileParameters: true);");
-        sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Models.ResultJson.ValidateFields(Category + \".\" + action, Sbroenne.ExcelMcp.Core.Models.ResultJson.ReadFields(argsJson), ServiceRegistry.GetResultContract(Category + \".\" + action));");
         var validatedMethods = info.Methods
             .Where(method => method.Parameters.Count > 0)
             .ToList();
@@ -967,9 +942,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        /// </summary>");
         sb.AppendLine("        public sealed class CliSettings : Spectre.Console.Cli.CommandSettings");
         sb.AppendLine("        {");
-        sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"--fields <FIELDS>\")]");
-        sb.AppendLine("            [System.ComponentModel.Description(\"Comma-separated result field paths for list/read actions. Errors, warnings and read boundaries are always retained.\")]");
-        sb.AppendLine("            public string? Fields { get; init; }");
 
         // Action argument (always first)
         sb.AppendLine("            [Spectre.Console.Cli.CommandArgument(0, \"<ACTION>\")]");
@@ -1464,8 +1436,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                         return $"(\"{StringHelper.ToSnakeCase(parameter.Name)}\", {required.ToString().ToLowerInvariant()}, {(original?.AllowsEmptyString == true).ToString().ToLowerInvariant()}, {alternative})";
                     }).ToList();
                 parameters.Insert(0, "(\"action\", true, false, null)");
-                if (method.McpToolReadOnly)
-                    parameters.Add("(\"fields\", false, false, null)");
                 if (!category.NoSession && method.HasBatchParameter)
                     parameters.Insert(1, "(\"workbook_session_id\", true, false, null)");
                 var toolName = method.McpTool;
@@ -1476,11 +1446,18 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    /// <summary>Validates a generated service command before transport dispatch.</summary>");
+        sb.AppendLine("    /// <summary>Validates a service command before transport dispatch.</summary>");
         sb.AppendLine("    public static void ValidateCommandArguments(string command, string? argsJson)");
         sb.AppendLine("    {");
         sb.AppendLine("        var parts = command.Split('.', 2);");
-        sb.AppendLine("        if (parts[0] is \"session\" or \"service\") return;");
+        sb.AppendLine("        if (parts[0] == \"session\") return;");
+        sb.AppendLine("        if (parts[0] == \"service\")");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var parameters = GetJsonPropertyNames(argsJson, includeNullValues: true);");
+        sb.AppendLine("            if (parameters.Count > 0)");
+        sb.AppendLine("                throw new System.ArgumentException($\"Unknown parameter(s) for {command}: {string.Join(\", \", parameters)}. Valid parameters: none.\");");
+        sb.AppendLine("            return;");
+        sb.AppendLine("        }");
         sb.AppendLine("        if (!ValidActionsByCategory.TryGetValue(parts[0], out var validActions))");
         sb.AppendLine("        {");
         sb.AppendLine("            var validGroups = string.Join(\", \", System.Linq.Enumerable.Order(System.Linq.Enumerable.Concat(ValidActionsByCategory.Keys, new[] { \"session\", \"service\" }), System.StringComparer.Ordinal));");
@@ -1608,8 +1585,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             foreach (var method in cat.Methods)
             {
                 var parameters = GetActionParameterNames(method, includeFileParameters: true);
-                if (method.McpToolReadOnly)
-                    parameters.Add("fields");
                 sb.AppendLine($"            [\"{method.ActionName}\"] = {BuildStringArrayExpression(parameters)},");
             }
             sb.AppendLine("        },");

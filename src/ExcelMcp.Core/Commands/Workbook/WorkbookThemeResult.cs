@@ -6,7 +6,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 public sealed class WorkbookThemeResult : OperationResult
 {
     /// <summary>Excel COM does not expose the applied theme's file/name or scheme names.</summary>
-    [ResultContext]
     public string ReadLimitations { get; set; } = "Excel COM does not expose the applied theme file/name or scheme names; returned colors and fonts are native definitions.";
     /// <summary>Every native theme color, indices 1 through 12.</summary>
     public List<WorkbookThemeColor> Colors { get; set; } = [];

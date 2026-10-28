@@ -12,7 +12,7 @@ internal sealed class SessionNoticesCommand : AsyncCommand<SessionNoticesCommand
     public override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken) =>
         SessionSecurityCommand.SendAsync("notices", settings.SessionId, null, cancellationToken);
 
-    internal sealed class Settings : ReadSelectionSettings
+    internal sealed class Settings : CommandSettings
     {
         [CommandOption("-s|--session <SESSION>")]
         [Description("Exact workbook session to inspect without enabling content")]

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -95,7 +94,6 @@ public static partial class ExcelFileTool
     /// <param name="file_path">Full Windows path or URL. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled.</param>
-    /// <param name="fields">Result field paths. Errors, restrictions and incomplete-result information are always retained.</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
         Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
     [McpMeta("category", "session")]
@@ -106,14 +104,12 @@ public static partial class ExcelFileTool
         [McpActionParameter("test", Required = true), DefaultValue(null)] string? file_path,
         [McpActionParameter("test"), DefaultValue(120)] int timeout_seconds = 120,
         [McpActionParameter("notices", Required = true), DefaultValue(null)] string? workbook_session_id = null,
-        CancellationToken cancellationToken = default,
-        [McpActionParameter("list"), McpActionParameter("test"), McpActionParameter("discover"), McpActionParameter("notices")]
-        [DefaultValue(null)] string[]? fields = null) =>
-        ExecuteFileReadAsync(action, bridge, file_path, timeout_seconds, workbook_session_id, cancellationToken, fields);
+        CancellationToken cancellationToken = default) =>
+        ExecuteFileReadAsync(action, bridge, file_path, timeout_seconds, workbook_session_id, cancellationToken);
 
-    private static async Task<CallToolResult> ExecuteFileReadAsync(
+    private static Task<CallToolResult> ExecuteFileReadAsync(
         FileReadAction action, ServiceBridge.ServiceBridge bridge, string? filePath,
-        int timeoutSeconds, string? sessionId, CancellationToken cancellationToken, string[]? fields)
+        int timeoutSeconds, string? sessionId, CancellationToken cancellationToken)
     {
         var fileAction = action switch
         {
@@ -123,12 +119,10 @@ public static partial class ExcelFileTool
             FileReadAction.Notices => FileAction.Notices,
             _ => throw new ArgumentOutOfRangeException(nameof(action))
         };
-        var command = "session." + fileAction.ToActionString();
-        var result = await ExecuteFileToolActionAsync(
+        return ExecuteFileToolActionAsync(
             "file_read",
             fileAction, bridge, filePath, sessionId, save: false, show: false,
-            timeout_seconds: timeoutSeconds, cancellationToken: cancellationToken, fields: fields);
-        return ExcelToolsBase.SelectToolResult(result, command, fields);
+            timeout_seconds: timeoutSeconds, cancellationToken: cancellationToken);
     }
 
     private static Task<CallToolResult> ExecuteFileToolActionAsync(
@@ -144,12 +138,9 @@ public static partial class ExcelFileTool
         string? open_workbook_id = null,
         bool approved = false,
         bool allow_remembered_trust = false,
-        bool allow_reopen = false,
-        string[]? fields = null) =>
+        bool allow_reopen = false) =>
         ExcelToolsBase.ExecuteToolActionAsync(toolName, action.ToActionString(), async () =>
         {
-            ResultJson.ValidateFields("session." + action.ToActionString(), fields,
-                ServiceRegistry.GetResultContract("session." + action.ToActionString()));
             if (timeout_seconds is < 10 or > 3600)
                 throw new ArgumentException("timeout_seconds must be between 10 and 3600 seconds.");
 

@@ -60,11 +60,6 @@ internal static class ActionHelp
                 batchMappings.Add((option, parameterName));
         }
         output.AppendLine(CultureInfo.InvariantCulture, $"  {"-h|--help",-42} Show this action-specific help.");
-        if (ServiceRegistry.GetResultContract(arguments[0] + "." + arguments[1]) is { ReadOnly: true } resultContract)
-        {
-            AppendResultFields(output, resultContract);
-        }
-
         var actionName = actions.Keys.Single(action =>
             string.Equals(action, arguments[1], StringComparison.OrdinalIgnoreCase));
         var batchCommand = $"{category.CliCommandName}.{actionName}";
@@ -91,24 +86,5 @@ internal static class ActionHelp
 
         CliCommandRuntime.Current.Output.Write(output.ToString());
         return true;
-    }
-
-    internal static void WriteManualResultFields(string[] arguments)
-    {
-        if (arguments.Length < 3 || arguments[0] is not ("session" or "service") ||
-            !arguments.Any(argument => argument is "--help" or "-h") ||
-            ServiceRegistry.GetResultContract(arguments[0] + "." + arguments[1]) is not { ReadOnly: true } contract)
-            return;
-        var output = new StringBuilder();
-        AppendResultFields(output, contract);
-        CliCommandRuntime.Current.Output.Write(output.ToString());
-    }
-
-    private static void AppendResultFields(StringBuilder output, Sbroenne.ExcelMcp.Core.Models.ResultContract contract)
-    {
-        output.AppendLine();
-        output.AppendLine("Result fields for --fields (comma-separated):");
-        output.AppendLine(string.Join(", ", contract.Fields));
-        output.AppendLine("Warnings, errors, and inspection boundaries remain visible.");
     }
 }

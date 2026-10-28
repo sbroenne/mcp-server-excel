@@ -1,6 +1,4 @@
 using System.Reflection;
-using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -93,15 +91,6 @@ internal sealed class Program
         {
             return 0;
         }
-        try
-        {
-            filteredArgs = ExtractManualFields(filteredArgs);
-        }
-        catch (ArgumentException ex)
-        {
-            return CliErrorOutput.WriteException(ex, "InvalidInput");
-        }
-
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
         // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
         if (filteredArgs.Length >= 2
@@ -109,13 +98,15 @@ internal sealed class Program
             && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
         {
             string? pipeNameOverride = null;
-            for (int i = 2; i < filteredArgs.Length - 1; i++)
+            for (int i = 2; i < filteredArgs.Length; i++)
             {
-                if (string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
-                {
-                    pipeNameOverride = filteredArgs[i + 1];
-                    break;
-                }
+                if (!string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
+                    return CliErrorOutput.WriteError($"Unexpected argument '{filteredArgs[i]}' for service run. Only --pipe-name <name> is supported.");
+                if (i + 1 == filteredArgs.Length ||
+                    (filteredArgs[i + 1].StartsWith('-') && filteredArgs[i + 1] != "-"))
+                    return CliErrorOutput.WriteError("--pipe-name requires a name for service run.");
+                pipeNameOverride ??= filteredArgs[i + 1];
+                i++;
             }
             CliTelemetry.StartDaemonReporting();
             var daemonRunner = CliCommandRuntime.Current.ServiceDaemonRunner ?? RunServiceDaemon;
@@ -200,7 +191,6 @@ internal sealed class Program
                     filteredArgs,
                     () => app.RunAsync(filteredArgs),
                     telemetryObserver));
-            ActionHelp.WriteManualResultFields(filteredArgs);
             if (exitCode == 0 &&
                 string.Equals(filteredArgs[0], "batch", StringComparison.OrdinalIgnoreCase) &&
                 filteredArgs.Any(argument => argument is "--help" or "-h"))
@@ -248,33 +238,6 @@ internal sealed class Program
         }
 
         return [.. normalized];
-    }
-
-    private static string[] ExtractManualFields(string[] args)
-    {
-        CliCommandRuntime.Current.ResultFields = null;
-        if (args.Length < 2 || args[0] is not ("session" or "service"))
-            return args;
-        var result = new List<string>();
-        for (var index = 0; index < args.Length; index++)
-        {
-            var argument = args[index];
-            if (argument == "--fields" || argument.StartsWith("--fields=", StringComparison.Ordinal))
-            {
-                if (CliCommandRuntime.Current.ResultFields is not null)
-                    throw new ArgumentException("Supply --fields only once.");
-                var fields = argument == "--fields"
-                    ? ++index < args.Length ? args[index] : throw new ArgumentException("--fields requires result field paths.")
-                    : argument["--fields=".Length..];
-                CliCommandRuntime.Current.ResultFields = ResultJson.ParseFields(fields);
-                ResultJson.ValidateFields(CliCommandRuntime.Current.CommandName,
-                    CliCommandRuntime.Current.ResultFields,
-                    ServiceRegistry.GetResultContract(CliCommandRuntime.Current.CommandName));
-            }
-            else
-                result.Add(argument);
-        }
-        return [.. result];
     }
 
     private static void RenderHeader()

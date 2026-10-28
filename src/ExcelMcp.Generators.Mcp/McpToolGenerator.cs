@@ -339,8 +339,6 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         // DI-injected progress parameter (no [Description] — resolved from RequestServiceProvider)
-        if (info.Methods.Any(method => method.McpToolReadOnly))
-            sb.AppendLine("        [Description(\"Result field paths for this read, such as queries.name. Errors, warnings and read boundaries are always retained.\")] string[]? fields = null,");
         if (hasProgress)
         {
             sb.AppendLine("        IProgress<ProgressNotificationValue> progress = default!,");
@@ -587,10 +585,7 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         var routeCallbackComma = mcpParams.Count > 0 ? "," : string.Empty;
-        var selection = info.Methods.Any(method => method.McpToolReadOnly) ? ", fields" : "";
-        if (HasImageResult(info))
-            selection += ", [\"imageBase64\", \"mimeType\"]";
-        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken{selection}){routeCallbackComma}");
+        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken){routeCallbackComma}");
 
         // Named arguments to RouteAction
         for (int i = 0; i < mcpParams.Count; i++)

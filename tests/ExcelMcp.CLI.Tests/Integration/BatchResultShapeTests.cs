@@ -14,12 +14,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 public sealed class BatchResultShapeTests
 {
     [Fact]
-    public async Task Batch_SessionListSelection_PassesActualSessionValidation()
+    public async Task Batch_SessionList_KeepsActualSessionResult()
     {
         using var service = new ExcelMcpService();
         var result = await InProcessCliHelper.RunAsync(["batch"],
             request => service.ProcessAsync(request).GetAwaiter().GetResult(),
-            """{"command":"session.list","args":{"fields":["sessions.workbookName"]}}""");
+            """{"command":"session.list"}""");
 
         Assert.Equal(0, result.ExitCode);
         using var output = JsonDocument.Parse(result.Stdout);
@@ -28,11 +28,11 @@ public sealed class BatchResultShapeTests
     }
 
     [Theory]
-    [InlineData("session.list", """{"fields":["sessions.workbookName"]}""", """{"sessions":[]}""")]
-    [InlineData("session.discover", """{"fields":["workbooks.name"]}""", """{"workbooks":[]}""")]
-    [InlineData("session.notices", """{"fields":["notices.protectedView"]}""", """{"notices":{"protectedView":false}}""")]
-    [InlineData("session.test", """{"filePath":"C:\\synthetic\\book.xlsx","fields":["extension"]}""", """{"canOpen":true,"extension":".xlsx"}""")]
-    public async Task Batch_ManualReadSelection_RemainsAdapterLocal(string command, string args, string response)
+    [InlineData("session.list", "{}", """{"sessions":[]}""")]
+    [InlineData("session.discover", "{}", """{"workbooks":[]}""")]
+    [InlineData("session.notices", "{}", """{"notices":{"protectedView":false}}""")]
+    [InlineData("session.test", """{"filePath":"C:\\synthetic\\book.xlsx"}""", """{"canOpen":true,"extension":".xlsx"}""")]
+    public async Task Batch_ManualRead_KeepsArgumentsAndCompleteData(string command, string args, string response)
     {
         var calls = 0;
         var result = await InProcessCliHelper.RunAsync(["batch", "--session", "target"],
@@ -40,7 +40,8 @@ public sealed class BatchResultShapeTests
             {
                 calls++;
                 using var sent = JsonDocument.Parse(request.Args!);
-                Assert.False(sent.RootElement.TryGetProperty("fields", out _));
+                using var expected = JsonDocument.Parse(args);
+                Assert.True(JsonElement.DeepEquals(expected.RootElement, sent.RootElement));
                 return new ServiceResponse { Success = true, Result = response };
             },
             JsonSerializer.Serialize(new { command, args = JsonSerializer.Deserialize<JsonElement>(args) }));
@@ -48,6 +49,74 @@ public sealed class BatchResultShapeTests
         Assert.Equal(0, result.ExitCode);
         using var output = JsonDocument.Parse(result.Stdout);
         Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        using var expectedData = JsonDocument.Parse(response);
+        Assert.True(JsonElement.DeepEquals(expectedData.RootElement, output.RootElement.GetProperty("data")));
+    }
+
+    [Theory]
+    [InlineData("powerquery.list")]
+    [InlineData("session.list")]
+    [InlineData("session.discover")]
+    [InlineData("session.notices")]
+    [InlineData("session.test")]
+    public async Task Batch_RemovedFieldsUseNormalInvalidArgumentHandling(string command)
+    {
+        using var service = new ExcelMcpService();
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            request => service.ProcessAsync(request).GetAwaiter().GetResult(),
+            $$$"""{"command":"{{{command}}}","args":{"fields":["name"]}}""");
+        Assert.Equal(1, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.False(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", output.RootElement.GetProperty("error").GetProperty("category").GetString());
+        Assert.Contains("fields", output.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("service.status", """{"fields":["running"]}""")]
+    [InlineData("service.shutdown", """{"fields":["running"]}""")]
+    [InlineData("service.ping", """{"fields":["running"]}""")]
+    [InlineData("service.status", """{"fields":null}""")]
+    [InlineData("service.shutdown", """{"fields":null}""")]
+    [InlineData("service.ping", """{"fields":null}""")]
+    public async Task Batch_ServiceArguments_AreRejectedWithoutConnecting(string command, string args)
+    {
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            input: $$$"""{"command":"{{{command}}}","args":{{{args}}}}""");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Empty(result.Stderr);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(command, output.RootElement.GetProperty("command").GetString());
+        Assert.Equal(0, output.RootElement.GetProperty("index").GetInt32());
+        Assert.False(output.RootElement.GetProperty("success").GetBoolean());
+        var error = output.RootElement.GetProperty("error");
+        Assert.Equal("InvalidInput", error.GetProperty("category").GetString());
+        Assert.Contains("fields", error.GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("service.status")]
+    [InlineData("service.shutdown")]
+    [InlineData("service.ping")]
+    public async Task Batch_ServiceWithoutArguments_DispatchesNormally(string command)
+    {
+        var calls = 0;
+        var result = await InProcessCliHelper.RunAsync(["batch"],
+            request =>
+            {
+                calls++;
+                Assert.Equal(command, request.Command);
+                Assert.Equal("{}", request.Args);
+                return new ServiceResponse { Success = true, Result = """{"running":true}""" };
+            },
+            $$$"""{"command":"{{{command}}}","args":{}}""");
+
+        Assert.Equal(1, calls);
+        Assert.Equal(0, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(output.RootElement.GetProperty("data").GetProperty("running").GetBoolean());
     }
 
     [Fact]
