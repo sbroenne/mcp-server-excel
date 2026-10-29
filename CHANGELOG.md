@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.1] - 2026-10-29
+
+### Patch Changes
+
+- [#1267](https://github.com/sbroenne/mcp-server-excel/pull/1267) [`da38017`](https://github.com/sbroenne/mcp-server-excel/commit/da38017809ffb30514a55665470b09d3df289298) Thanks [@sbroenne](https://github.com/sbroenne)! - Stop the Excel MCP server from steadily adding threads and handles while idle. The server still shuts down when its client disconnects or exits unexpectedly.
+
 ## [2.6.0] - 2026-10-29
 
 ### Minor Changes
