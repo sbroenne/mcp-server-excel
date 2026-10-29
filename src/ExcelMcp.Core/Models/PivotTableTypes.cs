@@ -746,12 +746,12 @@ public class PivotTableDataResult : ResultBase
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
-    /// Column headers
+    /// Labels in the first report header row, excluding report filters and the row-label column when present.
     /// </summary>
     public List<string> ColumnHeaders { get; set; } = [];
 
     /// <summary>
-    /// Row headers
+    /// Labels in the first row-label column, excluding the header and grand-total row.
     /// </summary>
     public List<string> RowHeaders { get; set; } = [];
 
@@ -766,7 +766,7 @@ public class PivotTableDataResult : ResultBase
     public int DataColumnCount { get; set; }
 
     /// <summary>
-    /// Grand totals
+    /// Values from the displayed bottom grand-total row, keyed by data-column header.
     /// </summary>
     public Dictionary<string, object?> GrandTotals { get; set; } = [];
 }

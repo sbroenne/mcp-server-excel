@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Xunit;
 
@@ -8,6 +9,81 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServiceNamedRangeTests
 {
+    [Fact]
+    public void Create_InvalidFormula_DoesNotLeaveTemporaryName()
+    {
+        var batch = _fixture.BatchToken;
+        var name = CreateUniqueNamedRangeName();
+        var before = _parameterCommands.List(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+
+        Assert.Throws<InvalidOperationException>(() => _parameterCommands.Create(batch, name, "=("));
+
+        var after = _parameterCommands.List(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.Equal(before.NamedRanges.Select(item => item.Name), after.NamedRanges.Select(item => item.Name));
+        Assert.DoesNotContain(after.NamedRanges, item =>
+            item.Name.StartsWith("ExcelMcpTemp_", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CreateAndUpdate_FormulaReferences_UseInvariantSyntaxUnderGermanCulture()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("de-DE");
+
+            var batch = _fixture.BatchToken;
+            var sheetName = _fixture.CreateNamedTestSheet(batch, $"Formula names {Guid.NewGuid():N}"[..27]);
+            var tableName = $"FormulaTable_{Guid.NewGuid():N}";
+            var rateName = CreateUniqueNamedRangeName();
+            var totalName = CreateUniqueNamedRangeName();
+            Assert.True(_commands.SetValues(batch, sheetName, "A1:B3",
+                [["Item", "Total"], ["A", 3], ["B", 6.75]]).Success);
+            var table = _fixture.Send("table.create", new
+            {
+                sheetName,
+                tableName,
+                rangeAddress = "A1:B3",
+                hasHeaders = true
+            });
+            Assert.True(table.Success, table.ErrorMessage);
+            _fixture.RegisterTableForCleanup(tableName);
+
+            Assert.True(_parameterCommands.Create(batch, rateName, "=0.19").Success);
+            _fixture.RegisterNamedRangeForCleanup(rateName);
+            Assert.True(_commands.SetFormulas(batch, sheetName, "D1", [[$"={rateName}"]]).Success);
+            var rateValue = _commands.GetValues(batch, sheetName, "D1");
+            Assert.True(rateValue.Success, rateValue.ErrorMessage);
+            Assert.Equal(0.19, Convert.ToDouble(rateValue.Values[0][0], CultureInfo.InvariantCulture));
+
+            Assert.True(_parameterCommands.Create(batch, totalName, $"=SUM({tableName}[Total])").Success);
+            _fixture.RegisterNamedRangeForCleanup(totalName);
+            Assert.True(_commands.SetFormulas(batch, sheetName, "D2", [[$"={totalName}"]]).Success);
+            var totalValue = _commands.GetValues(batch, sheetName, "D2");
+            Assert.True(totalValue.Success, totalValue.ErrorMessage);
+            Assert.Equal(9.75, Convert.ToDouble(totalValue.Values[0][0], CultureInfo.InvariantCulture));
+
+            Assert.True(_parameterCommands.Update(batch, rateName, "=1.25").Success);
+            var updatedValue = _commands.GetValues(batch, sheetName, "D1");
+            Assert.True(updatedValue.Success, updatedValue.ErrorMessage);
+            Assert.Equal(1.25, Convert.ToDouble(updatedValue.Values[0][0], CultureInfo.InvariantCulture));
+
+            Assert.True(_parameterCommands.Update(batch, rateName, $"=\"[\"&'{sheetName}'!$B$2").Success);
+            var textValue = _commands.GetValues(batch, sheetName, "D1");
+            Assert.True(textValue.Success, textValue.ErrorMessage);
+            Assert.Equal("[3", textValue.Values[0][0]);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
     [Fact]
     public void ReadAndList_MatrixNamedRange_PreserveValuesAndDimensions()
     {

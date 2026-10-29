@@ -184,10 +184,9 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["action"] = "get-values",
             ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
-            ["range_address"] = "A1:B2",
-            ["fields"] = new List<string> { "values" }
+            ["range_address"] = "A1:B2"
         });
-        AssertSuccess(selected, "Field-selected cell read");
+        AssertSuccess(selected, "Cell read");
         using (var read = JsonDocument.Parse(selected))
         {
             var root = read.RootElement;
