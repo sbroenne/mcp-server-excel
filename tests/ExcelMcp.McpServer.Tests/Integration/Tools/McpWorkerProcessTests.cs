@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.Service.Workers;
@@ -65,6 +66,14 @@ public sealed class McpWorkerProcessTests
             Assert.Equal(registration.Worker, WorkerProcess.From(worker));
             Assert.Equal(0, NtSuspendProcess(worker.Handle));
             suspended = true;
+            var listed = await client.CallToolAsync("file_read", new Dictionary<string, object?>
+            {
+                ["action"] = "list"
+            }, cancellationToken: deadline.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(listed.IsError);
+            using (var sessions = JsonDocument.Parse(McpResponseAssertions.ReadText(listed)))
+                Assert.Empty(sessions.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.False(worker.HasExited);
             server.Kill();
             await server.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
             Assert.False(worker.HasExited);

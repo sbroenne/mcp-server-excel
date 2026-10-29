@@ -91,9 +91,21 @@ desktop is available; otherwise inspect bounds and state the visual limitation.
 
 ## Percentage data labels
 
+To remove all data labels from the selected series, explicitly set all five
+show options to false: `show_value`, `show_percentage`, `show_series_name`,
+`show_category_name`, and `show_bubble_size` in MCP; `--show-value`,
+`--show-percentage`, `--show-series-name`, `--show-category-name`, and
+`--show-bubble-size` in CLI. Batch JSON uses `showValue`, `showPercentage`,
+`showSeriesName`, `showCategoryName`, and `showBubbleSize`.
+This also succeeds when labels are already absent. Omit `series_index` /
+`--series-index` (batch `seriesIndex`), or use 0, to select all series.
+A positive index changes only that series. Omitted show options preserve their
+settings; disabling one component does not remove other enabled components.
+
 Percentage data labels are meaningful for pie and doughnut charts. Excel can reject
 the setting on other chart types; this is reported as an error, not a successful
-no-op. Label settings are applied in sequence, so earlier settings can already
+no-op. Removing all labels does not set percentage-label properties.
+Other label settings are applied in sequence, so earlier settings can already
 have changed when Excel rejects a later setting.
 
 ## Selected series, error bars and points

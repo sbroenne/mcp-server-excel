@@ -100,6 +100,40 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Execute_BusyFailure_PreservesPartialEditWithoutRepeatingCallback()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        var batch = Open();
+        var failure = Record.Exception(() =>
+        {
+            var executions = 0;
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                var marker = $"partial-edit-{attempt}";
+                var busy = Assert.IsType<COMException>(Marshal.GetExceptionForHR(ResiliencePipelines.DATA_MODEL_BUSY));
+                var reported = Assert.Throws<COMException>(() => batch.Execute<int>((context, _) =>
+                {
+                    executions++;
+                    WriteCell(context, marker);
+                    throw busy;
+                }));
+
+                Assert.Same(busy, reported);
+                Assert.Equal(attempt, executions);
+                Assert.True(batch.IsExcelProcessAlive());
+                Assert.False(batch.HasTimedOutOperation);
+                Assert.Equal("failed", batch.OperationStatus.State);
+                Assert.Equal(busy.Message, batch.OperationStatus.ErrorMessage);
+                Assert.False(batch.OperationStatus.ExecutionPending);
+                Assert.False(batch.OperationStatus.WaitExpired);
+                Assert.Equal(marker, batch.Execute((context, _) => ReadCell(context)));
+                Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            }
+        });
+        await FinishAsync(batch, owned, failure);
+    }
+
+    [Fact]
     public async Task Execute_QueuedWaitExpires_DoesNotExecuteOrInvalidateRunningWork()
     {
         using var owned = new OwnedExcelProcessScope();
@@ -208,9 +242,15 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
             item => item.ProcessId == batch.ExcelProcessId);
         var failure = Record.Exception(() =>
         {
+            using var automationProcess = Process.GetCurrentProcess();
+            var cpuBefore = automationProcess.TotalProcessorTime;
+            var elapsed = Stopwatch.StartNew();
             var timeout = Assert.Throws<TimeoutException>(() =>
                 batch.Execute((ctx, _) => ctx.App.InputBox(
                     "The test database is unavailable.", "SSAS connection test", Type: 2)));
+            var cpuUsed = automationProcess.TotalProcessorTime - cpuBefore;
+            Assert.True(cpuUsed.TotalMilliseconds / elapsed.Elapsed.TotalMilliseconds < 0.1,
+                $"Waiting for an Excel dialog used {cpuUsed.TotalSeconds:F2}s CPU over {elapsed.Elapsed.TotalSeconds:F2}s.");
             Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("Dialog text", timeout.Message, StringComparison.Ordinal);

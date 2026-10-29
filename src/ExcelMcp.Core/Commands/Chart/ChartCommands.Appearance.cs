@@ -425,6 +425,14 @@ public partial class ChartCommands
                 {
                     series = seriesCollection.Item(i);
 
+                    if (showValue == false && showPercentage == false && showSeriesName == false &&
+                        showCategoryName == false && showBubbleSize == false)
+                    {
+                        series.HasDataLabels = false;
+                        ComUtilities.Release(ref series);
+                        continue;
+                    }
+
                     // First enable data labels if any property is being set
                     if (showValue == true || showPercentage == true || showSeriesName == true ||
                         showCategoryName == true || showBubbleSize == true)
@@ -478,13 +486,6 @@ public partial class ChartCommands
                                 "Bar, column, and area charts support InsideEnd, InsideBase, and OutsideEnd. " +
                                 "Line, scatter, and other chart types support Above, Below, Left, Right, and Center.", ex);
                         }
-                    }
-
-                    // Disable data labels entirely if all show properties are false
-                    if (showValue == false && showPercentage == false && showSeriesName == false &&
-                        showCategoryName == false && showBubbleSize == false)
-                    {
-                        series.HasDataLabels = false;
                     }
 
                     ComUtilities.Release(ref dataLabels!);

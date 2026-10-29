@@ -1,5 +1,7 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -9,6 +11,92 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceChartFormattingTests
 {
     // === DATA LABELS ===
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void SetDataLabels_DisableStackedChartLabels_SucceedsWhenOtherSeriesHaveNoLabels(int? seriesIndex)
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetValues(batch, _sheetName, "D1:D4",
+            [["Series3"], [30], [40], [50]]));
+        var chart = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "A1:D4", ChartType.ColumnStacked));
+        RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName, showValue: true, seriesIndex: 2));
+        if (seriesIndex == 2)
+            RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName, showValue: true, seriesIndex: 1));
+        var first = ReadSeriesState(chart.ChartName, 1);
+        var third = ReadSeriesState(chart.ChartName, 3);
+        Assert.Equal(seriesIndex == 2, first.HasLabels);
+        Assert.True(ReadSeriesState(chart.ChartName, 2).ShowValue);
+        Assert.False(third.HasLabels);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName,
+                showValue: false, showPercentage: false, showSeriesName: false,
+                showCategoryName: false, showBubbleSize: false, seriesIndex: seriesIndex));
+
+            Assert.False(ReadSeriesState(chart.ChartName, 2).HasLabels);
+            Assert.Equal(first, ReadSeriesState(chart.ChartName, 1));
+            Assert.Equal(third, ReadSeriesState(chart.ChartName, 3));
+        }
+    }
+
+    [Fact]
+    public void SetDataLabels_DisableValue_PreservesOtherEnabledComponentsAndSeries()
+    {
+        var batch = _fixture.BatchToken;
+        var chart = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "A1:C4", ChartType.ColumnStacked));
+        RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName,
+            showValue: true, showCategoryName: true, seriesIndex: 2));
+        var first = ReadSeriesState(chart.ChartName, 1);
+
+        RequireSuccess(_chartCommands.SetDataLabels(
+            batch, chart.ChartName, showValue: false, seriesIndex: 2));
+
+        Assert.Equal(first, ReadSeriesState(chart.ChartName, 1));
+        InspectChart(chart.ChartName, native =>
+        {
+            Excel.SeriesCollection? collection = null;
+            Excel.Series? series = null;
+            Excel.DataLabels? labels = null;
+            try
+            {
+                collection = (Excel.SeriesCollection)native.SeriesCollection();
+                series = collection.Item(2);
+                Assert.True(series.HasDataLabels);
+                labels = (Excel.DataLabels)series.DataLabels();
+                Assert.False(labels.ShowValue);
+                Assert.True(labels.ShowCategoryName);
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref labels);
+                ComUtilities.Release(ref series);
+                ComUtilities.Release(ref collection);
+            }
+        });
+    }
+
+    [Fact]
+    public void SetDataLabels_DisableLastComponent_CanBeRepeatedWithoutRecreatingLabels()
+    {
+        var batch = _fixture.BatchToken;
+        var chart = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "A1:C4", ChartType.ColumnStacked));
+        RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName, showValue: true));
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            RequireSuccess(_chartCommands.SetDataLabels(batch, chart.ChartName, showValue: false));
+            Assert.False(ReadSeriesState(chart.ChartName, 1).HasLabels);
+            Assert.False(ReadSeriesState(chart.ChartName, 2).HasLabels);
+        }
+    }
 
     [Fact]
     [Trait("Feature", "Charts")]
