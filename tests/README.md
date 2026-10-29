@@ -421,7 +421,12 @@ tests except `AdapterTestKind=System`; `Process` contains the CLI system
 regressions; `Tooling` contains the selected skill-generation, packaging, and
 script-safety checks. Each Tooling project has its own filter, so a script-safety
 change cannot broaden a documentation-count or publication selection in another
-project. Runtime source changes select owning behavior and necessary boundaries,
+project. Skill sources, the shared report-formatting guide, and skill preparation
+also select plugin bootstrap tests, which check the assembled plugins and their
+published layout. Plugin validation checks current files, versions, launch
+settings, local links, and script behavior rather than a list of historical
+command names.
+Runtime source changes select owning behavior and necessary boundaries,
 but do not automatically select publication tests, metadata-only MCPB/plugins,
 or standalone skill ZIPs (which are no longer published).
 PR CI uses `PackageComponents` and `NpmTests` from the saved plan to run affected
