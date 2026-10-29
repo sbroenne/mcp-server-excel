@@ -81,7 +81,7 @@ public sealed class ValidationAreaTests
                 if ($plan.Excel -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count -or
                     $plan.ToolingFilters.ScriptSafety -notmatch 'IssueTriageScriptTests') { throw 'Wrong issue automation consumers.' }
             }
-            foreach ($entry in @(@('skills/excel-mcp-report-formatting/AGENTS.md','SkillGeneration'), @('.github/plugins/excel-cli/AGENTS.md','Packaging'))) {
+            foreach ($entry in @(@('skills/excel-mcp-report-formatting/AGENTS.md','Packaging,SkillGeneration'), @('.github/plugins/excel-cli/AGENTS.md','Packaging'))) {
                 $plan = Get-ValidationPlan -Paths $entry[0]
                 if (($plan.ToolingProjects -join ',') -cne $entry[1] -or $plan.Excel) { throw 'Copied template was treated as unrelated guidance.' }
             }

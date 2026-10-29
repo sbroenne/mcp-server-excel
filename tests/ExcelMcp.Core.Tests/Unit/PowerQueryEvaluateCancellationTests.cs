@@ -38,6 +38,8 @@ public sealed class PowerQueryEvaluateCancellationTests
         var exception = Assert.Throws<TimeoutException>(() =>
             commands.Evaluate(batch, "let Source = #table({\"Value\"}, {{1}}) in Source"));
 
+        var cause = Assert.IsType<OperationCanceledException>(exception.InnerException);
+        Assert.Equal(batch.CapturedToken, cause.CancellationToken);
         Assert.Contains("Power Query evaluate timed out", exception.Message);
     }
 
@@ -54,7 +56,7 @@ public sealed class PowerQueryEvaluateCancellationTests
 
         public int? ExcelProcessId => null;
 
-        public TimeSpan OperationTimeout => TimeSpan.FromMilliseconds(10);
+        public TimeSpan OperationTimeout => TimeSpan.FromMilliseconds(50);
 
         public bool IsExcelVisible => false;
 
@@ -83,9 +85,7 @@ public sealed class PowerQueryEvaluateCancellationTests
             if (CancelDuringExecution)
             {
                 Assert.True(
-                    SpinWait.SpinUntil(
-                        () => cancellationToken.IsCancellationRequested,
-                        TimeSpan.FromSeconds(1)),
+                    cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)),
                     "The evaluation operation token did not expire.");
                 throw new OperationCanceledException(cancellationToken);
             }
@@ -111,7 +111,7 @@ public sealed class PowerQueryEvaluateCancellationTests
     {
         using var batch = new CapturingBatch { CancelDuringExecution = true };
         var failure = Assert.Throws<TimeoutException>(() =>
-            ExcelBatchWait.Execute(batch, TimeSpan.FromMilliseconds(10), (_, _) => 1));
+            ExcelBatchWait.Execute(batch, batch.OperationTimeout, (_, _) => 1));
         var cause = Assert.IsType<OperationCanceledException>(failure.InnerException);
         Assert.Equal(batch.CapturedToken, cause.CancellationToken);
         Assert.Equal("Timeout", OperationFailureClassifier.Classify(failure));

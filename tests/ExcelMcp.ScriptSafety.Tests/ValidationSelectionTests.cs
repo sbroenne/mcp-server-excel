@@ -173,6 +173,26 @@ public sealed class ValidationSelectionTests
     }
 
     [Fact]
+    public async Task PackagedSkillInputs_SelectPluginBootstrapChecks()
+    {
+        var run = await RunCasesAsync(
+        [
+            ["skills/excel-cli/SKILL.md"],
+            ["skills/excel-cli-report-formatting/SKILL.md"],
+            ["skills/excel-mcp-report-formatting/SKILL.md"],
+            ["scripts/Build-AgentSkills.ps1"],
+            ["docs/reference/report-formatting.md"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
+            if ($plan.ToolingFilters.Packaging -cne 'Feature=PluginBootstrap') { throw 'Packaged skill inputs must select plugin bootstrap checks.' }
+            if ($plan.ToolingFilters.SkillGeneration -cne 'Feature=SkillGeneration') { throw 'Skill generation checks missing.' }
+            if (($plan.PackageComponents -join ',') -notmatch 'Plugins') { throw 'Plugin package checks missing.' }
+            if ($plan.FastProjects.Count -or $plan.ProcessProjects.Count -or $plan.Excel) { throw 'Unrelated runtime checks selected.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
     public async Task CaseMatrix_VisitsEveryRowInItsOwnScopeAndReportsTheFailingInput()
     {
         var success = await RunCasesAsync([["first", "1"], ["second'\\path", "2"]], """

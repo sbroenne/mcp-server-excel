@@ -34,8 +34,8 @@ public sealed class TestSelectionTests
     {
         var run = await ValidationSelectionTests.RunCasesAsync(
         [
-            ["scripts/Build-AgentSkills.ps1", "SkillGeneration"],
-            ["docs/reference/report-formatting.md", "SkillGeneration"],
+            ["scripts/Build-AgentSkills.ps1", "Packaging,SkillGeneration"],
+            ["docs/reference/report-formatting.md", "Packaging,SkillGeneration"],
             ["scripts/Build-Plugins.ps1", "Packaging"],
             ["scripts/Update-ReleaseVersionMetadata.ps1", "Packaging"],
             [".github/workflows/publish-mcp-registry.yml", "Packaging"],

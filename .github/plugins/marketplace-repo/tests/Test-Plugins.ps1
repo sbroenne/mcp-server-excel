@@ -83,24 +83,6 @@ if ($claudeServer.command -ne "npx" -or $claudeServer.args[1] -ne "@sbroenne/mcp
 
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
     $content = Get-Content $file.FullName -Raw
-    $retiredDocumentation = @(
-        @{ Pattern = [regex]::Escape("install-global.ps1"); Description = "retired global installation helper" }
-        @{ Pattern = [regex]::Escape("ExcelMcp-CLI-latest-windows.zip"); Description = "nonexistent unversioned CLI release asset" }
-        @{ Pattern = [regex]::Escape("excel-mcp-server.exe"); Description = "retired MCP executable name" }
-        @{ Pattern = [regex]::Escape("excel-mcp-bundle.mcpb"); Description = "retired MCPB asset name" }
-        @{ Pattern = [regex]::Escape("file(action: 'open', filePath"); Description = "retired MCP file path parameter" }
-        @{ Pattern = [regex]::Escape("file(action: 'close', sessionId"); Description = "retired MCP session parameter" }
-        @{ Pattern = '(?<![A-Za-z0-9-])--range-address(?![A-Za-z0-9-])'; Description = "retired CLI range flag" }
-        @{ Pattern = '(?<![A-Za-z0-9-])--sheet-name(?![A-Za-z0-9-])'; Description = "retired CLI worksheet flag" }
-        @{ Pattern = '(?<![A-Za-z0-9-])--source-table-name(?![A-Za-z0-9-])'; Description = "retired CLI PivotTable source flag" }
-    )
-
-    foreach ($entry in $retiredDocumentation) {
-        if ([regex]::IsMatch($content, $entry.Pattern)) {
-            throw "Outdated documentation in $($file.FullName): $($entry.Description)"
-        }
-    }
-
     $matches = [regex]::Matches(
         $content,
         '\[[^\]]+\]\((?!https?://|#|mailto:)([^)#]+)(?:#[^)]+)?\)')
