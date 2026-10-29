@@ -19,28 +19,70 @@ public partial class PivotTableCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.PivotTable? pivot = null;
+            Excel.PivotFields? rowFields = null;
             Excel.Range? tableRange = null;
+            Excel.Range? reportRange = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
+                rowFields = (Excel.PivotFields)pivot.RowFields;
                 tableRange = pivot.TableRange2;
+                reportRange = pivot.TableRange1;
 
                 var values = ExcelValueNormalizer.Normalize((object?)tableRange.Value2);
+                var report = ExcelValueNormalizer.Normalize((object?)reportRange.Value2);
+                var headerRow = report.Values.FirstOrDefault() ?? [];
+                bool hasRowFields = rowFields.Count > 0;
+                bool hasGrandTotalRow = hasRowFields && pivot.ColumnGrand && report.RowCount > 1;
+                int firstDataColumn = hasRowFields ? 1 : 0;
+                var columnHeaders = headerRow
+                    .Skip(firstDataColumn)
+                    .Select(value => value?.ToString() ?? string.Empty)
+                    .ToList();
+                int lastDataRow = report.RowCount;
+                if (hasGrandTotalRow)
+                    lastDataRow--;
+
+                var rowHeaders = hasRowFields
+                    ? report.Values
+                        .Skip(1)
+                        .Take(lastDataRow - 1)
+                        .Select(row => row.Count > 0 ? row[0]?.ToString() ?? string.Empty : string.Empty)
+                        .ToList()
+                    : [];
+                var grandTotals = new Dictionary<string, object?>(StringComparer.Ordinal);
+                if (hasGrandTotalRow)
+                {
+                    var totalRow = report.Values[^1];
+                    for (int columnIndex = firstDataColumn;
+                         columnIndex < headerRow.Count && columnIndex < totalRow.Count;
+                         columnIndex++)
+                    {
+                        var header = headerRow[columnIndex]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(header))
+                            grandTotals[header] = totalRow[columnIndex];
+                    }
+                }
 
                 return new PivotTableDataResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     Values = values.Values,
+                    ColumnHeaders = columnHeaders,
+                    RowHeaders = rowHeaders,
                     DataRowCount = values.RowCount,
                     DataColumnCount = values.ColumnCount,
+                    GrandTotals = grandTotals,
                     FilePath = batch.WorkbookPath
                 };
             }
             finally
             {
+                ComUtilities.Release(ref reportRange);
                 ComUtilities.Release(ref tableRange);
+                ComUtilities.Release(ref rowFields);
                 ComUtilities.Release(ref pivot);
             }
         });

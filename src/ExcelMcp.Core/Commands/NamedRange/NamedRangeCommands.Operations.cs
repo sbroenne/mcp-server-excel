@@ -15,6 +15,33 @@ public partial class NamedRangeCommands
 {
     private const long MaxListValuePreviewCellCount = 10_000;
 
+    private static string ToR1C1Formula(Excel.Application application, string formula)
+    {
+        Excel.Range? activeCell = null;
+        try
+        {
+            activeCell = (Excel.Range)application.ActiveCell;
+            object? converted = application.ConvertFormula(
+                formula,
+                Excel.XlReferenceStyle.xlA1,
+                Excel.XlReferenceStyle.xlR1C1,
+                Type.Missing,
+                activeCell);
+            if (converted is string convertedFormula)
+                return convertedFormula;
+
+            // Excel cannot convert structured table references, which already use the same syntax in R1C1.
+            if (formula.Contains('[') && !formula.Contains("]!", StringComparison.Ordinal))
+                return formula;
+
+            throw new InvalidOperationException("Excel could not convert the named formula to R1C1 notation.");
+        }
+        finally
+        {
+            ComUtilities.Release(ref activeCell);
+        }
+    }
+
     /// <inheritdoc />
     public NamedRangeListResult List(IExcelBatch batch)
     {
@@ -339,6 +366,8 @@ public partial class NamedRangeCommands
             Excel.Name? existing = null;
             Excel.Name? created = null;
             Excel.Names? namesCollection = null;
+            Exception? operationFailure = null;
+            bool temporaryNameRenamed = false;
             try
             {
                 // Check if parameter already exists
@@ -348,21 +377,35 @@ public partial class NamedRangeCommands
                     throw new InvalidOperationException($"Named range '{name}' already exists");
                 }
 
-                // Create new named range
                 namesCollection = ctx.Book.Names;
-                // Remove any existing = prefix to avoid double ==
-                string formattedReference = reference.TrimStart('=');
-                // Add exactly one = prefix (required by Excel COM API)
-                formattedReference = $"={formattedReference}";
-                created = namesCollection.Add(name, formattedReference);
+                string formula = $"={reference.TrimStart('=')}";
+                string r1c1Formula = ToR1C1Formula(ctx.App, formula);
+                string temporaryName = $"ExcelMcpTemp_{Guid.NewGuid():N}";
+                created = namesCollection.Add(temporaryName, "=0");
+                created.RefersToR1C1 = r1c1Formula;
+                created.Name = name;
+                temporaryNameRenamed = true;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
             finally
             {
-                ComUtilities.Release(ref created);
-                ComUtilities.Release(ref namesCollection);
-                ComUtilities.Release(ref existing);
+                try
+                {
+                    if (created is not null && !temporaryNameRenamed)
+                        OperationCleanup.Run(() => created.Delete(), operationFailure);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref created);
+                    ComUtilities.Release(ref namesCollection);
+                    ComUtilities.Release(ref existing);
+                }
             }
         });
     }
@@ -392,13 +435,8 @@ public partial class NamedRangeCommands
                     throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
-                // Remove any existing = prefix to avoid double ==
-                string formattedReference = reference.TrimStart('=');
-                // Add exactly one = prefix (required by Excel COM API)
-                formattedReference = $"={formattedReference}";
-
-                // Update the reference
-                nameObj.RefersTo = formattedReference;
+                string formula = $"={reference.TrimStart('=')}";
+                nameObj.RefersToR1C1 = ToR1C1Formula(ctx.App, formula);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }

@@ -245,6 +245,46 @@ public sealed partial class PersistentServicePivotTableTests
             .Select(row => row[0]?.ToString()).Where(value => value is "North" or "South"));
     }
 
+    [Theory]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, true)]
+    [Trait("Speed", "Medium")]
+    public void GetData_RowAndMeasureFields_ReturnsHeadersAndGrandTotals(
+        bool rowGrand, bool columnGrand, bool hasReportFilter)
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot"));
+        RequireSuccess(_pivotCommands.AddRowField(batch, "TestPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, "TestPivot", "Sales", AggregationFunction.Sum, "Total Sales"));
+        if (hasReportFilter)
+            RequireSuccess(_pivotCommands.AddFilterField(batch, "TestPivot", "Product"));
+        RequireSuccess(_pivotCommands.SetGrandTotals(batch, "TestPivot", rowGrand, columnGrand));
+        Assert.Equal((rowGrand, columnGrand), ReadGrandTotals(_salesSheetName, "TestPivot"));
+
+        var result = RequireSuccess(_pivotCommands.GetData(batch, "TestPivot"));
+
+        Assert.Equal(["Total Sales"], result.ColumnHeaders);
+        Assert.Equal(["North", "South"], result.RowHeaders);
+        if (columnGrand)
+        {
+            Assert.Equal(650, Convert.ToInt32(Assert.Single(result.GrandTotals).Value,
+                System.Globalization.CultureInfo.InvariantCulture));
+            Assert.True(result.GrandTotals.ContainsKey("Total Sales"));
+        }
+        else
+        {
+            Assert.Empty(result.GrandTotals);
+        }
+    }
+
     private void AssertPivotSales(int north, int south, string pivotName = "TestPivot")
     {
         var data = RequireSuccess(_pivotCommands.GetData(_fixture.BatchToken, pivotName));
