@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
@@ -89,6 +90,74 @@ public sealed class BatchCommandTests : IDisposable
     // ============================================
     // MULTIPLE COMMANDS - Sequential execution
     // ============================================
+
+    [Fact]
+    public async Task Batch_BlockedLaterCommand_AlreadyFlushedEarlierResultAndCurrentProgress()
+    {
+        using var output = new FlushRecordingWriter();
+        using var error = new FlushRecordingWriter();
+        var client = new DeferredBatchClient();
+        var runtime = new CliCommandRuntime(client,
+            new StringReader("""[{"command":"diag.ping"},{"command":"diag.echo","args":{"message":"later"}}]"""),
+            output, error, isOutputRedirected: true);
+        var execution = Program.RunAsync(["--quiet", "batch"], runtime);
+        try
+        {
+            await client.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(execution.IsCompleted);
+            Assert.Equal(1, output.Flushes);
+            Assert.Equal(2, error.Flushes);
+            using var first = JsonDocument.Parse(output.ToString());
+            Assert.True(first.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal(
+                $"Batch 1/2: diag.ping started.{Environment.NewLine}" +
+                $"Batch 1/2: diag.ping completed.{Environment.NewLine}" +
+                $"Batch 2/2: diag.echo started.{Environment.NewLine}", error.ToString());
+        }
+        finally
+        {
+            client.Finish.TrySetResult(new ServiceResponse { Success = true, Result = """{"message":"later"}""" });
+            Assert.Equal(0, await execution.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        Assert.Equal(2, output.Flushes);
+        var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        using var last = JsonDocument.Parse(lines[1]);
+        Assert.Equal(1, last.RootElement.GetProperty("index").GetInt32());
+        Assert.Equal("later", last.RootElement.GetProperty("data").GetProperty("message").GetString());
+    }
+
+    private sealed class FlushRecordingWriter : StringWriter
+    {
+        internal int Flushes { get; private set; }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            Flushes++;
+            return base.FlushAsync(cancellationToken);
+        }
+    }
+
+    private sealed class DeferredBatchClient : ICliRequestClientFactory, ICliRequestClient
+    {
+        internal TaskCompletionSource SecondStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<ServiceResponse> Finish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+
+        public Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<ICliRequestClient>(this);
+
+        public Task<ServiceResponse> SendAsync(ServiceRequest request, CancellationToken cancellationToken)
+        {
+            if (++_calls == 1)
+                return Task.FromResult(new ServiceResponse { Success = true, Result = """{"message":"pong"}""" });
+            SecondStarted.SetResult();
+            return Finish.Task;
+        }
+
+        public void Dispose() { }
+    }
 
     [Fact]
     public async Task Batch_MultipleCommands_ExecutesAllSequentially()

@@ -15,6 +15,32 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public class OleMessageFilterTests
 {
+    [Theory]
+    [InlineData(2, 0, 100)]
+    [InlineData(2, 999, 100)]
+    [InlineData(2, 1000, 200)]
+    [InlineData(2, 4999, 200)]
+    [InlineData(2, 5000, 500)]
+    [InlineData(2, 14999, 500)]
+    [InlineData(2, 15000, 1000)]
+    [InlineData(2, 29999, 1000)]
+    [InlineData(2, 30000, -1)]
+    [InlineData(2, 30001, -1)]
+    [InlineData(2, int.MaxValue, -1)]
+    [InlineData(1, 0, 1000)]
+    [InlineData(1, 119999, 1000)]
+    [InlineData(1, 120000, -1)]
+    [InlineData(1, 120001, -1)]
+    [InlineData(1, int.MaxValue, -1)]
+    [InlineData(0, 0, -1)]
+    [InlineData(3, 0, -1)]
+    public void RetryRejectedCall_RespectsBackoffAndTimeout(int rejection, int elapsedMilliseconds, int expected)
+    {
+        IOleMessageFilter filter = new OleMessageFilter();
+
+        Assert.Equal(expected, filter.RetryRejectedCall(nint.Zero, elapsedMilliseconds, rejection));
+    }
+
     [Fact]
     public void RegisterAndRevoke_ReleasesEveryOwnedNativePointer()
     {
