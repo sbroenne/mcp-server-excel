@@ -71,11 +71,12 @@ for matching MCP examples, validation and shared-cache consequences.
 
 For an already-built `ByProduct` report with an independent cache, use
 `excelcli -q pivottable share-cache --session $session --sheet-name Analysis --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Analysis`
-instead of recreating it. The reports must have matching worksheet sources and
-compatible settings. Disconnect controls from the moved report first, then
-connect a shared slicer explicitly afterward. See
+instead of recreating it. Excel decides whether the cache assignment can be
+performed. The moved report adopts the chosen cache's data, and Excel may change
+its output, settings, or connected controls. Inspect the reports and controls
+afterward; the action does not refresh or save the workbook. See
 [existing report sharing](../reference/pivottable.md#move-an-existing-report-onto-a-shared-cache)
-for preservation limits and failure recovery.
+for details and failure recovery.
 
 ## Calculations, refresh and presentation
 

@@ -102,7 +102,7 @@ public sealed partial class PersistentServicePivotTableTests
     [InlineData("manual-filter")]
     [InlineData("manual-sort")]
     [InlineData("manual-and-value-filter")]
-    public void ShareExistingCache_AdoptsDifferentAggregatesWithoutChangingSettings(string setting)
+    public void ShareExistingCache_UsesExcelForDifferentCachedData(string setting)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -139,7 +139,6 @@ public sealed partial class PersistentServicePivotTableTests
                     ComUtilities.Release(ref field);
                 }
             });
-        var before = RequireSuccess(_pivotCommands.Read(batch, "Second"));
         RequireSuccess(_commands.SetValues(batch, _salesSheetName, "A2:A6",
             [["North"], ["South"], ["South"], ["South"], ["North"]], overwritePolicy: OverwritePolicy.Allow));
         RequireSuccess(_pivotCommands.Refresh(batch, "First"));
@@ -151,55 +150,19 @@ public sealed partial class PersistentServicePivotTableTests
                 row => row[0]?.ToString() is "North" or "South");
         else
             AssertPivotSales(325, 325, "Second");
-        var originalIndex = ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex);
-        Assert.NotEqual(ReadNativePivot(target, "First", pivot => pivot.CacheIndex), originalIndex);
-
-        var result = ShareExisting(target, moved);
-
-        Assert.True(result.Changed);
-        Assert.Equal(originalIndex, result.PreviousCacheIndex);
-        Assert.Equal(ReadNativePivot(target, "First", pivot => pivot.CacheIndex),
-            ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex));
-        AssertPivotSales(225, 425, "First");
-        var after = RequireSuccess(_pivotCommands.Read(batch, "Second"));
-        Assert.Equal(JsonSerializer.Serialize(before.ValueFields), JsonSerializer.Serialize(after.ValueFields));
-        var region = Assert.Single(after.FieldSelections, field => field.FieldName == "Region");
-        Assert.True(region.FiltersAvailable);
-        Assert.Equal(JsonSerializer.Serialize(Assert.Single(before.FieldSelections, field => field.FieldName == "Region").Filters),
-            JsonSerializer.Serialize(region.Filters));
-        if (setting is "value-filter" or "manual-and-value-filter")
+        if (setting == "manual-filter")
         {
-            AssertFilteredPivot("Second", "South", 425);
-            if (setting == "manual-and-value-filter")
-                Assert.False(ReadNativePivot(moved, "Second", pivot =>
-                {
-                    Excel.PivotField? field = null;
-                    Excel.PivotItem? item = null;
-                    try
-                    {
-                        field = (Excel.PivotField)pivot.PivotFields("Region");
-                        item = (Excel.PivotItem)field.PivotItems("North");
-                        return item.Visible;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                        ComUtilities.Release(ref field);
-                    }
-                }));
-        }
-        else if (setting == "manual-filter")
-        {
+            var oldIndex = ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex);
+            var result = ShareExisting(target, moved);
+            var targetIndex = ReadNativePivot(target, "First", pivot => pivot.CacheIndex);
+            Assert.True(result.Changed);
+            Assert.Equal(oldIndex, result.PreviousCacheIndex);
+            Assert.Equal(targetIndex, result.CacheIndex);
+            Assert.Equal(targetIndex, ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex));
             AssertFilteredPivot("Second", "North", 225);
-            Assert.Equal(["North"], region.SelectedMemberUniqueNames);
         }
         else
-        {
-            AssertPivotSales(225, 425, "Second");
-            Assert.Equal(["South", "North"],
-                RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values
-                    .Select(row => row[0]?.ToString()).Where(label => label is "North" or "South"));
-        }
+            AssertNativeCacheShareOutcome(target, moved);
     }
 
     [Theory]
@@ -214,7 +177,7 @@ public sealed partial class PersistentServicePivotTableTests
     [InlineData("formatting")]
     [InlineData("direct-formatting")]
     [InlineData("layout")]
-    public void ShareExistingCache_PreservesReportSettings(string setting)
+    public void ShareExistingCache_UsesExcelForConfiguredReport(string setting)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -319,102 +282,8 @@ public sealed partial class PersistentServicePivotTableTests
                 Assert.Equal(1, layout.RowFields[0].RowLayout);
                 break;
         }
-        var before = SharingReportSnapshot("Second");
-        var nativeBefore = NativeSharingSettings(moved, "Second");
-        var valuesBefore = JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values);
-
-        ShareExisting(target, moved);
-
-        Assert.Equal(before, SharingReportSnapshot("Second"));
-        Assert.Equal(nativeBefore, NativeSharingSettings(moved, "Second"));
-        Assert.Equal(valuesBefore, JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values));
+        AssertNativeCacheShareOutcome(target, moved);
     }
-
-    private string NativeSharingSettings(string sheet, string name) =>
-        ReadNativePivot(sheet, name, pivot =>
-        {
-            Excel.PivotField? field = null;
-            Excel.PivotItems? items = null;
-            Excel.Range? extent = null;
-            Excel.Range? cells = null;
-            Excel.PivotFields? values = null;
-            Excel.PivotField? valuesPlacement = null;
-            try
-            {
-                field = (Excel.PivotField)pivot.PivotFields("Region");
-                items = (Excel.PivotItems)field.PivotItems();
-                List<string> order = [];
-                for (int i = 1; i <= items.Count; i++)
-                {
-                    Excel.PivotItem? item = null;
-                    try
-                    {
-                        item = items.Item(i);
-                        order.Add(item.Name);
-                    }
-                    finally { ComUtilities.Release(ref item); }
-                }
-                extent = pivot.TableRange2;
-                cells = extent.Cells;
-                List<object?> formats = [];
-                for (int i = 1; i <= cells.Count; i++)
-                {
-                    Excel.Range? cell = null;
-                    Excel.Font? font = null;
-                    Excel.Interior? fill = null;
-                    try
-                    {
-                        cell = (Excel.Range)cells[i];
-                        font = cell.Font;
-                        fill = cell.Interior;
-                        formats.Add(new
-                        {
-                            Format = (object)cell.NumberFormat,
-                            Bold = (object)font.Bold,
-                            FontColor = (object)font.Color,
-                            FillColor = (object)fill.Color
-                        });
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref fill);
-                        ComUtilities.Release(ref font);
-                        ComUtilities.Release(ref cell);
-                    }
-                }
-                values = (Excel.PivotFields)pivot.DataFields;
-                if (values.Count > 1)
-                    valuesPlacement = pivot.DataPivotField;
-                return JsonSerializer.Serialize(new
-                {
-                    field.AutoSortOrder,
-                    field.AutoSortField,
-                    Order = order,
-                    Style = (object)pivot.TableStyle2,
-                    pivot.PreserveFormatting,
-                    ValuesPlacement = valuesPlacement is null ? null : new
-                    {
-                        valuesPlacement.Orientation,
-                        Position = Convert.ToInt32((object)valuesPlacement.Position, System.Globalization.CultureInfo.InvariantCulture)
-                    },
-                    pivot.ShowTableStyleRowStripes,
-                    pivot.RowGrand,
-                    pivot.ColumnGrand,
-                    field.LayoutForm,
-                    field.LayoutCompactRow,
-                    Formats = formats
-                });
-            }
-            finally
-            {
-                ComUtilities.Release(ref valuesPlacement);
-                ComUtilities.Release(ref values);
-                ComUtilities.Release(ref cells);
-                ComUtilities.Release(ref extent);
-                ComUtilities.Release(ref items);
-                ComUtilities.Release(ref field);
-            }
-        });
 
     [Theory]
     [InlineData("numeric", false)]
@@ -429,7 +298,7 @@ public sealed partial class PersistentServicePivotTableTests
     [InlineData("calculated-field-conflict", false)]
     [InlineData("slicer", false)]
     [InlineData("protected", false)]
-    public void ShareExistingCache_RejectsUnsupportedConfigurationBeforeWrite(string setting, bool onTarget)
+    public async Task ShareExistingCache_UsesExcelForExistingConfiguration(string setting, bool onTarget)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -471,16 +340,38 @@ public sealed partial class PersistentServicePivotTableTests
                 });
                 break;
         }
-        var original = SnapshotPivot("Second");
-        var targetBefore = SnapshotPivot("First");
-        var count = CountNativePivotCaches();
         try
         {
-            var error = Assert.ThrowsAny<Exception>(() => ShareExisting(target, moved));
-            Assert.DoesNotContain("Actual partial state", error.Message, StringComparison.Ordinal);
-            Assert.Equal(original, SnapshotPivot("Second"));
-            Assert.Equal(targetBefore, SnapshotPivot("First"));
-            Assert.Equal(count, CountNativePivotCaches());
+            if (setting == "protected")
+            {
+                var previousIndex = ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex);
+                var failure = await _fixture.SendForFailureAsync("pivottable.share-cache", new
+                {
+                    sheetName = moved,
+                    pivotTableName = "Second",
+                    shareCacheWith = "First",
+                    shareCacheWithSheet = target
+                });
+                Assert.False(failure.Success);
+                Assert.Equal("0x800A03EC", failure.HResult);
+                var innerError = Assert.IsType<string>(failure.InnerError);
+                string suffix = $" [COM: {failure.HResult}]";
+                Assert.EndsWith(suffix, innerError, StringComparison.Ordinal);
+                var message = Assert.IsType<string>(failure.ErrorMessage);
+                Assert.Contains(innerError[..^suffix.Length], message, StringComparison.Ordinal);
+                const string marker = "Actual partial state: ";
+                int stateStart = message.IndexOf(marker, StringComparison.Ordinal);
+                Assert.True(stateStart >= 0, message);
+                using var state = JsonDocument.Parse(message[(stateStart + marker.Length)..]);
+                Assert.False(state.RootElement.GetProperty("success").GetBoolean());
+                Assert.Equal(previousIndex, state.RootElement.GetProperty("previousCacheIndex").GetInt32());
+                Assert.Equal(ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex),
+                    state.RootElement.GetProperty("cacheIndex").GetInt32());
+                Assert.Equal(ReadNativePivot(target, "First", pivot => pivot.CacheIndex),
+                    state.RootElement.GetProperty("targetCacheIndex").GetInt32());
+            }
+            else
+                AssertNativeCacheShareOutcome(target, moved);
         }
         finally
         {
@@ -522,7 +413,7 @@ public sealed partial class PersistentServicePivotTableTests
     }
 
     [Fact]
-    public void ShareExistingCache_MatchingCalculationsInDifferentOrderPreservePlacedFields()
+    public void ShareExistingCache_UsesExcelForDifferentCalculationOrders()
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -532,13 +423,7 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(_pivotCommands.CreateCalculatedField(batch, "Second", "TripleSales", "=Sales*3"));
         RequireSuccess(_pivotCommands.AddValueField(batch, "Second", "DoubleSales"));
         RequireSuccess(_pivotCommands.AddValueField(batch, "Second", "TripleSales"));
-        var before = SharingReportSnapshot("Second");
-        var values = JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values);
-
-        Assert.True(ShareExisting(target, moved).Changed);
-
-        Assert.Equal(before, SharingReportSnapshot("Second"));
-        Assert.Equal(values, JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values));
+        AssertNativeCacheShareOutcome(target, moved);
     }
 
     [Theory]
@@ -547,7 +432,7 @@ public sealed partial class PersistentServicePivotTableTests
     [InlineData("table-versus-range")]
     [InlineData("missing-report")]
     [InlineData("missing-sheet")]
-    public void ShareExistingCache_RejectsWrongSourceOrMissingReport(string scenario)
+    public void ShareExistingCache_UsesExcelForSourceCompatibilityAndStillRequiresNamedReports(string scenario)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -565,15 +450,20 @@ public sealed partial class PersistentServicePivotTableTests
             RequireSuccess(_tableCommands.Create(batch, _salesSheetName, "SharedSales", "A1:D6", true));
             RequireSuccess(_pivotCommands.CreateFromTable(batch, "SharedSales", other, "H1", "Wrong"));
         }
-        var before = SnapshotPivot("Second");
-        var count = CountNativePivotCaches();
-        var error = Assert.ThrowsAny<Exception>(() => _pivotCommands.ShareCache(batch, moved, "Second",
-            scenario == "missing-report" ? "Missing" : scenario == "missing-sheet" ? "First" : "Wrong",
-            scenario == "missing-sheet" ? "Missing" : scenario == "missing-report" ? target : other));
-        Assert.Contains(scenario.StartsWith("missing", StringComparison.Ordinal) ? "not found" : "source definitions differ",
-            error.Message, StringComparison.Ordinal);
-        Assert.Equal(before, SnapshotPivot("Second"));
-        Assert.Equal(count, CountNativePivotCaches());
+        if (scenario.StartsWith("missing", StringComparison.Ordinal))
+        {
+            var before = SnapshotPivot("Second");
+            var count = CountNativePivotCaches();
+            var error = Assert.ThrowsAny<Exception>(() => _pivotCommands.ShareCache(batch, moved, "Second",
+                scenario == "missing-report" ? "Missing" : "First",
+                scenario == "missing-sheet" ? "Missing" : target));
+            Assert.Contains("not found", error.Message, StringComparison.Ordinal);
+            Assert.Equal(before, SnapshotPivot("Second"));
+            Assert.Equal(count, CountNativePivotCaches());
+            return;
+        }
+
+        AssertNativeCacheShareOutcome(other, moved, "Wrong");
     }
 
     [Fact]
@@ -623,7 +513,7 @@ public sealed partial class PersistentServicePivotTableTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ShareExistingCache_TimelineRequiresExplicitDisconnection(bool disconnect)
+    public void ShareExistingCache_UsesExcelForConnectedTimeline(bool disconnect)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -634,24 +524,15 @@ public sealed partial class PersistentServicePivotTableTests
             RequireSuccess(CreateCacheReport(false, peer, "TimelinePeer", "Second", moved));
             RequireSuccess(_pivotCommands.ConnectPivotTable(batch, "MovedTimeline", "TimelinePeer"));
             RequireSuccess(_pivotCommands.DisconnectPivotTable(batch, "MovedTimeline", "Second"));
-            Assert.True(ShareExisting(target, moved).Changed);
-            var controls = RequireSuccess(_pivotCommands.GetConnection(batch, moved, "Second")).ConnectedSlicerCaches;
-            Assert.Empty(controls);
         }
-        else
-        {
-            var before = SnapshotPivot("Second");
-            var error = Assert.Throws<InvalidOperationException>(() => ShareExisting(target, moved));
-            Assert.Contains("Disconnect", error.Message, StringComparison.Ordinal);
-            Assert.Equal(before, SnapshotPivot("Second"));
-        }
+        AssertNativeCacheShareOutcome(target, moved);
     }
 
     [Theory]
     [InlineData("numeric")]
     [InlineData("date")]
     [InlineData("days")]
-    public void ShareExistingCache_MatchingGroupingIsStillRejected(string grouping)
+    public void ShareExistingCache_UsesExcelForGroupedFields(string grouping)
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
@@ -665,28 +546,81 @@ public sealed partial class PersistentServicePivotTableTests
                 RequireSuccess(_pivotCommands.GroupByDate(batch, name, "Date",
                     grouping == "days" ? DateGroupingInterval.Days : DateGroupingInterval.Months));
         }
-        var before = SnapshotPivot("Second");
-        var error = Assert.Throws<NotSupportedException>(() => ShareExisting(target, moved));
-        Assert.Contains("Grouped field", error.Message, StringComparison.Ordinal);
-        Assert.Equal(before, SnapshotPivot("Second"));
+        AssertNativeCacheShareOutcome(target, moved);
     }
 
     [Fact]
-    public void ShareExistingCache_RejectsStaleCachedMembersBeforeWrites()
+    public void ShareExistingCache_LetsExcelAcceptDifferentCachedMembers()
     {
         var (target, moved) = CreateSharingPair();
         var batch = _fixture.BatchToken;
         RequireSuccess(_commands.SetValues(batch, _salesSheetName, "C2", [[999]], overwritePolicy: OverwritePolicy.Allow));
         RequireSuccess(_pivotCommands.Refresh(batch, "First"));
         RequireSuccess(_commands.SetValues(batch, _salesSheetName, "C2", [[100]], overwritePolicy: OverwritePolicy.Allow));
-        var before = SnapshotPivot("Second");
-        var targetBefore = SnapshotPivot("First");
+        AssertOriginalSales();
+        AssertPivotSales(1224, 325, "First");
+        AssertPivotSales(325, 325, "Second");
+        var oldCacheIndex = ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex);
+        Assert.NotEqual(oldCacheIndex, ReadNativePivot(target, "First", pivot => pivot.CacheIndex));
 
-        var error = Assert.Throws<NotSupportedException>(() => ShareExisting(target, moved));
+        var result = ShareExisting(target, moved);
 
-        Assert.Contains("incompatible cached items", error.Message, StringComparison.Ordinal);
-        Assert.Equal(before, SnapshotPivot("Second"));
-        Assert.Equal(targetBefore, SnapshotPivot("First"));
+        var targetCacheIndex = ReadNativePivot(target, "First", pivot => pivot.CacheIndex);
+        Assert.True(result.Changed);
+        Assert.Equal(oldCacheIndex, result.PreviousCacheIndex);
+        Assert.Equal(targetCacheIndex, result.CacheIndex);
+        Assert.Equal(targetCacheIndex, ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex));
+        AssertPivotSales(1224, 325, "First");
+        AssertPivotSales(1224, 325, "Second");
+        AssertOriginalSales();
+    }
+
+    private void AssertNativeCacheShareOutcome(string targetSheet, string movedSheet, string targetName = "First")
+    {
+        var oldCacheIndex = ReadNativePivot(movedSheet, "Second", pivot => pivot.CacheIndex);
+        var targetCacheIndex = ReadNativePivot(targetSheet, targetName, pivot => pivot.CacheIndex);
+        Assert.NotEqual(oldCacheIndex, targetCacheIndex);
+
+        ServiceResponse? response = null;
+        var error = Record.Exception(() => response = _fixture.Send("pivottable.share-cache", new
+        {
+            sheetName = movedSheet,
+            pivotTableName = "Second",
+            shareCacheWith = targetName,
+            shareCacheWithSheet = targetSheet
+        }));
+        if (error is null)
+        {
+            using var resultJson = JsonDocument.Parse(Assert.IsType<string>(response!.Result));
+            int actualIndex = ReadNativePivot(movedSheet, "Second", pivot => pivot.CacheIndex);
+            int actualTargetIndex = ReadNativePivot(targetSheet, targetName, pivot => pivot.CacheIndex);
+            Assert.True(resultJson.RootElement.GetProperty("changed").GetBoolean());
+            Assert.Equal(oldCacheIndex, resultJson.RootElement.GetProperty("previousCacheIndex").GetInt32());
+            Assert.Equal(actualIndex, resultJson.RootElement.GetProperty("cacheIndex").GetInt32());
+            Assert.Equal(actualTargetIndex, resultJson.RootElement.GetProperty("targetCacheIndex").GetInt32());
+            Assert.Equal(actualTargetIndex, actualIndex);
+            return;
+        }
+
+        string errorMessage = error!.Message;
+        const string marker = "Actual partial state: ";
+        int stateStart = errorMessage.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(stateStart >= 0, errorMessage);
+        const string innerMarker = "; inner=";
+        int stateEnd = errorMessage.IndexOf(innerMarker, stateStart + marker.Length, StringComparison.Ordinal);
+        Assert.True(stateEnd > stateStart, errorMessage);
+        string innerError = errorMessage[(stateEnd + innerMarker.Length)..];
+        int nativeCode = innerError.LastIndexOf(" [COM: 0x", StringComparison.Ordinal);
+        Assert.True(nativeCode > 0, errorMessage);
+        Assert.Matches(@" \[COM: 0x[0-9A-F]{8}\]$", innerError);
+        Assert.Contains(innerError[..nativeCode], errorMessage[..stateStart], StringComparison.Ordinal);
+        using var state = JsonDocument.Parse(errorMessage[(stateStart + marker.Length)..stateEnd]);
+        var partialState = state.RootElement;
+        Assert.False(partialState.GetProperty("success").GetBoolean());
+        Assert.Equal(ReadNativePivot(movedSheet, "Second", pivot => pivot.CacheIndex),
+            partialState.GetProperty("cacheIndex").GetInt32());
+        Assert.Equal(ReadNativePivot(targetSheet, targetName, pivot => pivot.CacheIndex),
+            partialState.GetProperty("targetCacheIndex").GetInt32());
     }
 
     [Fact]

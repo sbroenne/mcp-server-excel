@@ -17,7 +17,7 @@ public sealed class PivotCacheSharingFailureTests
     public void Failure_ReportsObservedStateWithoutClaimingRollback(bool changed, int actualIndex)
     {
         var failure = Marshal.GetExceptionForHR(unchecked((int)0x800A03EC))!;
-        var error = PivotTableCommands.DescribeCacheSharingFailure(failure, "verifying report settings", () => new()
+        var error = PivotTableCommands.DescribeCacheSharingFailure(failure, "reading the actual cache", () => new()
         {
             SheetName = "Reports",
             PivotTableName = "Moved",
@@ -29,7 +29,8 @@ public sealed class PivotCacheSharingFailureTests
         });
 
         Assert.Same(failure, error.InnerException);
-        Assert.Contains("verifying report settings", error.Message, StringComparison.Ordinal);
+        Assert.Contains("reading the actual cache", error.Message, StringComparison.Ordinal);
+        Assert.Contains(failure.Message, error.Message, StringComparison.Ordinal);
         Assert.Contains("No changes were undone", error.Message, StringComparison.Ordinal);
         Assert.Contains($"\"changed\":{changed.ToString().ToLowerInvariant()}", error.Message, StringComparison.Ordinal);
         Assert.Contains($"\"cacheIndex\":{actualIndex}", error.Message, StringComparison.Ordinal);
