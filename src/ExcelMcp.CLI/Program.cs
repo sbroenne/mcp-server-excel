@@ -415,6 +415,9 @@ internal sealed class Program
             service.ExcelProcessPreserved += process =>
                 DaemonProcessTracker.PreserveExcelProcess(pipeName, daemonIdentity,
                     new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
+            service.ExcelProcessReleased += process =>
+                DaemonProcessTracker.ReleaseExcelProcess(pipeName, daemonIdentity,
+                    new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
 
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;

@@ -51,7 +51,15 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
         Assert.Equal(JsonValueKind.Null, values[0][3].ValueKind);
         Assert.Equal("#DIV/0!", values[1][0].GetString());
         Assert.Single(data.GetProperty("cellErrors").EnumerateArray());
-        await SendAsync("session", "close", "--session", Session, "--save");
+        var closed = await SendAsync("session", "close", "--session", Session, "--save");
+        var timings = closed.GetProperty("data").GetProperty("closeTimingsMs");
+        Assert.Equal(11, timings.EnumerateObject().Count());
+        Assert.True(timings.GetProperty("session-close").GetDouble() > 0);
+        Assert.True(timings.GetProperty("save").GetDouble() > 0);
+        Assert.True(timings.GetProperty("workbook-close").GetDouble() > 0);
+        Assert.True(timings.GetProperty("worker-completion").GetDouble() >= 0);
+        Assert.All(timings.EnumerateObject(), timing => Assert.True(timing.Value.GetDouble() >= 0));
+        Assert.True(System.Text.Encoding.UTF8.GetByteCount(timings.GetRawText()) < 1024);
         _session = null;
         var reopened = await SendAsync("session", "open", _workbook);
         _session = reopened.GetProperty("data").GetProperty("sessionId").GetString();

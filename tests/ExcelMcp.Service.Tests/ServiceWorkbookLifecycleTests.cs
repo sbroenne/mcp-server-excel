@@ -17,6 +17,11 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly bool[] CloseSaveModes = [true, false];
+    private static readonly string[] CloseTimingStages =
+    [
+        "session-close", "readiness", "discovery-release", "save", "session-teardown",
+        "workbook-close", "workbook-release", "excel-quit", "application-release", "excel-thread-exit"
+    ];
 
     [Theory]
     [InlineData(false)]
@@ -589,16 +594,29 @@ public sealed partial class ServiceWorkbookLifecycleTests
             sessions[sessionId] = 0;
             await WriteMarkerAsync(service, sessionId, "Persisted");
             Assert.Equal("Persisted", await ReadMarkerAsync(service, sessionId));
-            await CloseSessionAsync(service, sessionId, save: true);
+            var identity = Assert.IsType<ExcelProcessIdentity>(
+                service.SessionManager.GetSessionProcessIdentity(sessionId));
+            var closed = await CloseSessionAsync(service, sessionId, save: true);
             sessions.TryRemove(sessionId, out _);
             await AssertSessionIdsAsync(service);
+            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
+                TimeSpan.FromSeconds(15)), $"Excel {identity} did not exit naturally.");
+
+            Assert.NotNull(closed.Result);
+            using var result = JsonDocument.Parse(closed.Result);
+            var timings = result.RootElement.GetProperty("closeTimingsMs");
+            Assert.Equal(CloseTimingStages.Order(),
+                timings.EnumerateObject().Select(property => property.Name).Order());
+            Assert.All(timings.EnumerateObject(), timing => Assert.True(timing.Value.GetDouble() >= 0, timing.Name));
+            Assert.True(timings.GetProperty("save").GetDouble() > 0);
+            Assert.True(timings.GetProperty("session-close").GetDouble()
+                >= timings.GetProperty("session-teardown").GetDouble());
 
             var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
             sessions[reopenedSessionId] = 0;
             Assert.NotEqual(sessionId, reopenedSessionId);
-            Assert.Equal(
-                "Persisted",
-                await ReadMarkerAsync(service, reopenedSessionId));
+            Assert.Equal("Persisted", await ReadMarkerAsync(service, reopenedSessionId));
         });
     }
 
@@ -1312,7 +1330,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
         }
     });
 
-    private static async Task CloseSessionAsync(
+    private static async Task<ServiceResponse> CloseSessionAsync(
         ExcelMcpService service,
         string sessionId,
         bool save,
@@ -1331,6 +1349,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             $"Inner error: {response.InnerError ?? "<none>"}{Environment.NewLine}" +
             $"Pre-save state: {saveState?.ToString() ?? "<not captured>"}");
         Assert.True(string.IsNullOrEmpty(response.ErrorMessage), response.ErrorMessage);
+        return response;
     }
 
     private static WorkbookSaveState CaptureSaveState(

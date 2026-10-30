@@ -32,6 +32,16 @@ controls it. AutoSave can persist edits independently, including before shutdown
 
 Shutdown follows these rules:
 
+- An explicitly requested workbook close finishes after any requested save,
+  confirmed workbook close, appropriate Excel Quit, and release of the acquired
+  Excel objects and execution thread. It neither forces general memory cleanup
+  nor waits for the Excel process to disappear. Confirmed release ends ownership
+  of that exact process; failed or uncertain cleanup retains it.
+- The final operation reply also carries the background copy of ExcelMcp's
+  settled status. If it has no connections or pending work, it stops after that
+  reply without extra status or stop requests. The existing worker record keeps
+  confirmed completion available until the controller reads it. This is a
+  completion message, not continued ownership or monitoring of Excel.
 - `SessionManager` decides what happens to each Excel process. Discovery
   connections and the tray never quit Excel themselves; a discovery connection
   quits Excel only when the host owns no session in that process.

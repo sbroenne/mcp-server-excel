@@ -22,6 +22,110 @@ public sealed class ExcelControllerTests
         AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
 
     [Fact(Timeout = 30000)]
+    public async Task Controller_DeleteLockedCompletionKeepsPollingOtherWorkersAndRetries()
+    {
+        using var controller = new ExcelController(launcher: Launcher);
+        var completed = await controller.StartWorkerAsync(null, CancellationToken.None);
+        var other = await controller.StartWorkerAsync(null, CancellationToken.None);
+        var registry = new WorkerRegistry();
+        var registration = completed.Registration with { ReleaseConfirmed = true };
+        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ExcelMcp", "workers", registration.PipeName + ".json");
+        using var process = System.Diagnostics.Process.GetProcessById(registration.Worker.ProcessId);
+        _ = process.Handle;
+        Assert.Equal(registration.Worker, WorkerProcess.From(process));
+        try
+        {
+            registry.Write(registration);
+            using (File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write))
+            {
+                completed.RecordSnapshot(completed.Snapshot! with
+                {
+                    Registration = registration,
+                    Releasing = true,
+                    Revision = long.MaxValue
+                });
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                while (completed.StatusError is null)
+                    await Task.Delay(50, deadline.Token);
+                Assert.Contains("could not be removed", completed.StatusError);
+                Assert.Equal(registration, registry.Read(registration.PipeName));
+                var previous = other.Snapshot!.Revision;
+                while (other.Snapshot!.Revision <= previous)
+                    await Task.Delay(50, deadline.Token);
+            }
+            using var retryDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            while (registry.Read(registration.PipeName) is not null)
+                await Task.Delay(50, retryDeadline.Token);
+            Assert.True((await other.ExecuteAsync(new ServiceRequest
+            {
+                Command = "diag.echo",
+                Args = """{"message":"still-polling"}"""
+            }, CancellationToken.None)).Success);
+        }
+        finally
+        {
+            Assert.True((await completed.ReleaseAsync(CancellationToken.None)).Success);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+            registry.Remove(registration.PipeName);
+        }
+    }
+
+    [Theory(Timeout = 30000)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Controller_CompletionPublishesNewerReleaseBeforeAcknowledgingIt(bool recordingFails)
+    {
+        ExcelWorkerClient? started = null;
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: async worker =>
+        {
+            await worker.InitializeAsync();
+            started = worker;
+        });
+        Assert.True((await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.echo",
+            Args = """{"message":"initialize-completion-record"}"""
+        })).Success);
+        var worker = Assert.IsType<ExcelWorkerClient>(started);
+        var older = worker.Snapshot! with { Revision = long.MaxValue - 2 };
+        var identity = new ExcelProcessIdentity(WorkerProcess.Current.ProcessId, WorkerProcess.Current.StartedAtUtcFileTime);
+        var newer = older with
+        {
+            Registration = older.Registration with { ReleaseConfirmed = true, ReleasedExcel = identity },
+            Releasing = true,
+            Revision = older.Revision + 1
+        };
+        worker.RecordSnapshot(older);
+        worker.RecordSnapshot(newer);
+        var observed = new List<ExcelProcessIdentity>();
+        var failure = new IOException("Test-only release publication failure.");
+        void Record(ExcelProcessIdentity released)
+        {
+            observed.Add(released);
+            if (recordingFails)
+                throw failure;
+        }
+        controller.ExcelProcessReleased += Record;
+        try
+        {
+            var apply = typeof(ExcelController).GetMethod("ApplyWorkerSnapshot",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            if (recordingFails)
+                Assert.Same(failure, Assert.Throws<System.Reflection.TargetInvocationException>(
+                    () => apply.Invoke(controller, [worker])).InnerException);
+            else
+                Assert.Same(newer, apply.Invoke(controller, [worker]));
+            Assert.Equal(identity, Assert.Single(observed));
+            Assert.Same(newer, worker.Snapshot);
+        }
+        finally
+        {
+            controller.ExcelProcessReleased -= Record;
+        }
+    }
+
+    [Fact(Timeout = 30000)]
     public async Task Controller_QueryDistinctUrls_AreReservedSeparately()
     {
         var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -726,6 +830,9 @@ public sealed class ExcelControllerWorkbookTests
             Assert.True(closed.Success, closed.ErrorMessage);
             await excel.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
             await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+            Assert.True(SpinWait.SpinUntil(
+                () => controller.Sessions.Count == 0 && controller.ExcelProcesses.Count == 0,
+                TimeSpan.FromSeconds(5)), "The controller did not read the completed close from its worker.");
             Assert.Empty(controller.Sessions);
             Assert.Empty(controller.ExcelProcesses);
             var again = await controller.ProcessAsync(new ServiceRequest
@@ -1153,6 +1260,13 @@ public sealed class ExcelControllerWorkbookTests
                 traceResult.RootElement.GetProperty("processId").GetInt32());
             var closed = await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = sessionId });
             Assert.True(closed.Success, closed.ErrorMessage);
+            using var closeResult = JsonDocument.Parse(closed.Result!);
+            var closeTimings = closeResult.RootElement.GetProperty("closeTimingsMs");
+            Assert.Equal(10, closeTimings.EnumerateObject().Count());
+            Assert.False(closeTimings.TryGetProperty("save", out _));
+            Assert.True(closeTimings.GetProperty("session-close").GetDouble() > 0);
+            Assert.True(closeTimings.GetProperty("worker-completion").GetDouble() >= 0);
+            Assert.Empty(controller.ExcelProcesses);
             Assert.Empty(controller.Sessions);
             var again = await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = sessionId });
             Assert.True(again.Success, again.ErrorMessage);

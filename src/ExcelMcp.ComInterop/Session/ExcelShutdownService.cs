@@ -173,7 +173,6 @@ public static class ExcelShutdownService
     /// <para><b>Shutdown Order:</b></para>
     /// <list type="number">
     /// <item>If save=true: Call workbook.Save()</item>
-    /// <item>Drain unreachable dynamic-binder metadata while Excel can answer COM releases</item>
     /// <item>Close workbook with Close(save) - save param controls Excel's save prompt</item>
     /// <item>Release the workbook COM reference when owned by this method</item>
     /// <item>Quit Excel only when no workbooks remain; otherwise leave it open</item>
@@ -193,8 +192,6 @@ public static class ExcelShutdownService
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Shutdown retains the original close/quit failure as the transported cause, does not continue to Quit after a failed workbook close, and retains application ownership when Quit fails. Attached workbooks pass releaseWorkbook:false so their owner releases its retained reference exactly once.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
-        Justification = "Collect unreachable dynamic-binder ITypeInfo RCWs while Excel can answer releases, without waiting for finalizers on the STA. This is supplementary to explicit release of all acquired references.")]
     internal static bool CloseAndQuitAndReport(
         Excel.Workbook? workbook,
         Excel.Application? excel,
@@ -218,11 +215,6 @@ public static class ExcelShutdownService
                 SaveWorkbookWithTimeout(workbook, fileName, logger);
             }
 
-            // Drain unreachable interop metadata while Excel can still service releases.
-            // Acquired workbook/application references are released explicitly below.
-            GC.Collect();
-            Marshal.CleanupUnusedObjectsInCurrentContext();
-
             // Step 2: Close workbook with retry for transient COM busy errors
             if (workbook != null)
             {
@@ -235,7 +227,7 @@ public static class ExcelShutdownService
 
                 if (releaseWorkbook)
                 {
-                    ComUtilities.Release(ref workbook);
+                    SessionDiagnostics.MeasureCloseStage("workbook-release", () => ComUtilities.Release(ref workbook));
                     logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
                 }
             }
@@ -250,7 +242,7 @@ public static class ExcelShutdownService
                         "Leaving Excel open with {WorkbookCount} workbook(s) after closing {FileName}",
                         remainingWorkbooks, fileName);
                     LeaveOpenAndVisible(excel, originalDisplayAlerts);
-                    ComUtilities.Release(ref excel);
+                    SessionDiagnostics.MeasureCloseStage("application-release", () => ComUtilities.Release(ref excel));
                     return false;
                 }
 
@@ -262,6 +254,7 @@ public static class ExcelShutdownService
 
                 try
                 {
+                    using var quitTiming = SessionDiagnostics.BeginCloseStage("excel-quit");
                     logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry ({Timeout} timeout)", fileName, ComInteropConstants.ExcelQuitTimeout);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
@@ -352,7 +345,7 @@ public static class ExcelShutdownService
                 {
                     if (lastException is null)
                     {
-                        ComUtilities.Release(ref excel);
+                        SessionDiagnostics.MeasureCloseStage("application-release", () => ComUtilities.Release(ref excel));
                         logger.LogDebug("Released Excel application COM reference for {FileName}", fileName);
                     }
                 }
@@ -442,6 +435,7 @@ public static class ExcelShutdownService
         string fileName,
         ILogger logger)
     {
+        using var timing = SessionDiagnostics.BeginCloseStage("workbook-close");
         const int maxCloseAttempts = 3;
         const int closeRetryDelayMs = 200;
 

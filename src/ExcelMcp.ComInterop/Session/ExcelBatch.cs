@@ -46,6 +46,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private readonly Lock _disposeLock = new();
+    private SessionDiagnostics.CloseTimingCollection? _closeTimings;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId;
     private ExcelProcessIdentity? _excelProcessIdentity;
@@ -885,6 +886,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             }
             finally
             {
+                using var closeTimingContext = SessionDiagnostics.UseCloseTimings(_closeTimings);
                 // Cleanup COM objects on STA thread exit
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
@@ -1009,7 +1011,6 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     startupWorkbooks = null;
                     startupPrimaryWorkbook = null;
                     startupExcel = null;
-                    Marshal.CleanupUnusedObjectsInCurrentContext();
                     BeforeApplicationLeaseReleaseHookForTests?.Invoke();
                     _applicationLease?.Dispose();
                     _applicationLease = null;
@@ -1366,10 +1367,12 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 "Please close this session and create a new one.");
         }
 
+        var closeTimings = SessionDiagnostics.CurrentCloseTimings;
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         var started = false;
         var workItem = new ExcelWorkItem<T>(() =>
         {
+            using var closeTimingContext = SessionDiagnostics.UseCloseTimings(closeTimings);
             if (_operationTimedOut)
                 throw new ExcelBusyException("An earlier operation exceeded its wait. This queued operation was not executed.");
             lock (_statusLock)
@@ -1809,6 +1812,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     {
         lock (_disposeLock)
         {
+            _closeTimings = SessionDiagnostics.CurrentCloseTimings;
             if (_disposed != 0)
             {
                 if (!_teardownConfirmed)
@@ -2025,7 +2029,8 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
             _workbooks.Remove(entry.Key);
             _closedWorkbookPathsDuringShutdown.Add(entry.Key);
-            ForgetTrackedWorkbook(entry.Value, capabilities);
+            SessionDiagnostics.MeasureCloseStage("workbook-release",
+                () => ForgetTrackedWorkbook(entry.Value, capabilities));
         }
     }
 
@@ -2112,6 +2117,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
         lock (_disposeLock)
         {
+            _closeTimings = SessionDiagnostics.CurrentCloseTimings;
             if (_disposed == 0 && IsExcelProcessAlive() &&
                 (_operationTimedOut || !_startupCompletion.IsCompleted ||
                  OperationStatus.ExecutionPending || _readinessTask is { IsCompleted: false }))
@@ -2145,14 +2151,17 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         }
         _shutdownCts.Cancel();
         _workQueue.Writer.TryComplete();
-        if (_staThread.IsAlive && !_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+        SessionDiagnostics.MeasureCloseStage("excel-thread-exit", () =>
         {
-            RevealForRecovery(waitExpired: true);
-            throw new TimeoutException(
-                "The wait for Excel close/quit expired. The original close may still finish. " +
-                $"The owned process has not been terminated. Excel window: {_windowReveal}.");
-        }
-        _teardownCompletion.Task.GetAwaiter().GetResult();
+            if (_staThread.IsAlive && !_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+            {
+                RevealForRecovery(waitExpired: true);
+                throw new TimeoutException(
+                    "The wait for Excel close/quit expired. The original close may still finish. " +
+                    $"The owned process has not been terminated. Excel window: {_windowReveal}.");
+            }
+            _teardownCompletion.Task.GetAwaiter().GetResult();
+        });
 
         if (_excelProcessIdentity is { } identity
             && (_attachedApplication is null || _quitEmptyOwnedApplication))
@@ -2161,13 +2170,6 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             {
                 if (!SessionManager.IsExcelProcessPreserved(identity))
                     SessionManager.PreserveExcelProcess(identity);
-            }
-            else if (!WaitForOwnedProcessExit(identity))
-            {
-                RevealForRecovery(waitExpired: true);
-                throw new TimeoutException(
-                    "Excel has not confirmed process exit after close/quit. " +
-                    $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
             }
             else
             {

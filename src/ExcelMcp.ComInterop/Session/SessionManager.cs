@@ -49,6 +49,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityTracked;
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityPreserved;
+    internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityReleased;
 
     /// <summary>
     /// Registers an Excel process ID for cleanup on unexpected process exit.
@@ -105,6 +106,8 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public static void UntrackExcelProcess(ExcelProcessIdentity identity)
     {
+        if (_trackedExcelProcesses.ContainsKey(identity))
+            ExcelProcessIdentityReleased?.Invoke(identity);
         _trackedExcelProcesses.TryRemove(identity, out _);
         _preservedExcelProcesses.TryRemove(identity, out _);
         NotifyTrackedExcelProcessesChanged();
@@ -1729,7 +1732,7 @@ public sealed class SessionManager : IDisposable
             }
 
             var refreshState = !resolvedFailedTeardown && !force
-                ? GetClosePreflightState(batch)
+                ? SessionDiagnostics.MeasureCloseStage("readiness", () => GetClosePreflightState(batch))
                 : WorkbookRefreshState.Ready;
             if (refreshState == WorkbookRefreshState.DialogOpen)
             {
@@ -1768,14 +1771,15 @@ public sealed class SessionManager : IDisposable
         var closeSucceeded = false;
         try
         {
-            ReleaseDiscoveryConnectionBeforeOwnedClose(sessionId, batch);
+            SessionDiagnostics.MeasureCloseStage("discovery-release",
+                () => ReleaseDiscoveryConnectionBeforeOwnedClose(sessionId, batch));
 
             // Save first if requested (blocks until complete)
             if (save)
             {
                 try
                 {
-                    batch.Save();
+                    SessionDiagnostics.MeasureCloseStage("save", () => batch.Save());
                 }
                 catch (Exception ex)
                 {
@@ -1784,7 +1788,8 @@ public sealed class SessionManager : IDisposable
             }
 
             BeforeCloseSessionHookForTests?.Invoke();
-            CloseSessionSync(sessionId, batch, force);
+            SessionDiagnostics.MeasureCloseStage("session-teardown",
+                () => CloseSessionSync(sessionId, batch, force));
             closeSucceeded = true;
             return true;
         }

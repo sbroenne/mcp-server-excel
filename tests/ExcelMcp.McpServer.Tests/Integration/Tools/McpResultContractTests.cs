@@ -13,6 +13,45 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("RequiresExcel", "false")]
 public sealed class McpResultContractTests(RecordingProgramTransportFixture fixture)
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Close_PreservesTimingsAndMatchingErrorContent(bool success)
+    {
+        var call = await fixture.CallToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["workbook_session_id"] = "recording-session",
+            ["save"] = true
+        }, new ServiceResponse
+        {
+            Success = success,
+            ErrorCategory = success ? null : "ComInterop",
+            ErrorMessage = success ? null : "Original error",
+            HResult = success ? null : "0x800A03EC",
+            PartialState = success ? null : """{"retained":true}""",
+            Result = JsonSerializer.Serialize(new
+            {
+                success,
+                closeTimingsMs = new Dictionary<string, double> { ["save"] = 31.25, ["workbook-close"] = 0 }
+            })
+        }, "session.close", """{"save":true}""");
+        Assert.Equal(!success, call.Result.IsError == true);
+        using var output = JsonDocument.Parse(call.JsonResult);
+        var root = output.RootElement;
+        Assert.True(JsonElement.DeepEquals(root, call.Result.StructuredContent!.Value));
+        Assert.Equal(success, root.GetProperty("success").GetBoolean());
+        var timings = root.GetProperty("closeTimingsMs");
+        Assert.Equal(31.25, timings.GetProperty("save").GetDouble());
+        Assert.Equal(0, timings.GetProperty("workbook-close").GetDouble());
+        if (!success)
+        {
+            Assert.Equal("Original error", root.GetProperty("errorMessage").GetString());
+            Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
+            Assert.True(root.GetProperty("partialState").GetProperty("retained").GetBoolean());
+        }
+    }
+
     [Fact]
     public async Task EveryTool_OmitsRemovedFieldsInput()
     {

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -12,8 +13,145 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Feature", "SessionManager")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SuccessfulRelease_RecordsTheExactIdentityBeforeEndingOwnership(bool recordingFails)
+    {
+        var released = new ExcelProcessIdentity(int.MaxValue, 1);
+        var other = new ExcelProcessIdentity(int.MaxValue, 2);
+        var failure = new IOException("Test-only ownership record failure.");
+        var observed = new List<ExcelProcessIdentity>();
+        SessionManager.TrackExcelProcess(released);
+        SessionManager.TrackExcelProcess(other);
+        SessionManager.PreserveExcelProcess(other);
+        void Record(ExcelProcessIdentity identity)
+        {
+            observed.Add(identity);
+            Assert.True(SessionManager.IsExcelProcessTracked(identity));
+            if (recordingFails)
+                throw failure;
+        }
+        SessionManager.ExcelProcessIdentityReleased += Record;
+        try
+        {
+            if (recordingFails)
+                Assert.Same(failure, Assert.Throws<IOException>(() => SessionManager.UntrackExcelProcess(released)));
+            else
+                SessionManager.UntrackExcelProcess(released);
+            Assert.Equal(released, Assert.Single(observed));
+            Assert.Equal(recordingFails, SessionManager.IsExcelProcessTracked(released));
+            Assert.True(SessionManager.IsExcelProcessTracked(other));
+            Assert.True(SessionManager.IsExcelProcessPreserved(other));
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityReleased -= Record;
+            SessionManager.UntrackExcelProcess(released);
+            SessionManager.UntrackExcelProcess(other);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Close_Timings_RecordStagesWithoutChangingSaveOrFailure(bool saveFails)
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(saveFails, false)
+        {
+            BeforeSave = () => Thread.Sleep(30)
+        };
+        RegisterSession(manager, "timed-close", batch.WorkbookPath, batch);
+        using var timings = SessionDiagnostics.BeginCloseTimings();
+        try
+        {
+            if (saveFails)
+            {
+                var failure = Assert.Throws<InvalidOperationException>(
+                    () => manager.CloseSession("timed-close", save: true));
+                Assert.Same(batch.SaveException, failure.InnerException);
+                Assert.Equal(1, manager.ActiveSessionCount);
+                Assert.Equal(0, batch.CloseCallCount);
+            }
+            else
+            {
+                Assert.True(manager.CloseSession("timed-close", save: true));
+                Assert.Equal(0, manager.ActiveSessionCount);
+                Assert.Equal(1, batch.CloseCallCount);
+            }
+            Assert.Equal(1, batch.SaveCallCount);
+
+            var measured = timings.Snapshot();
+            Assert.True(measured["save"] >= 20);
+            Assert.Contains("readiness", measured.Keys);
+            Assert.Contains("discovery-release", measured.Keys);
+            Assert.Equal(!saveFails, measured.ContainsKey("session-teardown"));
+            var json = JsonSerializer.Serialize(measured);
+            Assert.DoesNotContain("timed-close", json, StringComparison.Ordinal);
+            Assert.DoesNotContain(batch.WorkbookPath, json, StringComparison.Ordinal);
+        }
+        finally
+        {
+            batch.SaveFails = false;
+        }
+    }
+
+    [Fact]
+    public async Task Close_Timings_PreserveOriginalFailureAndCancellation()
+    {
+        using var timings = SessionDiagnostics.BeginCloseTimings();
+        var failure = new InvalidOperationException("Original close failure.");
+        var calls = 0;
+        Action fail = () => { calls++; throw failure; };
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(
+            () => SessionDiagnostics.MeasureCloseStage("workbook-close", fail)));
+        Assert.Equal(1, calls);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cancelled = new OperationCanceledException(cancellation.Token);
+        async Task FailAsync()
+        {
+            using var timing = SessionDiagnostics.BeginCloseStage("worker-completion");
+            await Task.FromException(cancelled);
+        }
+        Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(FailAsync));
+        Assert.Contains("workbook-close", timings.Snapshot().Keys);
+        Assert.Contains("worker-completion", timings.Snapshot().Keys);
+    }
+
+    [Fact]
+    public async Task Close_Timings_IsolateConcurrentRequestsAndRestoreOuterScope()
+    {
+        using var outer = SessionDiagnostics.BeginCloseTimings();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrivals = 0;
+        async Task<Dictionary<string, double>> Measure(string stage)
+        {
+            using var timings = SessionDiagnostics.BeginCloseTimings();
+            using (SessionDiagnostics.BeginCloseStage(stage))
+            {
+                if (Interlocked.Increment(ref arrivals) == 2)
+                    started.SetResult();
+                await started.Task;
+                await Task.Delay(20);
+            }
+            return timings.Snapshot();
+        }
+        var measured = await Task.WhenAll(Task.Run(() => Measure("first")), Task.Run(() => Measure("second")));
+        Assert.Equal("first", Assert.Single(measured[0]).Key);
+        Assert.Equal("second", Assert.Single(measured[1]).Key);
+        Assert.All(measured, result => Assert.True(Assert.Single(result).Value >= 10));
+        Assert.Same(outer, SessionDiagnostics.CurrentCloseTimings);
+        Assert.Empty(outer.Snapshot());
+        outer.Record("workbook-release", 1.234);
+        outer.Record("workbook-release", 1.234);
+        Assert.Equal(2.47, outer.Snapshot()["workbook-release"]);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -455,6 +593,7 @@ public sealed class SessionManagerTeardownFailureTests
         public bool SaveFails { get; set; } = saveFails;
         public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
+        public Action? BeforeSave { get; init; }
         public bool CloseBusy { get; set; }
         public bool ProcessAlive { get; set; } = true;
         public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
@@ -514,6 +653,7 @@ public sealed class SessionManagerTeardownFailureTests
 
         public void Save(CancellationToken cancellationToken = default)
         {
+            BeforeSave?.Invoke();
             SaveCallCount++;
             if (SaveBusy)
                 ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "save");

@@ -80,6 +80,7 @@ internal sealed class ExcelWorkerHost : IDisposable
         _registry.Write(_registration);
         SessionManager.ExcelProcessIdentityTracked += RecordExcel;
         SessionManager.ExcelProcessIdentityPreserved += RecordPreservation;
+        SessionManager.ExcelProcessIdentityReleased += RecordRelease;
         using var application = new HostBuilder()
             .ConfigureServices(services => services.AddSingleton<IHostedService>(_server))
             .Build();
@@ -96,8 +97,10 @@ internal sealed class ExcelWorkerHost : IDisposable
         {
             SessionManager.ExcelProcessIdentityTracked -= RecordExcel;
             SessionManager.ExcelProcessIdentityPreserved -= RecordPreservation;
+            SessionManager.ExcelProcessIdentityReleased -= RecordRelease;
         }
-        _registry.Remove(_registration.PipeName);
+        if (!_registration.ReleaseConfirmed)
+            _registry.Remove(_registration.PipeName);
     }
 
     private void RecordExcel(ExcelProcessIdentity identity)
@@ -119,6 +122,25 @@ internal sealed class ExcelWorkerHost : IDisposable
                 throw new InvalidOperationException("The released Excel application does not match this worker.");
             _registration = _registration with { ExcelPreserved = true };
             _registry.Write(_registration);
+        }
+
+    }
+
+    private void RecordRelease(ExcelProcessIdentity identity)
+    {
+        lock (_stateLock)
+        {
+            if (_registration.Excel != identity)
+                throw new InvalidOperationException("The released Excel application does not match this worker.");
+            var released = _registration with
+            {
+                Excel = null,
+                OwnsExcel = false,
+                ExcelPreserved = false,
+                ReleasedExcel = identity
+            };
+            _registry.Write(released);
+            _registration = released;
         }
     }
 
@@ -212,30 +234,37 @@ internal sealed class ExcelWorkerHost : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Failure to record completed worker shutdown returns both that error and the exact completed workbook response. It retains the worker and never repeats or rolls back workbook changes.")]
     private async Task<WorkerExecution> ExecuteAsync(WorkerCall call, int clientId, CancellationToken cancellationToken)
     {
         Authorize(call.Generation, clientId);
+        using var closeTimings = call.Request.Command == "session.close" ? SessionDiagnostics.BeginCloseTimings() : null;
         if (call.Request.Command is "window.show" or "window.hide"
             or "powerquerytrace.list" or "powerquerytrace.summarize")
         {
+            lock (_stateLock)
+                if (_releasing)
+                    return Completed(Failure(call.Request, "SessionUnavailable",
+                        "The Excel worker is being released. No work was started."), accepted: false);
             call.Request.CallerCancellation = cancellationToken;
-            return new(await Task.Run(() => _service.ProcessAsync(call.Request), CancellationToken.None), Accepted: true);
+            return Completed(await Task.Run(() => _service.ProcessAsync(call.Request), CancellationToken.None), accepted: true);
         }
         if (!Guid.TryParseExact(call.OperationId, "N", out _))
             throw new ArgumentException("Invalid Excel operation identifier.");
         if (!await _execution.WaitAsync(0, cancellationToken))
-            return new(Failure(call.Request, "Busy",
-                "Another request is still running in this Excel application. No new work was started."), Accepted: false);
+            return Completed(Failure(call.Request, "Busy",
+                "Another request is still running in this Excel application. No new work was started."), accepted: false);
         try
         {
             lock (_stateLock)
             {
                 if (_releasing)
-                    return new(Failure(call.Request, "SessionUnavailable",
-                        "The Excel worker is being released. No work was started."), Accepted: false);
+                    return Completed(Failure(call.Request, "SessionUnavailable",
+                        "The Excel worker is being released. No work was started."), accepted: false);
                 if (_service.SessionManager.HasPendingExecution)
-                    return new(Failure(call.Request, "Busy",
-                        "An earlier Excel operation is still pending. No new work was started."), Accepted: false);
+                    return Completed(Failure(call.Request, "Busy",
+                        "An earlier Excel operation is still pending. No new work was started."), accepted: false);
                 _pendingOperation = call.OperationId;
                 _pendingCommand = call.Request.Command;
             }
@@ -244,9 +273,33 @@ internal sealed class ExcelWorkerHost : IDisposable
             var response = await Task.Run(() => ProcessAsync(call.Request), CancellationToken.None);
             if (cancellationToken.IsCancellationRequested)
                 _service.RevealAbandonedRequest(call.Request, response);
-            TryRefreshSnapshot();
-            return new(response, Accepted: true);
+            lock (_stateLock)
+            {
+                _pendingOperation = null;
+                _pendingCommand = null;
+            }
+            using (SessionDiagnostics.BeginCloseStage("worker-completion"))
+            {
+                try
+                {
+                    if (response.Success && call.Request.Command == "session.close"
+                        && !_service.SessionManager.HasActiveConnections
+                        && !_service.SessionManager.HasPendingExecution
+                        && (!_registration.OwnsExcel || _registration.ExcelPreserved))
+                        CompleteRelease();
+                    else
+                        TryRefreshSnapshot();
+                }
+                catch (Exception ex)
+                {
+                    lock (_stateLock)
+                        _statusError = $"The completed request could not be recorded: {ex.GetType().Name}: {ex.Message}";
+                    response = response.WithCompletionFailure(call.Request, ex);
+                }
+            }
+            return Completed(closeTimings is null ? response : response.WithCloseTimings(closeTimings.Snapshot()), accepted: true);
         }
+
         finally
         {
             lock (_stateLock)
@@ -256,6 +309,28 @@ internal sealed class ExcelWorkerHost : IDisposable
             }
             _execution.Release();
         }
+    }
+
+    private WorkerExecution Completed(ServiceResponse response, bool accepted)
+    {
+        lock (_stateLock)
+            return new(response, accepted, SnapshotCore());
+    }
+
+    private void CompleteRelease()
+    {
+        lock (_snapshotLock)
+            lock (_stateLock)
+            {
+                var released = _registration with { ReleaseConfirmed = true };
+                _registry.Write(released);
+                _registration = released;
+                _releasing = true;
+                _statusError = null;
+                _snapshot = new(_registration, [], EmptySessionList(), null, null,
+                    new Dictionary<string, IReadOnlyList<string>>());
+            }
+        _server.RequestShutdownAfterResponse();
     }
 
     private Task<ServiceResponse> ProcessAsync(ServiceRequest request)
@@ -311,7 +386,10 @@ internal sealed class ExcelWorkerHost : IDisposable
                 _releasing = true;
             }
             var report = await Task.Run(_service.RequestShutdown);
-            _server.RequestShutdownAfterResponse();
+            if (report is null && !_service.SessionManager.HasActiveConnections)
+                CompleteRelease();
+            else
+                _server.RequestShutdownAfterResponse();
             return Released(new ServiceResponse { Success = true, PartialState = report });
         }
         finally

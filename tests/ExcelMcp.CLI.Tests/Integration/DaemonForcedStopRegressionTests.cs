@@ -20,6 +20,79 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 public sealed class DaemonForcedStopRegressionTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SuccessfulRelease_OnlyRemovesTheExactIdentityFromItsServiceGeneration(bool wrongGeneration)
+    {
+        var pipeName = $"excelmcp-completed-close-{Guid.NewGuid():N}";
+        var daemon = DaemonProcessTracker.RegisterCurrentProcess(pipeName);
+        var released = new DaemonProcessTracker.ProcessIdentity(12345, 1);
+        var otherStart = released with { StartedAtUtcFileTime = 2 };
+        var otherProcess = released with { ProcessId = 12346 };
+        var path = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+        try
+        {
+            DaemonProcessTracker.RecordExcelProcesses(pipeName, daemon, [released, otherStart, otherProcess]);
+            var record = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+            record["retainedExcelProcesses"] = record["excelProcesses"]!.DeepClone();
+            File.WriteAllText(path, record.ToJsonString());
+            var before = File.ReadAllText(path);
+            if (wrongGeneration)
+            {
+                Assert.Throws<InvalidOperationException>(() => DaemonProcessTracker.ReleaseExcelProcess(
+                    pipeName, daemon with { StartedAtUtcFileTime = daemon.StartedAtUtcFileTime + 1 }, released));
+                Assert.Equal(before, File.ReadAllText(path));
+            }
+            else
+            {
+                DaemonProcessTracker.ReleaseExcelProcess(pipeName, daemon, released);
+                DaemonProcessTracker.ReleaseExcelProcess(pipeName, daemon, released);
+                using var after = JsonDocument.Parse(File.ReadAllText(path));
+                var owned = after.RootElement.GetProperty("excelProcesses").EnumerateArray().ToArray();
+                Assert.Equal(2, owned.Length);
+                Assert.Contains(owned, item => item.GetProperty("processId").GetInt32() == otherStart.ProcessId
+                    && item.GetProperty("startedAtUtcFileTime").GetInt64() == otherStart.StartedAtUtcFileTime);
+                Assert.Contains(owned, item => item.GetProperty("processId").GetInt32() == otherProcess.ProcessId
+                    && item.GetProperty("startedAtUtcFileTime").GetInt64() == otherProcess.StartedAtUtcFileTime);
+                using var original = JsonDocument.Parse(before);
+                Assert.Equal(original.RootElement.GetProperty("retainedExcelProcesses").GetRawText(),
+                    after.RootElement.GetProperty("retainedExcelProcesses").GetRawText());
+            }
+        }
+        finally
+        {
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("{")]
+    public void SuccessfulRelease_ReportsMissingOrDamagedOwnershipRecords(string? content)
+    {
+        var pipeName = $"excelmcp-release-failure-{Guid.NewGuid():N}";
+        var daemon = DaemonProcessTracker.RegisterCurrentProcess(pipeName);
+        var path = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+        try
+        {
+            if (content is null)
+                File.Delete(path);
+            else
+                File.WriteAllText(path, content);
+            Assert.Throws<InvalidOperationException>(() => DaemonProcessTracker.ReleaseExcelProcess(
+                pipeName, daemon, new(12345, 1)));
+            if (content is null)
+                Assert.False(File.Exists(path));
+            else
+                Assert.Equal(content, File.ReadAllText(path));
+        }
+        finally
+        {
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Theory]
     [InlineData(false, null)]
     [InlineData(true, null)]
     [InlineData(false, "excelProcesses")]

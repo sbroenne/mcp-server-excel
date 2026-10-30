@@ -17,6 +17,110 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CompletionRecordingFailure_RetainsTheExactWorkbookResponse(bool completedSuccessfully)
+    {
+        var request = new ServiceRequest { Command = "session.close", SessionId = "target" };
+        var response = new ServiceResponse
+        {
+            Success = completedSuccessfully,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = "ComInterop",
+            ErrorMessage = "Original error",
+            ExceptionType = nameof(COMException),
+            HResult = "0x800A03EC",
+            InnerError = "Original cause",
+            PartialState = """{"retained":true}""",
+            Result = """{"closeTimingsMs":{"save":31.25}}"""
+        };
+        var failed = response.WithCompletionFailure(request, new IOException("Ownership record is unavailable."));
+        Assert.False(failed.Success);
+        Assert.Equal("ServiceUnavailable", failed.ErrorCategory);
+        Assert.Equal(nameof(IOException), failed.ExceptionType);
+        Assert.Equal("IOException: Ownership record is unavailable.", failed.ErrorMessage);
+        Assert.Equal(request.Command, failed.Command);
+        Assert.Equal(request.SessionId, failed.SessionId);
+        Assert.Equal(response.Result, failed.Result);
+        using var state = JsonDocument.Parse(failed.PartialState!);
+        Assert.Equal("completed", state.RootElement.GetProperty("outcome").GetString());
+        Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(response, ServiceProtocol.JsonOptions),
+            state.RootElement.GetProperty("response")));
+    }
+
+    [Fact]
+    public async Task Close_SaveFailure_ReturnsTimingsAndRetainsOriginalFailure()
+    {
+        using var service = new ExcelMcpService();
+        var cause = new InvalidOperationException("Original save failure.");
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            SaveException = cause,
+            BeforeSave = () => Thread.Sleep(30)
+        };
+        const string sessionId = "failed-timed-close";
+        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
+        var close = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.close",
+            SessionId = sessionId,
+            Args = """{"save":true}"""
+        });
+        Assert.False(close.Success);
+        Assert.Equal("session.close", close.Command);
+        Assert.Equal(sessionId, close.SessionId);
+        Assert.Equal(nameof(InvalidOperationException), close.ExceptionType);
+        Assert.Equal(cause.Message, close.InnerError);
+        Assert.Contains(cause.Message, close.ErrorMessage, StringComparison.Ordinal);
+        Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+        Assert.Equal(0, batch.DisposeCalls);
+        using var result = JsonDocument.Parse(close.Result!);
+        var timings = result.RootElement.GetProperty("closeTimingsMs");
+        Assert.True(timings.GetProperty("save").GetDouble() >= 20);
+        Assert.False(timings.TryGetProperty("session-teardown", out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Close_TimingsMergePreservesResponseAndSharedTransport(bool success)
+    {
+        var response = new ServiceResponse
+        {
+            Success = success,
+            Command = "session.close",
+            SessionId = "target",
+            ErrorCategory = "ComInterop",
+            ErrorMessage = "Original error",
+            ExceptionType = nameof(COMException),
+            HResult = "0x800A03EC",
+            InnerError = "Original cause",
+            PartialState = """{"retained":true}""",
+            Result = """{"message":"Original result","closeTimingsMs":{"save":31.25}}"""
+        };
+        var measured = response.WithCloseTimings(new Dictionary<string, double> { ["worker-completion"] = 2.5 });
+        var shared = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceProtocol.Deserialize<
+            Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceResponse>(ServiceProtocol.Serialize(measured))!;
+        var restored = ServiceResponse.FromShared(shared);
+        Assert.Equal(response.Success, restored.Success);
+        Assert.Equal(response.Command, restored.Command);
+        Assert.Equal(response.SessionId, restored.SessionId);
+        Assert.Equal(response.ErrorCategory, restored.ErrorCategory);
+        Assert.Equal(response.ErrorMessage, restored.ErrorMessage);
+        Assert.Equal(response.ExceptionType, restored.ExceptionType);
+        Assert.Equal(response.HResult, restored.HResult);
+        Assert.Equal(response.InnerError, restored.InnerError);
+        Assert.Equal(response.PartialState, restored.PartialState);
+        using var result = JsonDocument.Parse(restored.Result!);
+        Assert.Equal("Original result", result.RootElement.GetProperty("message").GetString());
+        var timings = result.RootElement.GetProperty("closeTimingsMs");
+        Assert.Equal(31.25, timings.GetProperty("save").GetDouble());
+        Assert.Equal(2.5, timings.GetProperty("worker-completion").GetDouble());
+    }
+
     [Fact]
     public void StartupMetadata_MissingSession_DoesNotClaimItRemainsOpen()
     {

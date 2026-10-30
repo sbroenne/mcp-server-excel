@@ -181,6 +181,9 @@ public sealed class ExcelMcpService : IDisposable
         Justification = "Service request failure-transport boundary returns CreateErrorResponse with Success=false, original exception category/message/HResult, and request/session context.")]
     public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
     {
+        using var closeTimings = request.Command == "session.close" ? SessionDiagnostics.BeginCloseTimings() : null;
+        ServiceResponse Complete(ServiceResponse response) =>
+            closeTimings is null ? response : response.WithCloseTimings(closeTimings.Snapshot());
         try
         {
             request.CallerCancellation.ThrowIfCancellationRequested();
@@ -193,12 +196,12 @@ public sealed class ExcelMcpService : IDisposable
 
             if (_shuttingDown && category != "service")
             {
-                return AttachRequestContext(request, new ServiceResponse
+                return Complete(AttachRequestContext(request, new ServiceResponse
                 {
                     Success = false,
                     ErrorCategory = "SessionUnavailable",
                     ErrorMessage = "The service is shutting down and accepts no new work. Nothing was changed."
-                });
+                }));
             }
 
             ServiceResponse response = category switch
@@ -282,12 +285,12 @@ public sealed class ExcelMcpService : IDisposable
                 }
             };
 
-            return AttachRequestContext(request, response);
+            return Complete(AttachRequestContext(request, response));
         }
         catch (Exception ex)
         {
             // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
-            return CreateErrorResponse(ex, request.Command, request.SessionId);
+            return Complete(CreateErrorResponse(ex, request.Command, request.SessionId));
         }
     }
 
@@ -612,7 +615,8 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             _sessionManager.SetOperationContext(request.SessionId, request.Command, request.CallerCancellation);
-            closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
+            closed = SessionDiagnostics.MeasureCloseStage("session-close",
+                () => _sessionManager.CloseSession(request.SessionId, save: shouldSave));
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {

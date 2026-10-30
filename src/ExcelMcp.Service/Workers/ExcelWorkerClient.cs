@@ -56,7 +56,8 @@ internal sealed class ExcelWorkerClient
 
     internal WorkerSnapshot RecordSnapshot(WorkerSnapshot snapshot)
     {
-        if (snapshot.Registration.Worker != Registration.Worker
+        if (snapshot.Registration.PipeName != Registration.PipeName
+            || snapshot.Registration.Worker != Registration.Worker
             || snapshot.Registration.Controller != _controller
             || snapshot.Registration.Generation != _generation
             || snapshot.Registration.Build != WorkerRegistry.Build)
@@ -75,9 +76,12 @@ internal sealed class ExcelWorkerClient
     internal async Task<ServiceResponse> ExecuteAsync(ServiceRequest request, CancellationToken cancellationToken) =>
         (await ExecuteWithAdmissionAsync(request, cancellationToken)).Response;
 
-    internal Task<WorkerExecution> ExecuteWithAdmissionAsync(ServiceRequest request, CancellationToken cancellationToken) =>
-        CallAsync(rpc => rpc.ExecuteAsync(new(Guid.NewGuid().ToString("N"), _generation, request), cancellationToken),
+    internal async Task<WorkerExecution> ExecuteWithAdmissionAsync(ServiceRequest request, CancellationToken cancellationToken)
+    {
+        var execution = await CallAsync(rpc => rpc.ExecuteAsync(new(Guid.NewGuid().ToString("N"), _generation, request), cancellationToken),
             CancellationToken.None, ServiceClient.DefaultRequestTimeout);
+        return execution with { Snapshot = RecordSnapshot(execution.Snapshot) };
+    }
 
     internal async Task<ServiceResponse> ReleaseAsync(CancellationToken cancellationToken)
     {

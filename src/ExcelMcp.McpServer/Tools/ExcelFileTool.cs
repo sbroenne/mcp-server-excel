@@ -22,6 +22,7 @@ public static partial class ExcelFileTool
     /// Explicitly change AutoSave with workbook set-auto-save enabled. Enabling can immediately save pending edits.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
     /// Failed saves retain the open session and unsaved changes.
+    /// Close returns closeTimingsMs with measured step durations. Some steps include others; do not add them together.
     /// Save persists the current workbook without closing it. Timeouts preserve the owned session,
     /// request that its Excel window be shown, and report the result to the caller.
     /// canClose is false while Excel has a modal dialog open, is busy, refreshing, or its state cannot be confirmed,

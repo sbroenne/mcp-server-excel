@@ -51,6 +51,7 @@ public sealed class ExcelWorkerBoundaryTests
         try
         {
             await worker.InitializeAsync();
+            var initialRevision = worker.Snapshot!.Revision;
             var message = new string('x', 1024 * 1024);
             var response = await worker.ExecuteAsync(new ServiceRequest
             {
@@ -60,6 +61,9 @@ public sealed class ExcelWorkerBoundaryTests
             Assert.True(response.Success, response.ErrorMessage);
             Assert.Equal(message, System.Text.Json.JsonDocument.Parse(
                 response.Result!).RootElement.GetProperty("message").GetString());
+            Assert.True(worker.Snapshot!.Revision > initialRevision,
+                "The operation reply must update recorded status without another status request.");
+            Assert.Null(worker.Snapshot.PendingOperation);
             var snapshot = await worker.ReadSnapshotAsync();
             Assert.Empty(snapshot.Sessions);
             Assert.Null(snapshot.Registration.Excel);
@@ -78,6 +82,7 @@ public sealed class ExcelWorkerBoundaryTests
             Assert.True(released.Success, released.ErrorMessage);
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(0, process.ExitCode);
+            new WorkerRegistry().Remove(worker.Registration.PipeName);
         }
     }
 
@@ -123,7 +128,7 @@ public sealed class ExcelWorkerBoundaryTests
     public async Task WorkerCancellation_RetainsTheExactLateResponseWithoutRepeatingWork()
     {
         var pipeName = $"excelmcp-worker-{Guid.NewGuid():N}";
-        var target = new DeferredWorker();
+        var target = new DeferredWorker(pipeName);
         using var host = new DaemonHost(pipeName,
             pipe => new StreamJsonRpc.JsonRpc(pipe, pipe, target), maximumConnections: 8);
         var run = host.RunAsync(pipeName);
@@ -260,6 +265,84 @@ public sealed class ExcelWorkerBoundaryTests
         }
     }
 
+    [Theory(Timeout = 10000)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Registry_ReadReportsPersistentLocksAndRecoversAfterTemporaryLocks(bool releaseLock)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"excelmcp-locked-worker-{Guid.NewGuid():N}");
+        var registry = new WorkerRegistry(directory);
+        var record = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+            WorkerProcess.Current, WorkerProcess.Current, "generation", WorkerRegistry.Build, null,
+            ReleaseConfirmed: true);
+        var path = Path.Combine(directory, record.PipeName + ".json");
+        try
+        {
+            registry.Write(record);
+            using (var locked = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                registry.BeforeRecordReadForTests = _ => started.TrySetResult();
+                var reading = Task.Run(() => registry.Read(record.PipeName));
+                await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                if (releaseLock)
+                {
+                    await Task.Delay(50);
+                    locked.Dispose();
+                    Assert.Equal(record, await reading.WaitAsync(TimeSpan.FromSeconds(5)));
+                }
+                else
+                {
+                    var error = await Assert.ThrowsAsync<IOException>(
+                        () => reading.WaitAsync(TimeSpan.FromSeconds(5)));
+                    Assert.True((error.HResult & 0xFFFF) is 32 or 33);
+                    Assert.True(File.Exists(path));
+                }
+            }
+            Assert.Equal(record, registry.Read(record.PipeName));
+        }
+        finally
+        {
+            registry.Remove(record.PipeName);
+            Directory.Delete(directory);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Registry_CompletedReleaseRemainsAvailableUntilAcknowledged(bool controllerAlive)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"excelmcp-completed-worker-{Guid.NewGuid():N}");
+        var registry = new WorkerRegistry(directory);
+        var current = WorkerProcess.Current;
+        var stopped = current with { StartedAtUtcFileTime = current.StartedAtUtcFileTime - 1 };
+        var released = new ExcelProcessIdentity(current.ProcessId, current.StartedAtUtcFileTime);
+        var record = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+            stopped, controllerAlive ? current : stopped, "generation", WorkerRegistry.Build, null,
+            ReleaseConfirmed: true, ReleasedExcel: released);
+        try
+        {
+            registry.Write(record);
+            Assert.Equal(record, registry.Read(record.PipeName));
+            if (controllerAlive)
+            {
+                Assert.Equal(record, Assert.Single(registry.Read()));
+                Assert.False(record.OwnsExcel);
+                Assert.Null(record.Excel);
+                registry.Remove(record.PipeName);
+            }
+            else
+                Assert.Empty(registry.Read());
+            Assert.Null(registry.Read(record.PipeName));
+        }
+        finally
+        {
+            registry.Remove(record.PipeName);
+            Directory.Delete(directory);
+        }
+    }
+
     [Fact]
     public void Registry_DeadWorkerRetainsLiveApplicationIdentity()
     {
@@ -338,7 +421,7 @@ public sealed class ExcelWorkerBoundaryTests
         await Assert.ThrowsAsync<TimeoutException>(() => read);
     }
 
-    private sealed class DeferredWorker : IExcelWorkerRpc
+    private sealed class DeferredWorker(string pipeName) : IExcelWorkerRpc
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -356,7 +439,10 @@ public sealed class ExcelWorkerBoundaryTests
                 Success = false,
                 ExceptionType = "FileNotFoundException",
                 ErrorMessage = "The requested workbook does not exist."
-            }, Accepted: true);
+            }, Accepted: true, new WorkerSnapshot(
+                new(pipeName, WorkerProcess.Current, WorkerProcess.Current, call.Generation, WorkerRegistry.Build, null),
+                [], new ServiceResponse { Success = true, Result = """{"sessions":[]}""" },
+                null, null, new Dictionary<string, IReadOnlyList<string>>(), Revision: 1));
         }
 
         public Task<WorkerSnapshot> ClaimAsync(WorkerClaim claim, CancellationToken cancellationToken = default) =>

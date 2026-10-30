@@ -133,8 +133,7 @@ internal static class DaemonProcessTracker
 
     /// <summary>
     /// Adds currently owned Excel identities to the selected daemon generation.
-    /// Identities remain recorded until generation cleanup so a failed shutdown
-    /// cannot lose a process that was untracked before it actually exited.
+    /// Identities remain recorded until confirmed release or generation cleanup.
     /// </summary>
     public static void UpdateExcelProcesses(
         string pipeName,
@@ -212,6 +211,25 @@ internal static class DaemonProcessTracker
                 && process.StartedAtUtcFileTime == excelIdentity.StartedAtUtcFileTime)
                 ?? throw new InvalidOperationException("Cannot preserve Excel: its exact process identity is not recorded.");
             process.Preserved = true;
+            WriteRecord(pipeName, record);
+        }
+    }
+
+    internal static void ReleaseExcelProcess(
+        string pipeName, ProcessIdentity daemonIdentity, ProcessIdentity excelIdentity)
+    {
+        lock (TrackingFileLock)
+        {
+            using var trackingMutex = AcquireTrackingMutex(pipeName);
+            var read = ReadRecordCore(pipeName);
+            var record = read.Record;
+            if (read.Status != TrackingRecordStatus.Available || record is null
+                || record.ProcessId != daemonIdentity.ProcessId
+                || record.StartedAtUtcFileTime != daemonIdentity.StartedAtUtcFileTime)
+                throw new InvalidOperationException("Cannot release Excel: its service ownership record could not be confirmed.");
+            record.ExcelProcesses.RemoveAll(process =>
+                process.ProcessId == excelIdentity.ProcessId
+                && process.StartedAtUtcFileTime == excelIdentity.StartedAtUtcFileTime);
             WriteRecord(pipeName, record);
         }
     }
