@@ -46,6 +46,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private readonly Lock _disposeLock = new();
+    private SessionDiagnostics.CloseTimingCollection? _closeTimings;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId;
     private ExcelProcessIdentity? _excelProcessIdentity;
@@ -885,6 +886,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             }
             finally
             {
+                using var closeTimingContext = SessionDiagnostics.UseCloseTimings(_closeTimings);
                 // Cleanup COM objects on STA thread exit
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
@@ -1367,10 +1369,12 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 "Please close this session and create a new one.");
         }
 
+        var closeTimings = SessionDiagnostics.CurrentCloseTimings;
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         var started = false;
         var workItem = new ExcelWorkItem<T>(() =>
         {
+            using var closeTimingContext = SessionDiagnostics.UseCloseTimings(closeTimings);
             if (_operationTimedOut)
                 throw new ExcelBusyException("An earlier operation exceeded its wait. This queued operation was not executed.");
             lock (_statusLock)
@@ -1810,6 +1814,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     {
         lock (_disposeLock)
         {
+            _closeTimings = SessionDiagnostics.CurrentCloseTimings;
             if (_disposed != 0)
             {
                 if (!_teardownConfirmed)
@@ -2114,6 +2119,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
         lock (_disposeLock)
         {
+            _closeTimings = SessionDiagnostics.CurrentCloseTimings;
             if (_disposed == 0 && IsExcelProcessAlive() &&
                 (_operationTimedOut || !_startupCompletion.IsCompleted ||
                  OperationStatus.ExecutionPending || _readinessTask is { IsCompleted: false }))

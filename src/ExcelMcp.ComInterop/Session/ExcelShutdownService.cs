@@ -297,7 +297,6 @@ public static class ExcelShutdownService
                             throw; // Let pipeline decide if retry
                         }
                     }, quitTimeout.Token);
-                    quitTiming?.Complete();
 
                     if (quitConfirmed)
                     {
@@ -457,7 +456,6 @@ public static class ExcelShutdownService
             {
                 logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
                 workbook.Close(save.HasValue ? save.Value : Type.Missing);
-                timing?.Complete();
                 logger.LogDebug("Workbook {FileName} close call returned", fileName);
                 return;
             }

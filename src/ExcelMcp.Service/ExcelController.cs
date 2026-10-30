@@ -185,7 +185,7 @@ internal sealed class ExcelController : IDisposable
                     SessionId = closedId,
                     Result = JsonSerializer.Serialize(new { success = true, sessionId = closedId, message = "Session already closed." },
                         ServiceProtocol.JsonOptions)
-                };
+                }.WithCloseTimings(new Dictionary<string, double>());
             else if (!ExcelMcpService.IsSessionlessCommand(request.Command) && request.SessionId is { } lostId
                 && _closedSessions.TryGetValue(lostId, out var lostEnd) && lostEnd == SessionEnd.WorkerExited)
                 return CreateWorkerError(request,
@@ -253,6 +253,9 @@ internal sealed class ExcelController : IDisposable
     private async Task<ServiceResponse> CompleteWorkerRequestAsync(
         ServiceRequest request, ExcelWorkerClient worker, List<string> reservedPaths, PathReservation reservation)
     {
+        using var closeTimings = request.Command == "session.close" ? SessionDiagnostics.BeginCloseTimings() : null;
+        ServiceResponse Complete(ServiceResponse response) =>
+            closeTimings is null ? response : response.WithCloseTimings(closeTimings.Snapshot());
         try
         {
             var execution = await worker.ExecuteWithAdmissionAsync(request, request.CallerCancellation);
@@ -269,7 +272,7 @@ internal sealed class ExcelController : IDisposable
             lock (_shutdownLock)
             {
                 if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker)
-                    return response;
+                    return Complete(response);
                 if (response.SessionId is { } created && worker.Snapshot?.Sessions.Any(session => session.SessionId == created) == true)
                 {
                     _sessions[created] = worker;
@@ -320,7 +323,7 @@ internal sealed class ExcelController : IDisposable
                 else
                     await ReleaseEmptyWorkerAsync(worker);
             }
-            return response;
+            return Complete(response);
         }
         catch (Exception ex)
         {
@@ -342,7 +345,7 @@ internal sealed class ExcelController : IDisposable
                 }
             }
             System.Diagnostics.Trace.TraceError("Excel worker request failed: {0}", ex);
-            return CreateWorkerError(request, ex, sent: true);
+            return Complete(CreateWorkerError(request, ex, sent: true));
         }
     }
 

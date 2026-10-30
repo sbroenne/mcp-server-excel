@@ -2,4 +2,4 @@
 "excelmcp": patch
 ---
 
-When `EXCELMCP_DIAGNOSTICS=1` is enabled, local timing logs show which stage of saving and closing a workbook takes time, including work done in background processes. Save and close behavior, command results, and timeouts are unchanged.
+Workbook close responses now automatically include a compact `closeTimingsMs` breakdown, including work done in background processes. Both the CLI and MCP return the measurements directly to the calling agent, with no environment setting or local timing files needed. Saving, closing, required cleanup, and time limits are unchanged.

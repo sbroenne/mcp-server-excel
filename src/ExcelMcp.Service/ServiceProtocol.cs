@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 // Re-export shared types from ComInterop for CLI internal use
@@ -91,6 +92,31 @@ public sealed class ServiceResponse
 
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
+
+    internal ServiceResponse WithCloseTimings(IReadOnlyDictionary<string, double> timings)
+    {
+        var result = Result is null ? new JsonObject() : JsonNode.Parse(Result)!.AsObject();
+        if (result["closeTimingsMs"] is not JsonObject measured)
+        {
+            measured = new JsonObject();
+            result["closeTimingsMs"] = measured;
+        }
+        foreach (var (stage, elapsedMs) in timings)
+            measured[stage] = elapsedMs;
+        return new ServiceResponse
+        {
+            Success = Success,
+            Command = Command,
+            SessionId = SessionId,
+            ErrorMessage = ErrorMessage,
+            ErrorCategory = ErrorCategory,
+            ExceptionType = ExceptionType,
+            HResult = HResult,
+            InnerError = InnerError,
+            PartialState = PartialState,
+            Result = result.ToJsonString(ServiceProtocol.JsonOptions)
+        };
+    }
 
     /// <summary>
     /// Creates from shared response type.

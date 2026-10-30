@@ -1153,6 +1153,13 @@ public sealed class ExcelControllerWorkbookTests
                 traceResult.RootElement.GetProperty("processId").GetInt32());
             var closed = await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = sessionId });
             Assert.True(closed.Success, closed.ErrorMessage);
+            using var closeResult = JsonDocument.Parse(closed.Result!);
+            var closeTimings = closeResult.RootElement.GetProperty("closeTimingsMs");
+            Assert.Equal(14, closeTimings.EnumerateObject().Count());
+            Assert.False(closeTimings.TryGetProperty("save", out _));
+            Assert.True(closeTimings.GetProperty("session-close").GetDouble() > 0);
+            Assert.True(closeTimings.GetProperty("worker-status").GetDouble() > 0);
+            Assert.True(closeTimings.GetProperty("worker-release").GetDouble() > 0);
             Assert.Empty(controller.Sessions);
             var again = await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = sessionId });
             Assert.True(again.Success, again.ErrorMessage);

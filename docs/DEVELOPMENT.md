@@ -66,44 +66,24 @@ Release/publication procedures: [release strategy](RELEASE-STRATEGY.md),
 
 ## Investigating a slow workbook close
 
-Set `EXCELMCP_DIAGNOSTICS=1` before starting the CLI service or MCP Server.
-An already running service keeps its original environment. For an isolated CLI
-investigation, select a private service before opening the intended workbook:
+Close responses automatically include `closeTimingsMs`: a compact object mapping
+each measured step to its duration in milliseconds, rounded to two decimal
+places. No environment setting or local timing files are needed.
+`excelcli session close` returns this object under `data.closeTimingsMs`;
+the MCP `file` tool's `close` action returns `closeTimingsMs` directly.
 
-```powershell
-$env:EXCELMCP_DIAGNOSTICS = '1'
-$env:EXCELMCP_CLI_PIPE = 'excelmcp-close-diagnostics'
-excelcli service status
-```
+Measurements cover readiness, saving, workbook close, required cleanup, Excel
+thread and process exit, and controller status and worker release. Only steps
+that ran are included: for example, `save` is absent when saving was not
+requested. Repeated work within a step is accumulated. Some steps include other
+steps, so do not add all durations together.
 
-Run the intended workbook operations and close command as usual. Saving,
-closing, timeouts, command results, and error handling are unchanged. The MCP
-Server uses the same close measurements when started with this environment
-setting; it does not use the CLI service.
-
-Close-stage records are written locally under
-`%LOCALAPPDATA%\ExcelMcp\diagnostics\close-<processId>.jsonl`, including from
-background Excel workers whose error output is not visible in the calling
-terminal. Controller and worker records are in separate files. Each file rolls
-over at approximately 1 MiB, retaining one `.previous` file.
-
-The records contain a process number, UTC timestamp, stage name, stage ID,
-start/finish event, elapsed milliseconds, and whether the stage returned normally.
-They do not contain workbook paths, workbook contents, session IDs, or exception
-messages, and they are not sent as usage reporting. A file-write failure emits a
-local diagnostic warning without replacing the workbook result or original error.
-
-Match a start and finish by `stageId`. Measurements cover readiness checks,
-discovery release, saving, workbook close, releasing Excel connections, Excel
-quit, waiting for the Excel thread and process to exit, and controller status
-and worker release. Some stages include other stages: do not add all durations
-together. A start without a finish identifies an unfinished measurement, not
-proof that Excel stopped working or that changes were lost.
-
-Turn off this setting after the investigation and remove the local logs when
-they are no longer needed. Close only the intended test sessions, then stop
-their private service before removing the private-pipe setting. Do not stop a
-different service or change save/close options merely to collect timing evidence.
+The timing object is normally smaller than 1 KB. It contains only step names
+and durations, not workbook data, paths, session IDs, or exception messages.
+It is returned to the calling agent, not sent as usage reporting.
+Failures retain their original error and any collected measurements; a duration
+does not establish that its step succeeded or that pending Excel work stopped.
+Saving, closing, required cleanup, time limits, and error handling are unchanged.
 
 ## 🚨 **IMPORTANT: All Changes Must Use Pull Requests**
 

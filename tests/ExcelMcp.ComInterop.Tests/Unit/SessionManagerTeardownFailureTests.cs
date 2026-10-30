@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,26 +17,19 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class SessionManagerTeardownFailureTests
 {
     [Theory]
-    [InlineData("1", false)]
-    [InlineData("true", true)]
-    [InlineData("off", false)]
-    public void Close_Diagnostics_RecordStagesWithoutChangingSaveOrFailure(string diagnostics, bool saveFails)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Close_Timings_RecordStagesWithoutChangingSaveOrFailure(bool saveFails)
     {
-        var previous = Environment.GetEnvironmentVariable("EXCELMCP_DIAGNOSTICS");
-        var logPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ExcelMcp", "diagnostics", $"close-{Environment.ProcessId}.jsonl");
-        var existed = File.Exists(logPath);
-        var originalLineCount = existed ? File.ReadAllLines(logPath).Length : 0;
         using var manager = new SessionManager();
         var batch = new ConfigurableFailingBatch(saveFails, false)
         {
             BeforeSave = () => Thread.Sleep(30)
         };
         RegisterSession(manager, "timed-close", batch.WorkbookPath, batch);
+        using var timings = SessionDiagnostics.BeginCloseTimings();
         try
         {
-            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", diagnostics);
             if (saveFails)
             {
                 var failure = Assert.Throws<InvalidOperationException>(
@@ -54,77 +46,67 @@ public sealed class SessionManagerTeardownFailureTests
             }
             Assert.Equal(1, batch.SaveCallCount);
 
-            var lines = File.Exists(logPath)
-                ? File.ReadAllLines(logPath).Skip(originalLineCount).ToArray()
-                : [];
-            if (diagnostics == "off")
-            {
-                Assert.Empty(lines);
-                return;
-            }
-
-            Assert.NotEmpty(lines);
-            var records = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
-            var save = Assert.Single(records, record =>
-                record.GetProperty("stage").GetString() == "save"
-                && record.GetProperty("event").GetString() == "finished");
-            Assert.Equal(!saveFails, save.GetProperty("completed").GetBoolean());
-            Assert.True(save.GetProperty("elapsedMs").GetDouble() >= 20);
-            var started = Assert.Single(records, record =>
-                record.GetProperty("stageId").GetString() == save.GetProperty("stageId").GetString()
-                && record.GetProperty("event").GetString() == "started");
-            Assert.Equal(Environment.ProcessId, started.GetProperty("processId").GetInt32());
-            Assert.True(started.GetProperty("timestampUtc").GetDateTime() <= save.GetProperty("timestampUtc").GetDateTime());
-            Assert.Contains(records, record => record.GetProperty("stage").GetString() == "readiness");
-            Assert.DoesNotContain("timed-close", string.Join('\n', lines), StringComparison.Ordinal);
-            Assert.DoesNotContain(batch.WorkbookPath, string.Join('\n', lines), StringComparison.Ordinal);
+            var measured = timings.Snapshot();
+            Assert.True(measured["save"] >= 20);
+            Assert.Contains("readiness", measured.Keys);
+            Assert.Contains("discovery-release", measured.Keys);
+            Assert.Equal(!saveFails, measured.ContainsKey("session-teardown"));
+            var json = JsonSerializer.Serialize(measured);
+            Assert.DoesNotContain("timed-close", json, StringComparison.Ordinal);
+            Assert.DoesNotContain(batch.WorkbookPath, json, StringComparison.Ordinal);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", previous);
             batch.SaveFails = false;
-            if (!existed && File.Exists(logPath))
-                File.Delete(logPath);
         }
     }
 
     [Fact]
-    public async Task Close_Diagnostics_UnwritableLogPreservesOriginalFailureAndCancellation()
+    public async Task Close_Timings_PreserveOriginalFailureAndCancellation()
     {
-        var previous = Environment.GetEnvironmentVariable("EXCELMCP_DIAGNOSTICS");
-        var logPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ExcelMcp", "diagnostics", $"close-{Environment.ProcessId}.jsonl");
-        var existed = File.Exists(logPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        using var warnings = new StringWriter();
-        using var listener = new TextWriterTraceListener(warnings);
-        Trace.Listeners.Add(listener);
-        try
+        using var timings = SessionDiagnostics.BeginCloseTimings();
+        var failure = new InvalidOperationException("Original close failure.");
+        var calls = 0;
+        Action fail = () => { calls++; throw failure; };
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(
+            () => SessionDiagnostics.MeasureCloseStage("workbook-close", fail)));
+        Assert.Equal(1, calls);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cancelled = new OperationCanceledException(cancellation.Token);
+        Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(
+            () => SessionDiagnostics.MeasureCloseStageAsync("worker-release", () => Task.FromException(cancelled))));
+        Assert.Contains("workbook-close", timings.Snapshot().Keys);
+        Assert.Contains("worker-release", timings.Snapshot().Keys);
+    }
+
+    [Fact]
+    public async Task Close_Timings_IsolateConcurrentRequestsAndRestoreOuterScope()
+    {
+        using var outer = SessionDiagnostics.BeginCloseTimings();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrivals = 0;
+        async Task<Dictionary<string, double>> Measure(string stage)
         {
-            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", "1");
-            using var lockedLog = new FileStream(logPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-            var failure = new InvalidOperationException("Original close failure.");
-            var calls = 0;
-            Action fail = () => { calls++; throw failure; };
-            Assert.Same(failure, Assert.Throws<InvalidOperationException>(
-                () => SessionDiagnostics.MeasureCloseStage("workbook-close", fail)));
-            Assert.Equal(1, calls);
-            using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
-            var cancelled = new OperationCanceledException(cancellation.Token);
-            Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(
-                () => SessionDiagnostics.MeasureCloseStageAsync("worker-release", () => Task.FromException(cancelled))));
-            listener.Flush();
-            Assert.Contains("Could not write the local Excel close timing log", warnings.ToString(), StringComparison.Ordinal);
+            using var timings = SessionDiagnostics.BeginCloseTimings();
+            await SessionDiagnostics.MeasureCloseStageAsync(stage, async () =>
+            {
+                if (Interlocked.Increment(ref arrivals) == 2)
+                    started.SetResult();
+                await started.Task;
+                await Task.Delay(20);
+            });
+            return timings.Snapshot();
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", previous);
-            Trace.Listeners.Remove(listener);
-            if (!existed && File.Exists(logPath))
-                File.Delete(logPath);
-        }
+        var measured = await Task.WhenAll(Task.Run(() => Measure("first")), Task.Run(() => Measure("second")));
+        Assert.Equal("first", Assert.Single(measured[0]).Key);
+        Assert.Equal("second", Assert.Single(measured[1]).Key);
+        Assert.All(measured, result => Assert.True(Assert.Single(result).Value >= 10));
+        Assert.Same(outer, SessionDiagnostics.CurrentCloseTimings);
+        Assert.Empty(outer.Snapshot());
+        outer.Record("workbook-release", 1.234);
+        outer.Record("workbook-release", 1.234);
+        Assert.Equal(2.47, outer.Snapshot()["workbook-release"]);
     }
 
     [Theory]

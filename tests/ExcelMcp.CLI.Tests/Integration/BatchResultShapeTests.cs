@@ -13,6 +13,46 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Speed", "Fast")]
 public sealed class BatchResultShapeTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Close_PreservesTimingsAndOriginalFailure(bool success, bool batch)
+    {
+        var result = await InProcessCliHelper.RunAsync(
+            batch ? ["batch", "--session", "target"] : ["session", "close", "--session", "target", "--save"],
+            request =>
+            {
+                Assert.Equal("session.close", request.Command);
+                return new ServiceResponse
+                {
+                    Success = success,
+                    Command = request.Command,
+                    SessionId = request.SessionId,
+                    ErrorCategory = success ? null : "ComInterop",
+                    ErrorMessage = success ? null : "Original error",
+                    HResult = success ? null : "0x800A03EC",
+                    PartialState = success ? null : """{"retained":true}""",
+                    Result = """{"closeTimingsMs":{"save":31.25,"workbook-close":0}}"""
+                };
+            },
+            batch ? """{"command":"session.close","args":{"save":true}}""" : "");
+        Assert.Equal(success ? 0 : 1, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout);
+        var root = output.RootElement;
+        Assert.Equal(success, root.GetProperty("success").GetBoolean());
+        var timings = root.GetProperty("data").GetProperty("closeTimingsMs");
+        Assert.Equal(31.25, timings.GetProperty("save").GetDouble());
+        Assert.Equal(0, timings.GetProperty("workbook-close").GetDouble());
+        if (!success)
+        {
+            Assert.Equal("Original error", root.GetProperty("error").GetProperty("message").GetString());
+            Assert.Equal("0x800A03EC", root.GetProperty("error").GetProperty("hresult").GetString());
+            Assert.True(root.GetProperty("partialState").GetProperty("retained").GetBoolean());
+        }
+    }
+
     [Fact]
     public async Task Batch_SessionList_KeepsActualSessionResult()
     {
