@@ -207,8 +207,8 @@ public sealed class ExcelToolsBaseTelemetryTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => ExcelToolsBase.ExecuteToolActionAsync(
             "range",
             "get-values",
-            operation: () => throw new InvalidOperationException(
-                @"Private failure at C:\Users\Someone\Secret.xlsx on Sheet1!A1"),
+            operation: () => Task.FromException<string>(new InvalidOperationException(
+                @"Private failure at C:\Users\Someone\Secret.xlsx on Sheet1!A1")),
             cancellationToken: CancellationToken.None,
             trackInvocation: (_, _, _, result) => invocation = result));
         Assert.Equal(

@@ -26,10 +26,20 @@ public static class ExcelToolsBase
         object? args,
         CancellationToken cancellationToken)
     {
+        var result = await ForwardResultToServiceAsync(bridge, command, sessionId, args, cancellationToken);
+        return result.ToToolJson();
+    }
+
+    internal static async Task<ResultJson> ForwardResultToServiceAsync(
+        ServiceBridge.ServiceBridge bridge,
+        string command,
+        string? sessionId,
+        object? args,
+        CancellationToken cancellationToken)
+    {
         var response = await bridge.SendAsync(command, sessionId,
             args, cancellationToken: cancellationToken);
-        var result = ReadServiceResponse(response, command);
-        return result.ToToolJson();
+        return ReadServiceResponse(response, command);
     }
 
     internal static ResultJson ReadServiceResponse(ServiceResponse response, string command)
@@ -59,10 +69,41 @@ public static class ExcelToolsBase
         ExecuteToolActionAsync(toolName, actionName, operation, cancellationToken,
             ExcelMcpTelemetry.TrackToolInvocation, resultFactory);
 
-    internal static async Task<CallToolResult> ExecuteToolActionAsync(
+    internal static Task<CallToolResult> ExecuteToolActionAsync(
         string toolName,
         string actionName,
         Func<Task<string>> operation,
+        CancellationToken cancellationToken,
+        Action<string, string, long, ToolInvocationResult> trackInvocation,
+        Func<string, CallToolResult>? resultFactory = null) =>
+        ExecuteToolActionCoreAsync(toolName, actionName, operation, json =>
+        {
+            var command = ServiceRegistry.GetMcpCommand(toolName, actionName);
+            return ResultJson.Read(json, command, contract: ServiceRegistry.GetResultContract(command));
+        }, cancellationToken, trackInvocation, resultFactory);
+
+    internal static Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<Task<ResultJson>> operation,
+        CancellationToken cancellationToken) =>
+        ExecuteToolActionAsync(toolName, actionName, operation, cancellationToken,
+            ExcelMcpTelemetry.TrackToolInvocation);
+
+    internal static Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<Task<ResultJson>> operation,
+        CancellationToken cancellationToken,
+        Action<string, string, long, ToolInvocationResult> trackInvocation) =>
+        ExecuteToolActionCoreAsync(toolName, actionName, operation, outcome => outcome,
+            cancellationToken, trackInvocation);
+
+    private static async Task<CallToolResult> ExecuteToolActionCoreAsync<T>(
+        string toolName,
+        string actionName,
+        Func<Task<T>> operation,
+        Func<T, ResultJson> readOutcome,
         CancellationToken cancellationToken,
         Action<string, string, long, ToolInvocationResult> trackInvocation,
         Func<string, CallToolResult>? resultFactory = null)
@@ -72,11 +113,10 @@ public static class ExcelToolsBase
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var json = await operation();
+            var response = await operation();
             cancellationToken.ThrowIfCancellationRequested();
-            var command = ServiceRegistry.GetMcpCommand(toolName, actionName);
-            var outcome = ResultJson.Read(json, command, contract: ServiceRegistry.GetResultContract(command));
-            json = outcome.ToToolJson();
+            var outcome = readOutcome(response);
+            var json = outcome.ToToolJson();
             invocation = ClassifyToolResponse(toolName, actionName, json);
             var result = resultFactory?.Invoke(json)
                 ?? CreateToolResult(json, !outcome.Success);

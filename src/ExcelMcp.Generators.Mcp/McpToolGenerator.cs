@@ -420,7 +420,8 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         var routeCallbackComma = mcpParams.Count > 0 ? "," : string.Empty;
-        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken){routeCallbackComma}");
+        var forwardMethod = HasImageResult(info) ? "ForwardToServiceAsync" : "ForwardResultToServiceAsync";
+        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.{forwardMethod}(bridge, command, id, args, cancellationToken){routeCallbackComma}");
 
         // Named arguments to RouteAction
         for (int i = 0; i < mcpParams.Count; i++)
