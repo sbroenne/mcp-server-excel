@@ -220,8 +220,11 @@ public static class ExcelShutdownService
 
             // Drain unreachable interop metadata while Excel can still service releases.
             // Acquired workbook/application references are released explicitly below.
-            GC.Collect();
-            Marshal.CleanupUnusedObjectsInCurrentContext();
+            SessionDiagnostics.MeasureCloseStage("com-context-cleanup", () =>
+            {
+                GC.Collect();
+                Marshal.CleanupUnusedObjectsInCurrentContext();
+            });
 
             // Step 2: Close workbook with retry for transient COM busy errors
             if (workbook != null)
@@ -235,7 +238,7 @@ public static class ExcelShutdownService
 
                 if (releaseWorkbook)
                 {
-                    ComUtilities.Release(ref workbook);
+                    SessionDiagnostics.MeasureCloseStage("workbook-release", () => ComUtilities.Release(ref workbook));
                     logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
                 }
             }
@@ -250,7 +253,7 @@ public static class ExcelShutdownService
                         "Leaving Excel open with {WorkbookCount} workbook(s) after closing {FileName}",
                         remainingWorkbooks, fileName);
                     LeaveOpenAndVisible(excel, originalDisplayAlerts);
-                    ComUtilities.Release(ref excel);
+                    SessionDiagnostics.MeasureCloseStage("application-release", () => ComUtilities.Release(ref excel));
                     return false;
                 }
 
@@ -262,6 +265,7 @@ public static class ExcelShutdownService
 
                 try
                 {
+                    using var quitTiming = SessionDiagnostics.BeginCloseStage("excel-quit");
                     logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry ({Timeout} timeout)", fileName, ComInteropConstants.ExcelQuitTimeout);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
@@ -293,6 +297,7 @@ public static class ExcelShutdownService
                             throw; // Let pipeline decide if retry
                         }
                     }, quitTimeout.Token);
+                    quitTiming?.Complete();
 
                     if (quitConfirmed)
                     {
@@ -352,7 +357,7 @@ public static class ExcelShutdownService
                 {
                     if (lastException is null)
                     {
-                        ComUtilities.Release(ref excel);
+                        SessionDiagnostics.MeasureCloseStage("application-release", () => ComUtilities.Release(ref excel));
                         logger.LogDebug("Released Excel application COM reference for {FileName}", fileName);
                     }
                 }
@@ -442,6 +447,7 @@ public static class ExcelShutdownService
         string fileName,
         ILogger logger)
     {
+        using var timing = SessionDiagnostics.BeginCloseStage("workbook-close");
         const int maxCloseAttempts = 3;
         const int closeRetryDelayMs = 200;
 
@@ -451,6 +457,7 @@ public static class ExcelShutdownService
             {
                 logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
                 workbook.Close(save.HasValue ? save.Value : Type.Missing);
+                timing?.Complete();
                 logger.LogDebug("Workbook {FileName} close call returned", fileName);
                 return;
             }

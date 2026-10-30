@@ -64,6 +64,47 @@ Release/publication procedures: [release strategy](RELEASE-STRATEGY.md),
 [extension development](../vscode-extension/DEVELOPMENT.md), and
 [plugin publication](../.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
 
+## Investigating a slow workbook close
+
+Set `EXCELMCP_DIAGNOSTICS=1` before starting the CLI service or MCP Server.
+An already running service keeps its original environment. For an isolated CLI
+investigation, select a private service before opening the intended workbook:
+
+```powershell
+$env:EXCELMCP_DIAGNOSTICS = '1'
+$env:EXCELMCP_CLI_PIPE = 'excelmcp-close-diagnostics'
+excelcli service status
+```
+
+Run the intended workbook operations and close command as usual. Saving,
+closing, timeouts, command results, and error handling are unchanged. The MCP
+Server uses the same close measurements when started with this environment
+setting; it does not use the CLI service.
+
+Close-stage records are written locally under
+`%LOCALAPPDATA%\ExcelMcp\diagnostics\close-<processId>.jsonl`, including from
+background Excel workers whose error output is not visible in the calling
+terminal. Controller and worker records are in separate files. Each file rolls
+over at approximately 1 MiB, retaining one `.previous` file.
+
+The records contain a process number, UTC timestamp, stage name, stage ID,
+start/finish event, elapsed milliseconds, and whether the stage returned normally.
+They do not contain workbook paths, workbook contents, session IDs, or exception
+messages, and they are not sent as usage reporting. A file-write failure emits a
+local diagnostic warning without replacing the workbook result or original error.
+
+Match a start and finish by `stageId`. Measurements cover readiness checks,
+discovery release, saving, workbook close, releasing Excel connections, Excel
+quit, waiting for the Excel thread and process to exit, and controller status
+and worker release. Some stages include other stages: do not add all durations
+together. A start without a finish identifies an unfinished measurement, not
+proof that Excel stopped working or that changes were lost.
+
+Turn off this setting after the investigation and remove the local logs when
+they are no longer needed. Close only the intended test sessions, then stop
+their private service before removing the private-pipe setting. Do not stop a
+different service or change save/close options merely to collect timing evidence.
+
 ## 🚨 **IMPORTANT: All Changes Must Use Pull Requests**
 
 **Direct commits to `main` are not allowed.** All changes must go through the Pull Request (PR) process to ensure:

@@ -17,6 +17,14 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly bool[] CloseSaveModes = [true, false];
+    private static readonly string[] CloseTimingStages =
+    [
+        "session-close", "readiness", "discovery-release", "save", "session-teardown",
+        "workbook-close", "workbook-release", "com-context-cleanup", "excel-quit",
+        "application-release", "com-final-cleanup", "excel-thread-exit", "excel-process-exit"
+    ];
+    private static readonly string[] CloseTimingFields =
+        ["completed", "elapsedMs", "event", "processId", "stage", "stageId", "timestampUtc"];
 
     [Theory]
     [InlineData(false)]
@@ -582,24 +590,58 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Fact]
     public async Task SaveCloseReopen_PersistsMarkerInNewSession()
     {
-        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        var previousDiagnostics = Environment.GetEnvironmentVariable("EXCELMCP_DIAGNOSTICS");
+        var logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ExcelMcp", "diagnostics", $"close-{Environment.ProcessId}.jsonl");
+        var existed = File.Exists(logPath);
+        var originalLineCount = existed ? File.ReadAllLines(logPath).Length : 0;
+        try
         {
-            var workbookPath = Path.Join(directory, "persist.xlsx");
-            var sessionId = await CreateSessionAsync(service, workbookPath);
-            sessions[sessionId] = 0;
-            await WriteMarkerAsync(service, sessionId, "Persisted");
-            Assert.Equal("Persisted", await ReadMarkerAsync(service, sessionId));
-            await CloseSessionAsync(service, sessionId, save: true);
-            sessions.TryRemove(sessionId, out _);
-            await AssertSessionIdsAsync(service);
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", "1");
+            await RunWithCleanupAsync(async (service, directory, sessions) =>
+            {
+                var workbookPath = Path.Join(directory, "persist.xlsx");
+                var sessionId = await CreateSessionAsync(service, workbookPath);
+                sessions[sessionId] = 0;
+                await WriteMarkerAsync(service, sessionId, "Persisted");
+                Assert.Equal("Persisted", await ReadMarkerAsync(service, sessionId));
+                var identity = Assert.IsType<ExcelProcessIdentity>(
+                    service.SessionManager.GetSessionProcessIdentity(sessionId));
+                await CloseSessionAsync(service, sessionId, save: true);
+                sessions.TryRemove(sessionId, out _);
+                await AssertSessionIdsAsync(service);
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
 
-            var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
-            sessions[reopenedSessionId] = 0;
-            Assert.NotEqual(sessionId, reopenedSessionId);
-            Assert.Equal(
-                "Persisted",
-                await ReadMarkerAsync(service, reopenedSessionId));
-        });
+                var records = File.ReadAllLines(logPath).Skip(originalLineCount)
+                    .Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+                foreach (var stage in CloseTimingStages)
+                {
+                    var finished = Assert.Single(records, record =>
+                        record.GetProperty("stage").GetString() == stage
+                        && record.GetProperty("event").GetString() == "finished");
+                    Assert.True(finished.GetProperty("completed").GetBoolean(), stage);
+                    Assert.True(finished.GetProperty("elapsedMs").GetDouble() >= 0, stage);
+                    Assert.Single(records, record =>
+                        record.GetProperty("stageId").GetString() == finished.GetProperty("stageId").GetString()
+                        && record.GetProperty("event").GetString() == "started");
+                }
+                Assert.All(records, record => Assert.Equal(
+                    CloseTimingFields,
+                    record.EnumerateObject().Select(property => property.Name).Order().ToArray()));
+
+                var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
+                sessions[reopenedSessionId] = 0;
+                Assert.NotEqual(sessionId, reopenedSessionId);
+                Assert.Equal("Persisted", await ReadMarkerAsync(service, reopenedSessionId));
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", previousDiagnostics);
+            if (!existed && File.Exists(logPath))
+                File.Delete(logPath);
+        }
     }
 
     [Theory]

@@ -1009,7 +1009,8 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     startupWorkbooks = null;
                     startupPrimaryWorkbook = null;
                     startupExcel = null;
-                    Marshal.CleanupUnusedObjectsInCurrentContext();
+                    SessionDiagnostics.MeasureCloseStage("com-final-cleanup",
+                        Marshal.CleanupUnusedObjectsInCurrentContext);
                     BeforeApplicationLeaseReleaseHookForTests?.Invoke();
                     _applicationLease?.Dispose();
                     _applicationLease = null;
@@ -2025,7 +2026,8 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
             _workbooks.Remove(entry.Key);
             _closedWorkbookPathsDuringShutdown.Add(entry.Key);
-            ForgetTrackedWorkbook(entry.Value, capabilities);
+            SessionDiagnostics.MeasureCloseStage("workbook-release",
+                () => ForgetTrackedWorkbook(entry.Value, capabilities));
         }
     }
 
@@ -2145,14 +2147,17 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         }
         _shutdownCts.Cancel();
         _workQueue.Writer.TryComplete();
-        if (_staThread.IsAlive && !_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+        SessionDiagnostics.MeasureCloseStage("excel-thread-exit", () =>
         {
-            RevealForRecovery(waitExpired: true);
-            throw new TimeoutException(
-                "The wait for Excel close/quit expired. The original close may still finish. " +
-                $"The owned process has not been terminated. Excel window: {_windowReveal}.");
-        }
-        _teardownCompletion.Task.GetAwaiter().GetResult();
+            if (_staThread.IsAlive && !_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+            {
+                RevealForRecovery(waitExpired: true);
+                throw new TimeoutException(
+                    "The wait for Excel close/quit expired. The original close may still finish. " +
+                    $"The owned process has not been terminated. Excel window: {_windowReveal}.");
+            }
+            _teardownCompletion.Task.GetAwaiter().GetResult();
+        });
 
         if (_excelProcessIdentity is { } identity
             && (_attachedApplication is null || _quitEmptyOwnedApplication))
@@ -2162,16 +2167,19 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 if (!SessionManager.IsExcelProcessPreserved(identity))
                     SessionManager.PreserveExcelProcess(identity);
             }
-            else if (!WaitForOwnedProcessExit(identity))
-            {
-                RevealForRecovery(waitExpired: true);
-                throw new TimeoutException(
-                    "Excel has not confirmed process exit after close/quit. " +
-                    $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
-            }
             else
             {
-                SessionManager.UntrackExcelProcess(identity);
+                SessionDiagnostics.MeasureCloseStage("excel-process-exit", () =>
+                {
+                    if (!WaitForOwnedProcessExit(identity))
+                    {
+                        RevealForRecovery(waitExpired: true);
+                        throw new TimeoutException(
+                            "Excel has not confirmed process exit after close/quit. " +
+                            $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
+                    }
+                    SessionManager.UntrackExcelProcess(identity);
+                });
             }
         }
         FinishOperation(null);

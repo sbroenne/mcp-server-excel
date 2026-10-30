@@ -612,7 +612,8 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             _sessionManager.SetOperationContext(request.SessionId, request.Command, request.CallerCancellation);
-            closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
+            closed = SessionDiagnostics.MeasureCloseStage("session-close",
+                () => _sessionManager.CloseSession(request.SessionId, save: shouldSave));
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {

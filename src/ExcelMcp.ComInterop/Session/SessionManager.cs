@@ -1729,7 +1729,7 @@ public sealed class SessionManager : IDisposable
             }
 
             var refreshState = !resolvedFailedTeardown && !force
-                ? GetClosePreflightState(batch)
+                ? SessionDiagnostics.MeasureCloseStage("readiness", () => GetClosePreflightState(batch))
                 : WorkbookRefreshState.Ready;
             if (refreshState == WorkbookRefreshState.DialogOpen)
             {
@@ -1768,14 +1768,15 @@ public sealed class SessionManager : IDisposable
         var closeSucceeded = false;
         try
         {
-            ReleaseDiscoveryConnectionBeforeOwnedClose(sessionId, batch);
+            SessionDiagnostics.MeasureCloseStage("discovery-release",
+                () => ReleaseDiscoveryConnectionBeforeOwnedClose(sessionId, batch));
 
             // Save first if requested (blocks until complete)
             if (save)
             {
                 try
                 {
-                    batch.Save();
+                    SessionDiagnostics.MeasureCloseStage("save", () => batch.Save());
                 }
                 catch (Exception ex)
                 {
@@ -1784,7 +1785,8 @@ public sealed class SessionManager : IDisposable
             }
 
             BeforeCloseSessionHookForTests?.Invoke();
-            CloseSessionSync(sessionId, batch, force);
+            SessionDiagnostics.MeasureCloseStage("session-teardown",
+                () => CloseSessionSync(sessionId, batch, force));
             closeSucceeded = true;
             return true;
         }

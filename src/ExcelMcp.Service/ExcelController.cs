@@ -261,7 +261,11 @@ internal sealed class ExcelController : IDisposable
                 foreach (var path in reservedPaths)
                     _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
             // A status failure must not replace the exact workbook operation result.
-            await RefreshWorkerAsync(worker, CancellationToken.None);
+            if (request.Command == "session.close")
+                await SessionDiagnostics.MeasureCloseStageAsync("worker-status",
+                    () => RefreshWorkerAsync(worker, CancellationToken.None));
+            else
+                await RefreshWorkerAsync(worker, CancellationToken.None);
             lock (_shutdownLock)
             {
                 if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker)
@@ -309,7 +313,13 @@ internal sealed class ExcelController : IDisposable
             }
             if (request.Command is "session.close" or "session.test" or "sheet.copy-to-file" or "sheet.move-to-file"
                 || !response.Success && reservedPaths.Count > 0)
-                await ReleaseEmptyWorkerAsync(worker);
+            {
+                if (request.Command == "session.close")
+                    await SessionDiagnostics.MeasureCloseStageAsync("worker-release",
+                        () => ReleaseEmptyWorkerAsync(worker));
+                else
+                    await ReleaseEmptyWorkerAsync(worker);
+            }
             return response;
         }
         catch (Exception ex)

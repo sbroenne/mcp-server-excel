@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -12,8 +14,119 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Feature", "SessionManager")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Theory]
+    [InlineData("1", false)]
+    [InlineData("true", true)]
+    [InlineData("off", false)]
+    public void Close_Diagnostics_RecordStagesWithoutChangingSaveOrFailure(string diagnostics, bool saveFails)
+    {
+        var previous = Environment.GetEnvironmentVariable("EXCELMCP_DIAGNOSTICS");
+        var logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ExcelMcp", "diagnostics", $"close-{Environment.ProcessId}.jsonl");
+        var existed = File.Exists(logPath);
+        var originalLineCount = existed ? File.ReadAllLines(logPath).Length : 0;
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(saveFails, false)
+        {
+            BeforeSave = () => Thread.Sleep(30)
+        };
+        RegisterSession(manager, "timed-close", batch.WorkbookPath, batch);
+        try
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", diagnostics);
+            if (saveFails)
+            {
+                var failure = Assert.Throws<InvalidOperationException>(
+                    () => manager.CloseSession("timed-close", save: true));
+                Assert.Same(batch.SaveException, failure.InnerException);
+                Assert.Equal(1, manager.ActiveSessionCount);
+                Assert.Equal(0, batch.CloseCallCount);
+            }
+            else
+            {
+                Assert.True(manager.CloseSession("timed-close", save: true));
+                Assert.Equal(0, manager.ActiveSessionCount);
+                Assert.Equal(1, batch.CloseCallCount);
+            }
+            Assert.Equal(1, batch.SaveCallCount);
+
+            var lines = File.Exists(logPath)
+                ? File.ReadAllLines(logPath).Skip(originalLineCount).ToArray()
+                : [];
+            if (diagnostics == "off")
+            {
+                Assert.Empty(lines);
+                return;
+            }
+
+            Assert.NotEmpty(lines);
+            var records = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+            var save = Assert.Single(records, record =>
+                record.GetProperty("stage").GetString() == "save"
+                && record.GetProperty("event").GetString() == "finished");
+            Assert.Equal(!saveFails, save.GetProperty("completed").GetBoolean());
+            Assert.True(save.GetProperty("elapsedMs").GetDouble() >= 20);
+            var started = Assert.Single(records, record =>
+                record.GetProperty("stageId").GetString() == save.GetProperty("stageId").GetString()
+                && record.GetProperty("event").GetString() == "started");
+            Assert.Equal(Environment.ProcessId, started.GetProperty("processId").GetInt32());
+            Assert.True(started.GetProperty("timestampUtc").GetDateTime() <= save.GetProperty("timestampUtc").GetDateTime());
+            Assert.Contains(records, record => record.GetProperty("stage").GetString() == "readiness");
+            Assert.DoesNotContain("timed-close", string.Join('\n', lines), StringComparison.Ordinal);
+            Assert.DoesNotContain(batch.WorkbookPath, string.Join('\n', lines), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", previous);
+            batch.SaveFails = false;
+            if (!existed && File.Exists(logPath))
+                File.Delete(logPath);
+        }
+    }
+
+    [Fact]
+    public async Task Close_Diagnostics_UnwritableLogPreservesOriginalFailureAndCancellation()
+    {
+        var previous = Environment.GetEnvironmentVariable("EXCELMCP_DIAGNOSTICS");
+        var logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ExcelMcp", "diagnostics", $"close-{Environment.ProcessId}.jsonl");
+        var existed = File.Exists(logPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        using var warnings = new StringWriter();
+        using var listener = new TextWriterTraceListener(warnings);
+        Trace.Listeners.Add(listener);
+        try
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", "1");
+            using var lockedLog = new FileStream(logPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            var failure = new InvalidOperationException("Original close failure.");
+            var calls = 0;
+            Action fail = () => { calls++; throw failure; };
+            Assert.Same(failure, Assert.Throws<InvalidOperationException>(
+                () => SessionDiagnostics.MeasureCloseStage("workbook-close", fail)));
+            Assert.Equal(1, calls);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            var cancelled = new OperationCanceledException(cancellation.Token);
+            Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(
+                () => SessionDiagnostics.MeasureCloseStageAsync("worker-release", () => Task.FromException(cancelled))));
+            listener.Flush();
+            Assert.Contains("Could not write the local Excel close timing log", warnings.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("EXCELMCP_DIAGNOSTICS", previous);
+            Trace.Listeners.Remove(listener);
+            if (!existed && File.Exists(logPath))
+                File.Delete(logPath);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -455,6 +568,7 @@ public sealed class SessionManagerTeardownFailureTests
         public bool SaveFails { get; set; } = saveFails;
         public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
+        public Action? BeforeSave { get; init; }
         public bool CloseBusy { get; set; }
         public bool ProcessAlive { get; set; } = true;
         public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
@@ -514,6 +628,7 @@ public sealed class SessionManagerTeardownFailureTests
 
         public void Save(CancellationToken cancellationToken = default)
         {
+            BeforeSave?.Invoke();
             SaveCallCount++;
             if (SaveBusy)
                 ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "save");
