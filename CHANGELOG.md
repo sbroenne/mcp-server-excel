@@ -11,6 +11,14 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.4] - 2026-10-30
+
+### Patch Changes
+
+- [#1277](https://github.com/sbroenne/mcp-server-excel/pull/1277) [`c036473`](https://github.com/sbroenne/mcp-server-excel/commit/c036473dd727c38636acb5aa24653de1f420a970) Thanks [@sbroenne](https://github.com/sbroenne)! - **PivotTable cache sharing** ([#1276](https://github.com/sbroenne/mcp-server-excel/issues/1276)): `share-cache` now lets Excel decide whether
+  two reports can share a cache instead of rejecting them through custom
+  compatibility checks.
+
 ## [2.6.3] - 2026-10-30
 
 ### Minor Changes
