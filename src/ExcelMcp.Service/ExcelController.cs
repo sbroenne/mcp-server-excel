@@ -733,7 +733,7 @@ internal sealed class ExcelController : IDisposable
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Snapshot polling diagnoses unreachable workers without altering operation responses. Public status continues to use only previously recorded data.")]
+        Justification = "Polling reports failed status reads and completed-record removal on that worker. Failed acknowledgements remain for the next poll without changing workbook outcomes or stopping other workers.")]
     private async Task PollAsync()
     {
         while (!_stop.IsCancellationRequested)
@@ -745,7 +745,19 @@ internal sealed class ExcelController : IDisposable
                 {
                     var applied = await RefreshWorkerAsync(worker, _stop.Token);
                     if (applied is { Registration.ReleaseConfirmed: true })
-                        RemoveReleasedWorker(worker);
+                    {
+                        try
+                        {
+                            RemoveReleasedWorker(worker);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            worker.StatusError = $"The completed Excel worker record could not be removed: {ex.GetType().Name}: {ex.Message}";
+                            System.Diagnostics.Trace.TraceError(
+                                "Excel worker {0} completion record could not be removed: {1}",
+                                worker.Registration.Worker.ProcessId, ex);
+                        }
+                    }
                     else if (_abandonedWorkers.ContainsKey(worker.Registration.PipeName))
                     {
                         if (!worker.Registration.Worker.IsAlive())

@@ -21,6 +21,56 @@ public sealed class ExcelControllerTests
     private static ProductProcessLauncher Launcher => new(Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
 
+    [Fact(Timeout = 30000)]
+    public async Task Controller_DeleteLockedCompletionKeepsPollingOtherWorkersAndRetries()
+    {
+        using var controller = new ExcelController(launcher: Launcher);
+        var completed = await controller.StartWorkerAsync(null, CancellationToken.None);
+        var other = await controller.StartWorkerAsync(null, CancellationToken.None);
+        var registry = new WorkerRegistry();
+        var registration = completed.Registration with { ReleaseConfirmed = true };
+        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ExcelMcp", "workers", registration.PipeName + ".json");
+        using var process = System.Diagnostics.Process.GetProcessById(registration.Worker.ProcessId);
+        _ = process.Handle;
+        Assert.Equal(registration.Worker, WorkerProcess.From(process));
+        try
+        {
+            registry.Write(registration);
+            using (File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write))
+            {
+                completed.RecordSnapshot(completed.Snapshot! with
+                {
+                    Registration = registration,
+                    Releasing = true,
+                    Revision = long.MaxValue
+                });
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                while (completed.StatusError is null)
+                    await Task.Delay(50, deadline.Token);
+                Assert.Contains("could not be removed", completed.StatusError);
+                Assert.Equal(registration, registry.Read(registration.PipeName));
+                var previous = other.Snapshot!.Revision;
+                while (other.Snapshot!.Revision <= previous)
+                    await Task.Delay(50, deadline.Token);
+            }
+            using var retryDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            while (registry.Read(registration.PipeName) is not null)
+                await Task.Delay(50, retryDeadline.Token);
+            Assert.True((await other.ExecuteAsync(new ServiceRequest
+            {
+                Command = "diag.echo",
+                Args = """{"message":"still-polling"}"""
+            }, CancellationToken.None)).Success);
+        }
+        finally
+        {
+            Assert.True((await completed.ReleaseAsync(CancellationToken.None)).Success);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+            registry.Remove(registration.PipeName);
+        }
+    }
+
     [Theory(Timeout = 30000)]
     [InlineData(false)]
     [InlineData(true)]
