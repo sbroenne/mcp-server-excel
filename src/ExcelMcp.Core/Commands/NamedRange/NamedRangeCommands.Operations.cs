@@ -366,8 +366,6 @@ public partial class NamedRangeCommands
             Excel.Name? existing = null;
             Excel.Name? created = null;
             Excel.Names? namesCollection = null;
-            Exception? operationFailure = null;
-            bool temporaryNameRenamed = false;
             try
             {
                 // Check if parameter already exists
@@ -380,32 +378,18 @@ public partial class NamedRangeCommands
                 namesCollection = ctx.Book.Names;
                 string formula = $"={reference.TrimStart('=')}";
                 string r1c1Formula = ToR1C1Formula(ctx.App, formula);
-                string temporaryName = $"ExcelMcpTemp_{Guid.NewGuid():N}";
-                created = namesCollection.Add(temporaryName, "=0");
-                created.RefersToR1C1 = r1c1Formula;
-                created.Name = name;
-                temporaryNameRenamed = true;
+                created = namesCollection.Add(Name: name, RefersToR1C1: r1c1Formula);
+                if (created is null)
+                    throw new InvalidOperationException(
+                        $"Excel did not confirm creating named range '{name}'. Inspect workbook names before retrying.");
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
-            catch (Exception ex)
-            {
-                operationFailure = ex;
-                throw;
-            }
             finally
             {
-                try
-                {
-                    if (created is not null && !temporaryNameRenamed)
-                        OperationCleanup.Run(() => created.Delete(), operationFailure);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref created);
-                    ComUtilities.Release(ref namesCollection);
-                    ComUtilities.Release(ref existing);
-                }
+                ComUtilities.Release(ref created);
+                ComUtilities.Release(ref namesCollection);
+                ComUtilities.Release(ref existing);
             }
         });
     }

@@ -26,6 +26,42 @@ public sealed partial class PersistentServiceNamedRangeTests
             item.Name.StartsWith("ExcelMcpTemp_", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("Invalid Name")]
+    [InlineData("A1")]
+    [InlineData("1Invalid")]
+    public async Task Create_InvalidFinalName_PreservesNamesAndSavedState(string invalidName)
+    {
+        var batch = _fixture.BatchToken;
+        var existingName = CreateUniqueNamedRangeName();
+        var sheetName = _fixture.CreateTestSheet(batch);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [[7]]).Success);
+        Assert.True(_parameterCommands.Create(batch, existingName, $"='{sheetName}'!$A$1").Success);
+        _fixture.RegisterNamedRangeForCleanup(existingName);
+        var before = _parameterCommands.List(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+        _fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Save());
+        Assert.True(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved));
+
+        var failed = await _fixture.SendForFailureAsync("namedrange.create", new
+        {
+            name = invalidName,
+            reference = "=0.19"
+        });
+
+        var after = _parameterCommands.List(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.False(failed.Success, "Invalid final name unexpectedly succeeded; observed names: " +
+            string.Join(", ", after.NamedRanges.Select(item => item.Name)));
+        Assert.False(string.IsNullOrWhiteSpace(failed.ErrorMessage));
+        Assert.Equal(before.NamedRanges.Select(item => (item.Name, item.RefersTo)),
+            after.NamedRanges.Select(item => (item.Name, item.RefersTo)));
+        Assert.Equal(7d, Convert.ToDouble(_parameterCommands.Read(batch, existingName).Value,
+            CultureInfo.InvariantCulture));
+        Assert.True(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved),
+            "A rejected final name must not dirty the workbook through temporary-name mutations.");
+    }
+
     [Fact]
     public void CreateAndUpdate_FormulaReferences_UseInvariantSyntaxUnderGermanCulture()
     {
