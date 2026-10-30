@@ -25,7 +25,7 @@ ExcelMcp runs in an interactive desktop session.
 
 ## Features
 
-The server provides 63 MCP tools across 33 feature areas, with 429 operations.
+The server provides 63 MCP tools across 33 feature areas, with 431 operations.
 
 - **Workbooks and data:** create or open workbooks, edit ranges and tables, and work with formulas.
 - **Analysis:** refresh Power Query, query the Data Model with DAX, and build PivotTables and slicers.

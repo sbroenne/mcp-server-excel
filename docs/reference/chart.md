@@ -89,6 +89,51 @@ Creation, move, and fit operations warn about overlapping data/charts. An
 Use a [screenshot](screenshot.md) when appearance matters and an interactive
 desktop is available; otherwise inspect bounds and state the visual limitation.
 
+## Chart text formatting
+
+Use `chartconfig set-text-format` or MCP `chart_config` with action
+`set-text-format` to change only the supplied font settings. This works on
+ordinary charts and regular or Data Model PivotCharts. Read the actual settings
+with `chartconfig get-text-format` or `chart_config_read` action
+`get-text-format`.
+
+Select `ChartArea`, `Title`, `CategoryAxis`, `ValueAxis`, `DataLabels`, `Legend`,
+or `AxisTitle`. `ChartArea` uses Excel's whole-chart text setting; individually
+formatted text can still differ. The other choices affect only that element.
+Missing titles, axes, legends, or data labels cause an error; formatting does
+not create or show them.
+
+For example, set an existing title's font and check it:
+
+```mcp
+chart_config(action: 'set-text-format', workbook_session_id: sessionId, chart_name: 'MonthlySales', element: 'Title', font_name: 'Arial', font_size: 16, bold: true, color: '#243746')
+chart_config_read(action: 'get-text-format', workbook_session_id: sessionId, chart_name: 'MonthlySales', element: 'Title')
+```
+
+```cli
+excelcli -q chartconfig set-text-format --session $sessionId --chart-name MonthlySales --element Title --font-name Arial --font-size 16 --bold true --color '#243746'
+excelcli -q chartconfig get-text-format --session $sessionId --chart-name MonthlySales --element Title
+```
+
+Omitted font settings are preserved. Explicit `bold: false` / `--bold false`
+and `italic: false` / `--italic false` turn those settings off. Sizes are in
+points from 1 through 409; colours use `#RRGGBB`. Excel's returned font name is
+the actual native value and may be a theme-font token.
+
+For `AxisTitle`, supply `axis` / `--axis`. Category/value tick labels default
+to primary axes; use the matching `CategorySecondary` or `ValueSecondary`
+selector for secondary axes. For `DataLabels`, use `series_index` /
+`--series-index` to select one series. Omitted or zero selects all series, and
+every selected series must already have labels. Batch JSON uses `fontName`,
+`fontSize`, and `seriesIndex`; nested result fields remain camelCase.
+
+The result's `formats` list contains one entry per target, including one per
+series for all-series data labels. Mixed properties are null and listed in
+`mixedFields`, not reported as zero, false, or a guessed font. A failed write
+can leave earlier settings applied: inspect the reported target and read the
+current state before deciding what to change next. Formatting does not change
+source data or promise that future PivotTable refreshes retain every override.
+
 ## Percentage data labels
 
 To remove all data labels from the selected series, explicitly set all five

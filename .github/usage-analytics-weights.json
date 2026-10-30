@@ -118,6 +118,7 @@
         "get-plot-options": "light",
         "get-point-format": "light",
         "get-series-settings": "light",
+        "get-text-format": "light",
         "list-trendlines": "light",
         "remove-series": "medium",
         "set-area-format": "medium",
@@ -136,6 +137,7 @@
         "set-series-format": "medium",
         "set-source-range": "medium",
         "set-style": "medium",
+        "set-text-format": "medium",
         "set-title": "medium",
         "set-trendline": "medium",
         "show-legend": "medium"
