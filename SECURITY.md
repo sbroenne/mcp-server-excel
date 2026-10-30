@@ -31,7 +31,7 @@ ExcelMcp includes several security measures:
 ### COM Security
 
 - **Controlled Excel Automation**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
-- **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
+- **Resource Cleanup**: Explicit release of the Excel objects we use, without forced memory cleanup
 - **No Remote Connections**: Only local Excel automation supported
 
 ### ExcelMcp Service Security

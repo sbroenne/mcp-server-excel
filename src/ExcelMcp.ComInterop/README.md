@@ -11,7 +11,7 @@ This library provides Excel-specific COM object lifecycle management and OLE mes
 ## Features
 
 - **STA Threading Management** - Ensures proper single-threaded apartment model for Excel COM objects
-- **COM Object Lifecycle** - Automatic COM object cleanup and garbage collection
+- **COM Object Lifecycle** - Explicit release of acquired Excel objects, without forced memory cleanup
 - **OLE Message Filtering** - Handles busy/rejected COM calls with retry logic using Polly
 - **Excel Session Management** - Manages Excel.Application lifecycle safely
 - **Batch Operations** - Efficient handling of multiple Excel operations in a single session
