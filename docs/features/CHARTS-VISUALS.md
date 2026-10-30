@@ -10,12 +10,13 @@ CLI help or MCP tool descriptions, not a separately maintained action list.
 
 ---
 
-## Charts (40 operations)
+## Charts (42 operations)
 
 - **Create visuals:** Build charts from ranges or worksheet Tables, or live PivotCharts linked to regular or Data Model PivotTables.
 - **Configure data:** Replace a regular chart's source, add or remove series, and control how rows, columns, blanks, and hidden cells are plotted.
 - **Explain results:** Set titles, axes, labels, legends, trendlines, and supported error bars.
 - **Shape presentation:** Use combo charts and secondary axes, styles, series/point formatting, and chart/plot-area formatting.
+- **Match chart text:** Set and inspect font name, size, bold, italic, and text colour on existing chart elements, including PivotCharts.
 - **Arrange and export:** Position charts against worksheet ranges, inspect their actual data and bounds, and export native image files.
 
 A live PivotChart follows its PivotTable's fields and filters. Its series are

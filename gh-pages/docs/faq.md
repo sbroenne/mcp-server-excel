@@ -31,7 +31,7 @@ limitations - you don't need to memorize commands.
 
 ### CLI or MCP Server - which should I install?
 
-Both expose the **same 429 operations**, so the choice is technical. Use the
+Both expose the **same 431 operations**, so the choice is technical. Use the
 **MCP Server** with any MCP-compatible assistant. Coding agents that can run
 terminal commands can use either; the **CLI** (`excelcli`) usually uses fewer
 AI tokens because the agent reads command help only when needed. See

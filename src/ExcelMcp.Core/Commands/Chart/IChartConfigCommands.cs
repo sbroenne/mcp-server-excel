@@ -32,11 +32,38 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. set-series-axis-group assigns Primary/Secondary. set-error-bars uses typed error_bar_options. set-point-format uses point_options; marker points support their own colors/style/size, not transparency/outline weight. Per-series writes reject PivotCharts; use pivottable_field for their fields. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
+    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. set-series-axis-group assigns Primary/Secondary. set-error-bars uses typed error_bar_options. set-point-format uses point_options; marker points support their own colors/style/size, not transparency/outline weight. Series data, point-format and error-bar writes reject PivotCharts; use pivottable_field for their fields. set-text-format supports regular charts and PivotCharts and changes only supplied font settings on existing elements. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
 [McpReadOnlyActions("get-error-bars", "get-point-format", "get-series-settings", "get-axis-number-format",
-    "get-axis-scale", "get-gridlines", "list-trendlines", "get-plot-options")]
+    "get-axis-scale", "get-gridlines", "list-trendlines", "get-plot-options", "get-text-format")]
 public interface IChartConfigCommands
 {
+    /// <summary>Reads actual text formatting on existing regular-chart or PivotChart elements. Mixed fields are null and named in mixedFields. ChartArea reads Excel's whole-chart setting, not every separately formatted item. AxisTitle requires axis; tick labels default to primary axes. DataLabels reads all series when seriesIndex is omitted or 0; every selected series must already have labels.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Existing embedded chart name</param>
+    /// <param name="element">ChartArea, Title, CategoryAxis, ValueAxis, DataLabels, Legend, or AxisTitle</param>
+    /// <param name="axis">Category/Value for primary axes, CategorySecondary/ValueSecondary for secondary axes. Primary aliases Category; Secondary aliases Value on the primary group. For text formatting, required for AxisTitle, optional matching selector for tick labels, and invalid for other elements.</param>
+    /// <param name="seriesIndex">One-based existing series index. Text-format actions accept this only for DataLabels; omitted or 0 selects all series, and every selected series must already have labels.</param>
+    [ServiceAction("get-text-format")]
+    ChartTextFormatResult GetTextFormat(IExcelBatch batch, [RequiredParameter] string chartName,
+        [RequiredParameter] ChartTextElement element, ChartAxisType? axis = null, int? seriesIndex = null);
+
+    /// <summary>Sets supplied text properties on existing regular-chart or PivotChart elements and reads actual results. Omitted properties are preserved; missing elements fail without being created. ChartArea uses Excel's whole-chart setting, not a forced replacement of every text override. AxisTitle requires axis; tick labels default to primary axes. DataLabels changes all series when seriesIndex is omitted or 0; every selected series must already have labels.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Existing embedded chart name</param>
+    /// <param name="element">ChartArea, Title, CategoryAxis, ValueAxis, DataLabels, Legend, or AxisTitle</param>
+    /// <param name="fontName">Optional nonblank typeface name; Excel's actual font is returned</param>
+    /// <param name="fontSize">Optional finite size in points, 1 through 409</param>
+    /// <param name="bold">Optional bold setting; false turns bold off</param>
+    /// <param name="italic">Optional italic setting; false turns italic off</param>
+    /// <param name="color">Optional text colour as #RRGGBB</param>
+    /// <param name="axis">Required for AxisTitle; optional matching Category/CategorySecondary or Value/ValueSecondary for tick labels, defaulting to primary. Not used by other elements.</param>
+    /// <param name="seriesIndex">DataLabels only: omitted or 0 changes all series, positive selects one existing series. Every selected series must already have labels.</param>
+    [ServiceAction("set-text-format")]
+    ChartTextFormatResult SetTextFormat(IExcelBatch batch, [RequiredParameter] string chartName,
+        [RequiredParameter] ChartTextElement element, string? fontName = null, double? fontSize = null,
+        bool? bold = null, bool? italic = null, string? color = null,
+        ChartAxisType? axis = null, int? seriesIndex = null);
+
     /// <summary>Reads native error-bar presence and end caps. Excel exposes no getters for calculation kind, direction, include, amount or custom range references; settingsReadable is explicitly false.</summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Existing embedded chart name</param>
