@@ -17,6 +17,39 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CompletionRecordingFailure_RetainsTheExactWorkbookResponse(bool completedSuccessfully)
+    {
+        var request = new ServiceRequest { Command = "session.close", SessionId = "target" };
+        var response = new ServiceResponse
+        {
+            Success = completedSuccessfully,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = "ComInterop",
+            ErrorMessage = "Original error",
+            ExceptionType = nameof(COMException),
+            HResult = "0x800A03EC",
+            InnerError = "Original cause",
+            PartialState = """{"retained":true}""",
+            Result = """{"closeTimingsMs":{"save":31.25}}"""
+        };
+        var failed = response.WithCompletionFailure(request, new IOException("Ownership record is unavailable."));
+        Assert.False(failed.Success);
+        Assert.Equal("ServiceUnavailable", failed.ErrorCategory);
+        Assert.Equal(nameof(IOException), failed.ExceptionType);
+        Assert.Equal("IOException: Ownership record is unavailable.", failed.ErrorMessage);
+        Assert.Equal(request.Command, failed.Command);
+        Assert.Equal(request.SessionId, failed.SessionId);
+        Assert.Equal(response.Result, failed.Result);
+        using var state = JsonDocument.Parse(failed.PartialState!);
+        Assert.Equal("completed", state.RootElement.GetProperty("outcome").GetString());
+        Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(response, ServiceProtocol.JsonOptions),
+            state.RootElement.GetProperty("response")));
+    }
+
     [Fact]
     public async Task Close_SaveFailure_ReturnsTimingsAndRetainsOriginalFailure()
     {
@@ -68,7 +101,7 @@ public sealed class SessionCloseRegressionTests
             PartialState = """{"retained":true}""",
             Result = """{"message":"Original result","closeTimingsMs":{"save":31.25}}"""
         };
-        var measured = response.WithCloseTimings(new Dictionary<string, double> { ["worker-release"] = 2.5 });
+        var measured = response.WithCloseTimings(new Dictionary<string, double> { ["worker-completion"] = 2.5 });
         var shared = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceProtocol.Deserialize<
             Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceResponse>(ServiceProtocol.Serialize(measured))!;
         var restored = ServiceResponse.FromShared(shared);
@@ -85,7 +118,7 @@ public sealed class SessionCloseRegressionTests
         Assert.Equal("Original result", result.RootElement.GetProperty("message").GetString());
         var timings = result.RootElement.GetProperty("closeTimingsMs");
         Assert.Equal(31.25, timings.GetProperty("save").GetDouble());
-        Assert.Equal(2.5, timings.GetProperty("worker-release").GetDouble());
+        Assert.Equal(2.5, timings.GetProperty("worker-completion").GetDouble());
     }
 
     [Fact]

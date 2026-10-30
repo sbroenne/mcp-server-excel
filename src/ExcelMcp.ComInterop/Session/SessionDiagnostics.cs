@@ -48,12 +48,6 @@ public static class SessionDiagnostics
         operation();
     }
 
-    internal static async Task MeasureCloseStageAsync(string stage, Func<Task> operation)
-    {
-        using var timing = BeginCloseStage(stage);
-        await operation();
-    }
-
     internal static CloseStageTiming? BeginCloseStage(string stage) =>
         CloseTimings.Value is { } timings ? new CloseStageTiming(stage, timings) : null;
 

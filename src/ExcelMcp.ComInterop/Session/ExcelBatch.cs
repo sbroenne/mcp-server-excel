@@ -1011,8 +1011,6 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     startupWorkbooks = null;
                     startupPrimaryWorkbook = null;
                     startupExcel = null;
-                    SessionDiagnostics.MeasureCloseStage("com-final-cleanup",
-                        Marshal.CleanupUnusedObjectsInCurrentContext);
                     BeforeApplicationLeaseReleaseHookForTests?.Invoke();
                     _applicationLease?.Dispose();
                     _applicationLease = null;
@@ -2175,17 +2173,7 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             }
             else
             {
-                SessionDiagnostics.MeasureCloseStage("excel-process-exit", () =>
-                {
-                    if (!WaitForOwnedProcessExit(identity))
-                    {
-                        RevealForRecovery(waitExpired: true);
-                        throw new TimeoutException(
-                            "Excel has not confirmed process exit after close/quit. " +
-                            $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
-                    }
-                    SessionManager.UntrackExcelProcess(identity);
-                });
+                SessionManager.UntrackExcelProcess(identity);
             }
         }
         FinishOperation(null);

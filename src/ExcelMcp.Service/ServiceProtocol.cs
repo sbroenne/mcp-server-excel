@@ -93,6 +93,24 @@ public sealed class ServiceResponse
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
 
+    internal ServiceResponse WithCompletionFailure(ServiceRequest request, Exception error) => new()
+    {
+        Success = false,
+        Command = request.Command,
+        SessionId = request.SessionId,
+        ErrorCategory = "ServiceUnavailable",
+        ExceptionType = error.GetType().Name,
+        ErrorMessage = $"{error.GetType().Name}: {error.Message}",
+        InnerError = ErrorMessage,
+        Result = Result,
+        PartialState = JsonSerializer.Serialize(new
+        {
+            outcome = "completed",
+            response = this,
+            message = "The workbook request finished, but recording its completion failed. Do not repeat workbook changes."
+        }, ServiceProtocol.JsonOptions)
+    };
+
     internal ServiceResponse WithCloseTimings(IReadOnlyDictionary<string, double> timings)
     {
         var result = Result is null ? new JsonObject() : JsonNode.Parse(Result)!.AsObject();

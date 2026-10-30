@@ -40,6 +40,7 @@ internal sealed class ExcelController : IDisposable
     private bool _disposed;
     internal event Action<ExcelProcessIdentity>? ExcelProcessObserved;
     internal event Action<ExcelProcessIdentity>? ExcelProcessPreserved;
+    internal event Action<ExcelProcessIdentity>? ExcelProcessReleased;
 
     internal ExcelController(
         Func<ServiceRequest, Func<Task<ServiceResponse>>, Task<ServiceResponse>>? trackRequest = null,
@@ -253,26 +254,20 @@ internal sealed class ExcelController : IDisposable
     private async Task<ServiceResponse> CompleteWorkerRequestAsync(
         ServiceRequest request, ExcelWorkerClient worker, List<string> reservedPaths, PathReservation reservation)
     {
-        using var closeTimings = request.Command == "session.close" ? SessionDiagnostics.BeginCloseTimings() : null;
-        ServiceResponse Complete(ServiceResponse response) =>
-            closeTimings is null ? response : response.WithCloseTimings(closeTimings.Snapshot());
+        ServiceResponse? completedResponse = null;
         try
         {
             var execution = await worker.ExecuteWithAdmissionAsync(request, request.CallerCancellation);
             var response = execution.Response;
+            completedResponse = response;
             if (!execution.Accepted)
                 foreach (var path in reservedPaths)
                     _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
-            // A status failure must not replace the exact workbook operation result.
-            if (request.Command == "session.close")
-                await SessionDiagnostics.MeasureCloseStageAsync("worker-status",
-                    () => RefreshWorkerAsync(worker, CancellationToken.None));
-            else
-                await RefreshWorkerAsync(worker, CancellationToken.None);
+            var applied = ApplyWorkerSnapshot(worker);
             lock (_shutdownLock)
             {
                 if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker)
-                    return Complete(response);
+                    return response;
                 if (response.SessionId is { } created && worker.Snapshot?.Sessions.Any(session => session.SessionId == created) == true)
                 {
                     _sessions[created] = worker;
@@ -314,16 +309,12 @@ internal sealed class ExcelController : IDisposable
                             _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
                 }
             }
-            if (request.Command is "session.close" or "session.test" or "sheet.copy-to-file" or "sheet.move-to-file"
+            if (applied is { Registration.ReleaseConfirmed: true })
+                RemoveReleasedWorker(worker);
+            else if (request.Command is "session.close" or "session.test" or "sheet.copy-to-file" or "sheet.move-to-file"
                 || !response.Success && reservedPaths.Count > 0)
-            {
-                if (request.Command == "session.close")
-                    await SessionDiagnostics.MeasureCloseStageAsync("worker-release",
-                        () => ReleaseEmptyWorkerAsync(worker));
-                else
-                    await ReleaseEmptyWorkerAsync(worker);
-            }
-            return Complete(response);
+                await ReleaseEmptyWorkerAsync(worker);
+            return response;
         }
         catch (Exception ex)
         {
@@ -345,26 +336,28 @@ internal sealed class ExcelController : IDisposable
                 }
             }
             System.Diagnostics.Trace.TraceError("Excel worker request failed: {0}", ex);
-            return Complete(CreateWorkerError(request, ex, sent: true));
+            return CreateWorkerError(request, ex, sent: true, completed: completedResponse);
         }
     }
 
-    private static ServiceResponse CreateWorkerError(ServiceRequest request, Exception ex, bool sent) => new()
-    {
-        Success = false,
-        Command = request.Command,
-        SessionId = request.SessionId,
-        ErrorCategory = ex is OperationCanceledException ? "Cancelled"
+    private static ServiceResponse CreateWorkerError(
+        ServiceRequest request, Exception ex, bool sent, ServiceResponse? completed = null) =>
+        completed?.WithCompletionFailure(request, ex) ?? new()
+        {
+            Success = false,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = ex is OperationCanceledException ? "Cancelled"
             : ex is TimeoutException ? "Timeout"
             : ex is ArgumentException or JsonException ? "InvalidInput" : "ServiceUnavailable",
-        ExceptionType = ex.GetType().Name,
-        ErrorMessage = $"{ex.GetType().Name}: {ex.Message}",
-        PartialState = !sent || ex is ArgumentException or JsonException ? null : JsonSerializer.Serialize(new
-        {
-            outcome = "unknown",
-            message = "The worker response could not be confirmed. Work may still be running; do not repeat edits automatically."
-        }, ServiceProtocol.JsonOptions)
-    };
+            ExceptionType = ex.GetType().Name,
+            ErrorMessage = $"{ex.GetType().Name}: {ex.Message}",
+            PartialState = !sent || ex is ArgumentException or JsonException ? null : JsonSerializer.Serialize(new
+            {
+                outcome = "unknown",
+                message = "The worker response could not be confirmed. Work may still be running; do not repeat edits automatically."
+            }, ServiceProtocol.JsonOptions)
+        };
 
     private static bool HasPendingWork(WorkerSnapshot snapshot) =>
         snapshot.PendingOperation is not null
@@ -412,22 +405,13 @@ internal sealed class ExcelController : IDisposable
         try
         {
             var released = await worker.ReleaseAsync(CancellationToken.None);
-            PublishProcessIdentity(worker.Registration);
+            var applied = ApplyWorkerSnapshot(worker);
             if (!released.Success)
                 throw new InvalidOperationException(released.ErrorMessage);
             if (released.PartialState is not null)
                 throw new InvalidOperationException($"The Excel worker did not confirm complete release: {released.PartialState}");
-            _workers.TryRemove(worker.Registration.PipeName, out _);
-            _newWorkers.TryRemove(worker.Registration.PipeName, out _);
-            _abandonedWorkers.TryRemove(worker.Registration.PipeName, out _);
-            foreach (var path in _paths.Where(entry => entry.Value.Token == worker.Registration.PipeName
-                && entry.Value.SessionId is null))
-                _paths.TryRemove(path);
-            lock (_utilityLock)
-                if (_utility is { IsCompletedSuccessfully: true } && _utility.Result == worker)
-                    _utility = null;
-            foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker))
-                _selections.TryRemove(selection.Key, out _);
+            if (applied is { Registration.ReleaseConfirmed: true })
+                RemoveReleasedWorker(worker);
         }
         catch (Exception ex)
         {
@@ -436,65 +420,99 @@ internal sealed class ExcelController : IDisposable
         }
     }
 
+    private void RemoveReleasedWorker(ExcelWorkerClient worker)
+    {
+        _registry.Remove(worker.Registration.PipeName);
+        _workers.TryRemove(worker.Registration.PipeName, out _);
+        _newWorkers.TryRemove(worker.Registration.PipeName, out _);
+        _abandonedWorkers.TryRemove(worker.Registration.PipeName, out _);
+        foreach (var path in _paths.Where(entry => entry.Value.Token == worker.Registration.PipeName
+            && entry.Value.SessionId is null))
+            _paths.TryRemove(path);
+        lock (_utilityLock)
+            if (_utility is { IsCompletedSuccessfully: true } && _utility.Result == worker)
+                _utility = null;
+        foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker))
+            _selections.TryRemove(selection.Key, out _);
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Recorded-status failures are exposed on session status and logged. They never replace a completed operation result or manufacture an empty healthy session list.")]
-    private async Task RefreshWorkerAsync(ExcelWorkerClient worker, CancellationToken cancellationToken)
+    private async Task<WorkerSnapshot?> RefreshWorkerAsync(ExcelWorkerClient worker, CancellationToken cancellationToken)
     {
         try
         {
-            var snapshot = await worker.ReadSnapshotAsync(cancellationToken);
-            PublishProcessIdentity(snapshot.Registration);
-            lock (_shutdownLock)
+            if (!worker.Registration.Worker.IsAlive()
+                && _registry.Read(worker.Registration.PipeName) is { ReleaseConfirmed: true } released)
             {
-                if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker
-                    || !ReferenceEquals(snapshot, worker.Snapshot))
-                    return;
-                foreach (var session in snapshot.Sessions)
-                {
-                    if (_closedSessions.ContainsKey(session.SessionId))
-                        continue;
-                    if (_newWorkers.ContainsKey(snapshot.Registration.PipeName))
-                        _sessions[session.SessionId] = worker;
-                    if (!string.IsNullOrWhiteSpace(session.FilePath))
-                    {
-                        var path = session.FilePath;
-                        var currentPaths = RecordedPaths(snapshot, session.SessionId);
-                        foreach (var ownedPath in currentPaths)
-                            _paths[ownedPath] = new PathReservation("recorded", session.SessionId);
-                        if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
-                        {
-                            foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker
-                                && entry.Value.Workbook.SessionId == session.SessionId
-                                && !currentPaths.Any(key => WorkbookLocation.MatchesReportedLocation(key,
-                                    entry.Value.Workbook.Location))))
-                                _selections[selection.Key] = (worker, selection.Value.Workbook with { Location = path });
-                            foreach (var old in _paths.Where(entry => entry.Value.Token == "recorded"
-                                && entry.Value.SessionId == session.SessionId
-                                && !currentPaths.Contains(entry.Key)))
-                                _paths.TryRemove(old);
-                        }
-                    }
-                }
-                if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
-                    foreach (var removed in _sessions.Where(entry => entry.Value == worker
-                        && !snapshot.Sessions.Any(session => session.SessionId == entry.Key)))
-                    {
-                        _closedSessions[removed.Key] = SessionEnd.Closed;
-                        _sessions.TryRemove(removed);
-                        foreach (var path in _paths.Where(entry => entry.Value.SessionId == removed.Key))
-                            _paths.TryRemove(path);
-                    }
+                worker.RecordSnapshot(new(released, [],
+                    new ServiceResponse { Success = true, Result = """{"success":true,"sessions":[],"count":0}""" },
+                    null, null, new Dictionary<string, IReadOnlyList<string>>(),
+                    Releasing: true, Revision: (worker.Snapshot?.Revision ?? 0) + 1));
             }
+            else
+                await worker.ReadSnapshotAsync(cancellationToken);
+            return ApplyWorkerSnapshot(worker);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             worker.StatusError = $"Excel worker status could not be refreshed: {ex.GetType().Name}: {ex.Message}";
             System.Diagnostics.Trace.TraceError("Excel worker status could not be refreshed: {0}", ex);
+            return null;
+        }
+    }
+
+    private WorkerSnapshot? ApplyWorkerSnapshot(ExcelWorkerClient worker)
+    {
+        lock (_shutdownLock)
+        {
+            if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker
+                || worker.Snapshot is not { } snapshot)
+                return null;
+            PublishProcessIdentity(snapshot.Registration);
+            foreach (var session in snapshot.Sessions)
+            {
+                if (_closedSessions.ContainsKey(session.SessionId))
+                    continue;
+                if (_newWorkers.ContainsKey(snapshot.Registration.PipeName))
+                    _sessions[session.SessionId] = worker;
+                if (!string.IsNullOrWhiteSpace(session.FilePath))
+                {
+                    var path = session.FilePath;
+                    var currentPaths = RecordedPaths(snapshot, session.SessionId);
+                    foreach (var ownedPath in currentPaths)
+                        _paths[ownedPath] = new PathReservation("recorded", session.SessionId);
+                    if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
+                    {
+                        foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker
+                            && entry.Value.Workbook.SessionId == session.SessionId
+                            && !currentPaths.Any(key => WorkbookLocation.MatchesReportedLocation(key,
+                                entry.Value.Workbook.Location))))
+                            _selections[selection.Key] = (worker, selection.Value.Workbook with { Location = path });
+                        foreach (var old in _paths.Where(entry => entry.Value.Token == "recorded"
+                            && entry.Value.SessionId == session.SessionId
+                            && !currentPaths.Contains(entry.Key)))
+                            _paths.TryRemove(old);
+                    }
+                }
+            }
+            if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
+                foreach (var removed in _sessions.Where(entry => entry.Value == worker
+                    && !snapshot.Sessions.Any(session => session.SessionId == entry.Key)))
+                {
+                    _closedSessions[removed.Key] = SessionEnd.Closed;
+                    _sessions.TryRemove(removed);
+                    foreach (var path in _paths.Where(entry => entry.Value.SessionId == removed.Key))
+                        _paths.TryRemove(path);
+                }
+            return snapshot;
         }
     }
 
     private void PublishProcessIdentity(WorkerRegistration registration)
     {
+        if (registration.ReleasedExcel is { } finished)
+            ExcelProcessReleased?.Invoke(finished);
         if (registration is { OwnsExcel: true, Excel: { } excel })
         {
             ExcelProcessObserved?.Invoke(excel);
@@ -725,8 +743,10 @@ internal sealed class ExcelController : IDisposable
                 await Task.Delay(TimeSpan.FromSeconds(1), _stop.Token);
                 await Task.WhenAll(_workers.Values.Select(async worker =>
                 {
-                    await RefreshWorkerAsync(worker, _stop.Token);
-                    if (_abandonedWorkers.ContainsKey(worker.Registration.PipeName))
+                    var applied = await RefreshWorkerAsync(worker, _stop.Token);
+                    if (applied is { Registration.ReleaseConfirmed: true })
+                        RemoveReleasedWorker(worker);
+                    else if (_abandonedWorkers.ContainsKey(worker.Registration.PipeName))
                     {
                         if (!worker.Registration.Worker.IsAlive())
                             RetireExitedWorker(worker.Registration);
@@ -766,11 +786,13 @@ internal sealed class ExcelController : IDisposable
                 if (HasPendingWork(snapshot))
                     throw new InvalidOperationException("An Excel operation is still pending. Its worker was retained for explicit reconnection.");
                 var response = await worker.ReleaseAsync(CancellationToken.None);
-                PublishProcessIdentity(worker.Registration);
+                var applied = ApplyWorkerSnapshot(worker);
                 if (!response.Success)
                     throw new InvalidOperationException(response.ErrorMessage);
                 if (response.PartialState is not null)
                     reports.Add(response.PartialState);
+                else if (applied is { Registration.ReleaseConfirmed: true })
+                    RemoveReleasedWorker(worker);
             }
             catch (Exception ex)
             {

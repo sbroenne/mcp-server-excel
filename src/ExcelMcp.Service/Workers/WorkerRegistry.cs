@@ -43,26 +43,11 @@ internal sealed class WorkerRegistry
         var registrations = new List<WorkerRegistration>();
         foreach (var path in Directory.EnumerateFiles(_directory, "*.json"))
         {
-            BeforeRecordReadForTests?.Invoke(path);
-            WorkerRegistration registration;
-            try
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-                AfterRecordOpenForTests?.Invoke();
-                if (stream.Length > 65536)
-                    throw new InvalidDataException("An Excel worker record exceeds its size limit.");
-                using var reader = new StreamReader(stream);
-                registration = JsonSerializer.Deserialize<WorkerRegistration>(
-                    reader.ReadToEnd(), ServiceProtocol.JsonOptions)
-                    ?? throw new InvalidDataException("An Excel worker record is empty.");
-            }
-            catch (FileNotFoundException)
-            {
-                // A worker can remove its record after directory enumeration.
+            var registration = ReadRecord(path);
+            if (registration is null)
                 continue;
-            }
-            _ = GetPath(registration.PipeName);
-            if (registration.Worker.IsAlive()
+            if (registration.ReleaseConfirmed ? registration.Controller.IsAlive()
+                : registration.Worker.IsAlive()
                 || registration.Excel is { } excel && !OwnedProcessGuard.TryConfirmExited(excel))
             {
                 if (registrations.Count == 128)
@@ -73,6 +58,37 @@ internal sealed class WorkerRegistry
                 File.Delete(path);
         }
         return registrations;
+    }
+
+    internal WorkerRegistration? Read(string pipeName) => ReadRecord(GetPath(pipeName));
+
+    private WorkerRegistration? ReadRecord(string path)
+    {
+        BeforeRecordReadForTests?.Invoke(path);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                AfterRecordOpenForTests?.Invoke();
+                if (stream.Length > 65536)
+                    throw new InvalidDataException("An Excel worker record exceeds its size limit.");
+                using var reader = new StreamReader(stream);
+                var registration = JsonSerializer.Deserialize<WorkerRegistration>(
+                    reader.ReadToEnd(), ServiceProtocol.JsonOptions)
+                    ?? throw new InvalidDataException("An Excel worker record is empty.");
+                _ = GetPath(registration.PipeName);
+                return registration;
+            }
+            catch (FileNotFoundException)
+            {
+                return null;
+            }
+            catch (IOException ex) when ((ex.HResult & 0xFFFF) is 32 or 33 && attempt < 5)
+            {
+                Thread.Sleep(100);
+            }
+        }
     }
 
     internal void Remove(string pipeName) => File.Delete(GetPath(pipeName));

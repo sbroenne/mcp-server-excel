@@ -1862,7 +1862,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             Assert.False(service.SessionManager.HasActiveConnections);
             if (closeWorkbook)
             {
-                Assert.True(OwnedProcessGuard.TryConfirmExited(identity),
+                Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
+                    TimeSpan.FromSeconds(15)),
                     $"The empty test-owned Excel process did not exit: {identity}.");
                 return;
             }

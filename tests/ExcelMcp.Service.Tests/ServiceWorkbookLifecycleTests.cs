@@ -20,8 +20,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     private static readonly string[] CloseTimingStages =
     [
         "session-close", "readiness", "discovery-release", "save", "session-teardown",
-        "workbook-close", "workbook-release", "com-context-cleanup", "excel-quit",
-        "application-release", "com-final-cleanup", "excel-thread-exit", "excel-process-exit"
+        "workbook-close", "workbook-release", "excel-quit", "application-release", "excel-thread-exit"
     ];
 
     [Theory]
@@ -600,7 +599,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var closed = await CloseSessionAsync(service, sessionId, save: true);
             sessions.TryRemove(sessionId, out _);
             await AssertSessionIdsAsync(service);
-            Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
+                TimeSpan.FromSeconds(15)), $"Excel {identity} did not exit naturally.");
 
             Assert.NotNull(closed.Result);
             using var result = JsonDocument.Parse(closed.Result);

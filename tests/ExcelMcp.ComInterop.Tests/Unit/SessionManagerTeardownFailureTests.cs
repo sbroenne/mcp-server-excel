@@ -19,6 +19,45 @@ public sealed class SessionManagerTeardownFailureTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void SuccessfulRelease_RecordsTheExactIdentityBeforeEndingOwnership(bool recordingFails)
+    {
+        var released = new ExcelProcessIdentity(int.MaxValue, 1);
+        var other = new ExcelProcessIdentity(int.MaxValue, 2);
+        var failure = new IOException("Test-only ownership record failure.");
+        var observed = new List<ExcelProcessIdentity>();
+        SessionManager.TrackExcelProcess(released);
+        SessionManager.TrackExcelProcess(other);
+        SessionManager.PreserveExcelProcess(other);
+        void Record(ExcelProcessIdentity identity)
+        {
+            observed.Add(identity);
+            Assert.True(SessionManager.IsExcelProcessTracked(identity));
+            if (recordingFails)
+                throw failure;
+        }
+        SessionManager.ExcelProcessIdentityReleased += Record;
+        try
+        {
+            if (recordingFails)
+                Assert.Same(failure, Assert.Throws<IOException>(() => SessionManager.UntrackExcelProcess(released)));
+            else
+                SessionManager.UntrackExcelProcess(released);
+            Assert.Equal(released, Assert.Single(observed));
+            Assert.Equal(recordingFails, SessionManager.IsExcelProcessTracked(released));
+            Assert.True(SessionManager.IsExcelProcessTracked(other));
+            Assert.True(SessionManager.IsExcelProcessPreserved(other));
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityReleased -= Record;
+            SessionManager.UntrackExcelProcess(released);
+            SessionManager.UntrackExcelProcess(other);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Close_Timings_RecordStagesWithoutChangingSaveOrFailure(bool saveFails)
     {
         using var manager = new SessionManager();
@@ -74,10 +113,14 @@ public sealed class SessionManagerTeardownFailureTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var cancelled = new OperationCanceledException(cancellation.Token);
-        Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(
-            () => SessionDiagnostics.MeasureCloseStageAsync("worker-release", () => Task.FromException(cancelled))));
+        async Task FailAsync()
+        {
+            using var timing = SessionDiagnostics.BeginCloseStage("worker-completion");
+            await Task.FromException(cancelled);
+        }
+        Assert.Same(cancelled, await Assert.ThrowsAsync<OperationCanceledException>(FailAsync));
         Assert.Contains("workbook-close", timings.Snapshot().Keys);
-        Assert.Contains("worker-release", timings.Snapshot().Keys);
+        Assert.Contains("worker-completion", timings.Snapshot().Keys);
     }
 
     [Fact]
@@ -89,13 +132,13 @@ public sealed class SessionManagerTeardownFailureTests
         async Task<Dictionary<string, double>> Measure(string stage)
         {
             using var timings = SessionDiagnostics.BeginCloseTimings();
-            await SessionDiagnostics.MeasureCloseStageAsync(stage, async () =>
+            using (SessionDiagnostics.BeginCloseStage(stage))
             {
                 if (Interlocked.Increment(ref arrivals) == 2)
                     started.SetResult();
                 await started.Task;
                 await Task.Delay(20);
-            });
+            }
             return timings.Snapshot();
         }
         var measured = await Task.WhenAll(Task.Run(() => Measure("first")), Task.Run(() => Measure("second")));

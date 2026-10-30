@@ -72,8 +72,9 @@ places. No environment setting or local timing files are needed.
 `excelcli session close` returns this object under `data.closeTimingsMs`;
 the MCP `file` tool's `close` action returns `closeTimingsMs` directly.
 
-Measurements cover readiness, saving, workbook close, required cleanup, Excel
-thread and process exit, and controller status and worker release. Only steps
+Measurements cover readiness, saving, workbook close, release of Excel objects,
+Excel thread exit, and `worker-completion`: the final work in the background
+copy of ExcelMcp after the workbook request finishes. Only steps
 that ran are included: for example, `save` is absent when saving was not
 requested. Repeated work within a step is accumulated. Some steps include other
 steps, so do not add all durations together.
@@ -83,7 +84,18 @@ and durations, not workbook data, paths, session IDs, or exception messages.
 It is returned to the calling agent, not sent as usage reporting.
 Failures retain their original error and any collected measurements; a duration
 does not establish that its step succeeded or that pending Excel work stopped.
-Saving, closing, required cleanup, time limits, and error handling are unchanged.
+Closing returns after any requested save, confirmed workbook close, applicable
+Excel Quit, and release of the acquired Excel objects. It does not force general
+memory cleanup or wait for the Excel process to disappear. After confirmed
+release, that Excel process is no longer tracked. Failures and uncertain work
+retain their recovery information.
+
+An already-empty background copy of ExcelMcp stops through the existing
+stop-after-reply mechanism. Its completion reply carries the final status, so
+normal close needs no separate status or stop request. Its existing record
+keeps that completion available until the controller reads it, even if the
+background copy exits first. This does not start a new process or exit watcher.
+Saving rules and protection of other workbooks are unchanged.
 
 ## 🚨 **IMPORTANT: All Changes Must Use Pull Requests**
 

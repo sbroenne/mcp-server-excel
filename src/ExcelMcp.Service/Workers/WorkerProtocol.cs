@@ -61,11 +61,13 @@ internal sealed record WorkerRegistration(
     string Build,
     ExcelProcessIdentity? Excel,
     bool OwnsExcel = false,
-    bool ExcelPreserved = false);
+    bool ExcelPreserved = false,
+    bool ReleaseConfirmed = false,
+    ExcelProcessIdentity? ReleasedExcel = null);
 
 internal sealed record WorkerClaim(WorkerProcess Controller, string Generation, string Build);
 internal sealed record WorkerCall(string OperationId, string Generation, ServiceRequest Request);
-internal sealed record WorkerExecution(ServiceResponse Response, bool Accepted);
+internal sealed record WorkerExecution(ServiceResponse Response, bool Accepted, WorkerSnapshot Snapshot);
 internal sealed record WorkerRelease(ServiceResponse Response, WorkerSnapshot Snapshot);
 internal sealed record WorkerSnapshot(
     WorkerRegistration Registration,

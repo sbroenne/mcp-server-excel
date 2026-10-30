@@ -49,6 +49,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityTracked;
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityPreserved;
+    internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityReleased;
 
     /// <summary>
     /// Registers an Excel process ID for cleanup on unexpected process exit.
@@ -105,6 +106,8 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public static void UntrackExcelProcess(ExcelProcessIdentity identity)
     {
+        if (_trackedExcelProcesses.ContainsKey(identity))
+            ExcelProcessIdentityReleased?.Invoke(identity);
         _trackedExcelProcesses.TryRemove(identity, out _);
         _preservedExcelProcesses.TryRemove(identity, out _);
         NotifyTrackedExcelProcessesChanged();

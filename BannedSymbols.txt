@@ -3,11 +3,13 @@ N:DocumentFormat.OpenXml; Use Excel COM in production, not workbook package APIs
 N:System.IO.Packaging; Use Excel COM in production, not workbook package APIs.
 M:System.Diagnostics.Process.GetProcessesByName(System.String); Use the retained PID/start-time identity, never a process name.
 M:System.Diagnostics.Process.GetProcessesByName(System.String,System.String); Use the retained PID/start-time identity, never a process name.
-M:System.Runtime.InteropServices.Marshal.ReleaseComObject(System.Object); Use ComUtilities.Release; only its implementation and documented shutdown metadata cleanup may release directly.
+M:System.Runtime.InteropServices.Marshal.ReleaseComObject(System.Object); Use ComUtilities.Release; only its implementation may release directly.
 M:System.Runtime.InteropServices.Marshal.FinalReleaseComObject(System.Object); Do not invalidate references owned by other code; use ComUtilities.Release.
-M:System.GC.Collect; Explicit COM releases own cleanup; only documented shutdown metadata reclamation may collect.
-M:System.GC.Collect(System.Int32); Explicit COM releases own cleanup; only documented shutdown metadata reclamation may collect.
-M:System.GC.Collect(System.Int32,System.GCCollectionMode); Explicit COM releases own cleanup; only documented shutdown metadata reclamation may collect.
-M:System.GC.Collect(System.Int32,System.GCCollectionMode,System.Boolean); Explicit COM releases own cleanup; only documented shutdown metadata reclamation may collect.
-M:System.GC.Collect(System.Int32,System.GCCollectionMode,System.Boolean,System.Boolean); Explicit COM releases own cleanup; only documented shutdown metadata reclamation may collect.
+M:System.GC.Collect; Do not force memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.GC.Collect(System.Int32); Do not force memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.GC.Collect(System.Int32,System.GCCollectionMode); Do not force memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.GC.Collect(System.Int32,System.GCCollectionMode,System.Boolean); Do not force memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.GC.Collect(System.Int32,System.GCCollectionMode,System.Boolean,System.Boolean); Do not force memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.GC.WaitForPendingFinalizers; Do not wait for automatic memory cleanup; release each acquired Excel object through ComUtilities.Release.
+M:System.Runtime.InteropServices.Marshal.CleanupUnusedObjectsInCurrentContext; Do not force general automation cleanup; release each acquired Excel object through ComUtilities.Release.
 M:Microsoft.Office.Interop.Excel._Workbook.RefreshAll; Refresh the specific connection synchronously; RefreshAll does not establish completion.
