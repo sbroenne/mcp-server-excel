@@ -524,12 +524,8 @@ public sealed partial class PersistentServicePivotTableTests
             RequireSuccess(CreateCacheReport(false, peer, "TimelinePeer", "Second", moved));
             RequireSuccess(_pivotCommands.ConnectPivotTable(batch, "MovedTimeline", "TimelinePeer"));
             RequireSuccess(_pivotCommands.DisconnectPivotTable(batch, "MovedTimeline", "Second"));
-            AssertNativeCacheShareOutcome(target, moved);
         }
-        else
-        {
-            AssertNativeCacheShareOutcome(target, moved);
-        }
+        AssertNativeCacheShareOutcome(target, moved);
     }
 
     [Theory]
