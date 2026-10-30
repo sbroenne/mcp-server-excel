@@ -140,8 +140,7 @@ public partial class PivotTableCommands
         string pivotTableName,
         string workbookPath,
         CancellationToken cancellationToken,
-        int maxSelectedMembers,
-        bool manualSelectionOnly = false)
+        int maxSelectedMembers)
     {
         var rawSourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => (object?)field.SourceName);
         if (rawSourceName.Available && PivotTableHelpers.IsValuesPlaceholderField(field, rawSourceName.Value))
@@ -203,9 +202,7 @@ public partial class PivotTableCommands
         result.Position = position.Value;
         result.LayoutAvailable = true;
         var memberState = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-            () => manualSelectionOnly && result.Area is PivotFieldArea.Row or PivotFieldArea.Column
-                ? ReadAllRegularMembers(field, null, maxSelectedMembers, cancellationToken)
-                : ReadRegularMemberState(field, result, maxSelectedMembers, cancellationToken));
+            () => ReadRegularMemberState(field, result, maxSelectedMembers, cancellationToken));
         if (!memberState.Available || memberState.Value is null)
         {
             result.SelectionError = memberState.ErrorMessage;

@@ -94,7 +94,7 @@ is a displayed query result, not a calculated table inside the model.
 - **Explore data:** Filter, sort by labels or a selected Values instance, show items with no data, group, expand or collapse supported items, and drill into regular PivotTable source rows.
 - **Control presentation:** Use Compact, Tabular, or Outline layouts, repeated labels, styles, selectable subtotal functions, grand totals, custom blank/error text, merged labels, separators, and printing controls.
 - **Maintain sources:** Inspect refresh/cache settings and shared users, change a worksheet source, or request a native connection change for one external PivotTable without rebuilding it. Native connection changes depend on Excel and the provider.
-- **Share existing caches:** Move a compatible worksheet-backed report onto another report's existing cache without recreating either report. Connected controls require explicit disconnection; grouping and conflicting calculations are rejected.
+- **Share existing caches:** Assign an existing PivotTable to another report's cache without recreating either report. Excel decides whether the assignment can be performed; the moved report adopts the chosen cache's data and settings.
 
 Regular and Data Model PivotTables have different capabilities. Native grouping,
 calculated filters, item expansion, and drill-through described here are

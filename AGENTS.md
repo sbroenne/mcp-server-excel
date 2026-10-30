@@ -96,6 +96,9 @@ assumption that passing compilation proves runtime correctness.
   declarations and late-bound operations; EXL005 rejects casts to `dynamic`.
   Comments do not exempt them. The compiler checks whether the referenced PIA
   exposes a member; runtime availability still needs real-Excel validation.
+- Use Excel's native operations and validation for behavior Excel owns. Do not
+  duplicate Excel's rules with custom preflight checks; add custom checks only
+  for product requirements Excel does not provide.
 - The user-approved document-property exception is confined to
   `ExcelDocumentProperties` in ComInterop. Its private native COM calls cover
   only workbook property collections/items, resolve member identifiers from

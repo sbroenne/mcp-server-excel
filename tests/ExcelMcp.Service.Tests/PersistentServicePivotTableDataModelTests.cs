@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -30,7 +31,7 @@ public class PersistentServicePivotTableDataModelTests(
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ShareExistingCache_DataModelOnEitherSide_IsRejectedBeforeWrites(bool modelIsMoved)
+    public void ShareExistingCache_UsesExcelForDataModelCompatibility(bool modelIsMoved)
     {
         var batch = _fixture.BatchToken;
         var sheet = _fixture.CreateTestSheet(batch);
@@ -41,19 +42,52 @@ public class PersistentServicePivotTableDataModelTests(
         RequireSuccess(_pivotCommands.CreateFromDataModel(batch, "SalesTable", sheet, "H1", "ModelPivot"));
         RequireSuccess(_pivotCommands.AddValueField(batch, "ModelPivot", "[Measures].[Total Sales]"));
         RequireSuccess(_pivotCommands.Refresh(batch, "ModelPivot"));
-        var before = RequireSuccess(_pivotCommands.List(batch)).PivotTables
-            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray();
+        string movedName = modelIsMoved ? "ModelPivot" : "WorksheetPivot";
+        string targetName = modelIsMoved ? "WorksheetPivot" : "ModelPivot";
+        var before = RequireSuccess(_pivotCommands.List(batch)).PivotTables;
+        int previousIndex = Assert.Single(before, pivot => pivot.Name == movedName).CacheIndex;
+        int targetIndex = Assert.Single(before, pivot => pivot.Name == targetName).CacheIndex;
+        Assert.NotEqual(previousIndex, targetIndex);
 
-        var error = Assert.Throws<NotSupportedException>(() => _pivotCommands.ShareCache(batch,
-            sheet, modelIsMoved ? "ModelPivot" : "WorksheetPivot",
-            modelIsMoved ? "WorksheetPivot" : "ModelPivot", sheet));
+        ServiceResponse? response = null;
+        var error = Record.Exception(() => response = _fixture.Send("pivottable.share-cache", new
+        {
+            sheetName = sheet,
+            pivotTableName = movedName,
+            shareCacheWith = targetName,
+            shareCacheWithSheet = sheet
+        }));
+        var after = RequireSuccess(_pivotCommands.List(batch)).PivotTables;
+        int actualIndex = Assert.Single(after, pivot => pivot.Name == movedName).CacheIndex;
+        int actualTargetIndex = Assert.Single(after, pivot => pivot.Name == targetName).CacheIndex;
 
-        Assert.Contains("worksheet-backed", error.Message, StringComparison.Ordinal);
-        Assert.Equal(before, RequireSuccess(_pivotCommands.List(batch)).PivotTables
-            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray());
-        AssertNativeData(sheet, "ModelPivot", 2455);
-        var values = RequireSuccess(_pivotCommands.GetData(batch, "WorksheetPivot")).Values;
-        Assert.Equal(300d, Convert.ToDouble(values[^1][0], System.Globalization.CultureInfo.InvariantCulture));
+        if (error is null)
+        {
+            using var result = JsonDocument.Parse(Assert.IsType<string>(response!.Result));
+            Assert.True(result.RootElement.GetProperty("changed").GetBoolean());
+            Assert.Equal(previousIndex, result.RootElement.GetProperty("previousCacheIndex").GetInt32());
+            Assert.Equal(actualIndex, result.RootElement.GetProperty("cacheIndex").GetInt32());
+            Assert.Equal(actualTargetIndex, result.RootElement.GetProperty("targetCacheIndex").GetInt32());
+            Assert.Equal(actualTargetIndex, actualIndex);
+            return;
+        }
+
+        string errorMessage = error.Message;
+        const string marker = "Actual partial state: ";
+        int stateStart = errorMessage.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(stateStart >= 0, errorMessage);
+        const string innerMarker = "; inner=";
+        int stateEnd = errorMessage.IndexOf(innerMarker, stateStart + marker.Length, StringComparison.Ordinal);
+        Assert.True(stateEnd > stateStart, errorMessage);
+        string innerError = errorMessage[(stateEnd + innerMarker.Length)..];
+        int nativeCode = innerError.LastIndexOf(" [COM: 0x", StringComparison.Ordinal);
+        Assert.True(nativeCode > 0, errorMessage);
+        Assert.Matches(@" \[COM: 0x[0-9A-F]{8}\]$", innerError);
+        Assert.Contains(innerError[..nativeCode], errorMessage[..stateStart], StringComparison.Ordinal);
+        using var state = JsonDocument.Parse(errorMessage[(stateStart + marker.Length)..stateEnd]);
+        Assert.False(state.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(actualIndex, state.RootElement.GetProperty("cacheIndex").GetInt32());
+        Assert.Equal(actualTargetIndex, state.RootElement.GetProperty("targetCacheIndex").GetInt32());
     }
 
     [Theory]
