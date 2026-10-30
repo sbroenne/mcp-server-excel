@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.3] - 2026-10-30
+
+### Minor Changes
+
+- [#1275](https://github.com/sbroenne/mcp-server-excel/pull/1275) [`cd029fe`](https://github.com/sbroenne/mcp-server-excel/commit/cd029fef20a3495e6aa65ebe323dc1a9d1063895) Thanks [@sbroenne](https://github.com/sbroenne)! - Set and inspect chart text fonts, sizes, colours, bold and italic through the CLI and MCP server. Supports existing titles, axis labels and titles, data labels, legends and whole-chart text settings on ordinary charts and PivotCharts, including Data Model PivotCharts.
+
 ## [2.6.2] - 2026-10-30
 
 ### Patch Changes
