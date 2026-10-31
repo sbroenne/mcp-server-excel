@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
@@ -15,9 +17,11 @@ public class WorksheetViewResult : OperationResult
     public string SelectionKind { get; set; } = string.Empty;
 
     /// <summary>Actual selected range address, or null for a non-range selection.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public string? SelectedRangeAddress { get; set; }
 
     /// <summary>Actual active cell address, or null for a non-range selection.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public string? ActiveCellAddress { get; set; }
 
     /// <summary>Whether panes are frozen.</summary>

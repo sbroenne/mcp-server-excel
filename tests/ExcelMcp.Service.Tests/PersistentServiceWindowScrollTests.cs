@@ -266,6 +266,20 @@ public sealed class PersistentServiceWindowScrollTests(PersistentServiceWorkbook
         Assert.Null(result.SelectedRangeAddress);
         Assert.Null(result.ActiveCellAddress);
         Assert.Equal(before.SelectionKind, Assert.Single(RequireSuccess(_commands.GetContext(batch)).Windows).SelectionKind);
+
+        foreach (var response in new[]
+        {
+            _fixture.Send("window.get-view", new { sheetName = sheet }),
+            _fixture.Send("window.set-view", new { sheetName = sheet, topLeftCell = "E20" })
+        })
+        {
+            Assert.True(response.Success, response.ErrorMessage);
+            using var json = JsonDocument.Parse(response.Result!);
+            Assert.Equal("unsupported", json.RootElement.GetProperty("selectionKind").GetString());
+            Assert.Equal("$E$20", json.RootElement.GetProperty("topLeftCell").GetString());
+            Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("selectedRangeAddress").ValueKind);
+            Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("activeCellAddress").ValueKind);
+        }
     }
 
     [Fact]
