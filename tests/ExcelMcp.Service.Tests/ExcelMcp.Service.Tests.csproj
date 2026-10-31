@@ -8,6 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+    <!-- Worker tests launch the CLI product without using its assembly. -->
+    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

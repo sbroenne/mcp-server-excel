@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.5] - 2026-10-31
+
+### Patch Changes
+
+- [#1278](https://github.com/sbroenne/mcp-server-excel/pull/1278) [`35dda84`](https://github.com/sbroenne/mcp-server-excel/commit/35dda847f4ad6b3bafbebd892c81e2205937cbf4) Thanks [@Antrakt92](https://github.com/Antrakt92)! - Reduce repeated JSON processing when converting Service responses into MCP replies. Keep errors, warnings, partial state and telemetry unchanged.
+
 ## [2.6.4] - 2026-10-30
 
 ### Patch Changes

@@ -7,6 +7,11 @@ Common SDK properties and xUnit/analyzer dependencies live in
 `tests\Directory.Build.props`; each project keeps its platform overrides,
 references, linked fixtures, assets, and test scheduling configuration.
 
+Service worker and controller tests launch the Release `excelcli` executable.
+The Service test project includes a build-only CLI project reference so selected
+builds produce it without adding the CLI assembly to the test references.
+Use `-c Release` for these tests; `--no-build` requires that build first.
+
 ## Quick Start
 
 ```powershell
