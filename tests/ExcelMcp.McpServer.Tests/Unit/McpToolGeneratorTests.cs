@@ -53,6 +53,9 @@ public sealed class McpToolGeneratorTests
         Assert.Contains("[McpMeta(\"requiresSession\", true)]", read);
         Assert.Contains("SheetAction.CopyToFile", write);
         Assert.Contains("SheetAction.Create", write);
+        Assert.Contains("ExcelToolsBase.ForwardResultToServiceAsync(", write);
+        Assert.Contains("ExcelToolsBase.ForwardResultToServiceAsync(", read);
+        Assert.DoesNotContain("ExcelToolsBase.ForwardToServiceAsync(", write);
     }
 
     [Fact]
@@ -85,6 +88,8 @@ public sealed class McpToolGeneratorTests
 
         var screenshot = Assert.Single(generated);
         Assert.Contains("ScreenshotImageResult.CreateToolResult", screenshot);
+        Assert.Contains("ExcelToolsBase.ForwardToServiceAsync(", screenshot);
+        Assert.DoesNotContain("ExcelToolsBase.ForwardResultToServiceAsync(", screenshot);
         Assert.DoesNotContain("OutputSchema", screenshot);
         Assert.DoesNotContain("UseStructuredContent", screenshot);
     }
