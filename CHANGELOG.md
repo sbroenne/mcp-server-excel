@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.6] - 2026-10-31
+
+### Minor Changes
+
+- [#1283](https://github.com/sbroenne/mcp-server-excel/pull/1283) [`18aae84`](https://github.com/sbroenne/mcp-server-excel/commit/18aae84d46f5b42b0662b8e8cc683d1869d2d404) Thanks [@sbroenne](https://github.com/sbroenne)! - Set a sheet's scroll position and optional selection with `window set-view` before saving. `window get-view` now reports the actual top-left cell, selection, and active cell, so dashboards can open at the intended position. Available through both excelcli and MCP.
+
 ## [2.6.5] - 2026-10-31
 
 ### Patch Changes
