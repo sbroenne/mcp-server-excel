@@ -75,7 +75,7 @@ public class WindowInfoResult : OperationResult
 [ServiceCategory("Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
     Description = "Control Excel window visibility, position, state, status bar, and worksheet views. " +
-        "VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom (10-400), and set-display-options (gridlines, headings, outline symbols, formulas). get-view activates the workbook window and worksheet; it is not inspection-only. freeze-panes replaces existing panes using row/column counts from the top-left, activates the worksheet, and keeps the selection; Page Layout view is rejected, so ask the user to switch to Normal view. set-split creates movable panes and removes frozen panes. " +
+        "VIEW: get-view reports actual topLeftCell, selectionKind, selectedRangeAddress, activeCellAddress, panes, zoom, and display settings. set-view scrolls to top_left_cell and optionally selects a cell or continuous range with select; omitted select keeps the selection. Both activate the workbook window and worksheet and leave it active; get-view is not inspection-only. set-view preserves panes and controls the last (bottom/right) pane; frozen or hidden rows/columns may adjust the actual position. Save explicitly afterwards to retain the view. freeze-panes replaces existing panes using row/column counts from the top-left, activates the worksheet, and keeps the selection; Page Layout view is rejected, so ask the user to switch to Normal view. set-split creates movable panes and removes frozen panes. set-zoom accepts 10-400 and set-display-options controls gridlines, headings, outline symbols, and formulas. " +
         "VISIBILITY: show reveals Excel and reports isVisible and isForeground (Windows may refuse focus); hide hides it. Both work while a dialog is open; dialogs are never answered or dismissed. " +
         "WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen; a verified placement succeeds even if Windows refuses focus.")]
 [McpReadOnlyActions("get-context", "get-info")]
@@ -175,6 +175,26 @@ public interface IWindowCommands
     /// <param name="sheetName">Worksheet whose view should be inspected</param>
     [ServiceAction("get-view")]
     WorksheetViewResult GetView(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>
+    /// Sets the last pane's scroll position and optionally selects a cell or continuous range.
+    /// Activates the named worksheet and leaves it active, preserving panes, view mode, zoom,
+    /// display settings, and omitted selection. Returns the actual resulting view; frozen or
+    /// hidden rows and columns may adjust the position. Does not save or intentionally show Excel.
+    /// Save explicitly to retain the opening view. Changes are not rolled back on failure.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose view should be changed</param>
+    /// <param name="topLeftCell">One cell on the named worksheet, such as A1; controls the last bottom/right pane</param>
+    /// <param name="select">Optional cell or continuous range on the named worksheet, such as A1 or A1:B3; omitted keeps selection</param>
+    [ServiceAction("set-view")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716",
+        Justification = "The parameter defines the requested --select CLI flag and matching select MCP/Service input; this interface is not an external extension API.")]
+    WorksheetViewResult SetView(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        [RequiredParameter] string topLeftCell,
+        string? select = null);
 
     /// <summary>
     /// Freezes rows above and columns left of a pane boundary.

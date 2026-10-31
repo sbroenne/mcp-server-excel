@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
@@ -7,6 +9,20 @@ public class WorksheetViewResult : OperationResult
 {
     /// <summary>Name of the active worksheet whose view was inspected.</summary>
     public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>Actual top-left cell of the last pane, as an absolute cell address.</summary>
+    public string TopLeftCell { get; set; } = string.Empty;
+
+    /// <summary>Native selection kind: range, chart, shapes, or unsupported.</summary>
+    public string SelectionKind { get; set; } = string.Empty;
+
+    /// <summary>Actual selected range address, or null for a non-range selection.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public string? SelectedRangeAddress { get; set; }
+
+    /// <summary>Actual active cell address, or null for a non-range selection.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public string? ActiveCellAddress { get; set; }
 
     /// <summary>Whether panes are frozen.</summary>
     public bool FreezePanes { get; set; }

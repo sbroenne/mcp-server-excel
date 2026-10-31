@@ -52,11 +52,13 @@ An unavailable service and pending calculation need different recovery choices.
 
 ---
 
-## Window Management (16 operations)
+## Window Management (17 operations)
 
 - **Watch work live:** Show, hide, position, and arrange the session's Excel window.
 - **Inspect context:** Read its active worksheet, selection, chart, window state, and view.
 - **Improve navigation:** Adjust zoom, display options, frozen panes, and movable splits.
+- **Prepare the opening view:** Set a sheet's scroll position and optional selection,
+  check the actual view, then explicitly save the workbook.
 - **Show progress:** Set and clear Excel status-bar text.
 
 Preserve the user's existing visibility preference. Keeping a workbook open

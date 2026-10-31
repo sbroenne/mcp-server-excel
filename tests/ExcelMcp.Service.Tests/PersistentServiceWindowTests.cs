@@ -68,6 +68,7 @@ public abstract class PersistentServiceWindowTestBase(
         Assert.False(Assert.IsType<bool>(
             _fixture.ExecuteRawVerification((context, _) => ((object)context.App.StatusBar))));
         RequireSuccess(_commands.SetState(batch, "normal"));
+        RequireSuccess(_commands.SetPosition(batch, width: 800, height: 600));
         RequireSuccess(_commands.Hide(batch));
     }
 
