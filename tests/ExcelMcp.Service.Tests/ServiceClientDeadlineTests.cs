@@ -293,6 +293,113 @@ public sealed class ServiceClientDeadlineTests
         }
     }
 
+    [Theory]
+    [InlineData("session.open", false, true, true, 0)]
+    [InlineData("session.open", true, true, true, 0)]
+    [InlineData("session.create", false, true, true, 0)]
+    [InlineData("session.create", true, true, true, 0)]
+    [InlineData("session.open", false, false, true, 0)]
+    [InlineData("session.create", true, false, true, 0)]
+    [InlineData("session.open", true, true, false, 0)]
+    [InlineData("sheet.list", true, true, true, 0)]
+    [InlineData("session.open", false, true, true, 1)]
+    [InlineData("session.create", true, true, true, 1)]
+    [InlineData("session.open", false, true, true, 2)]
+    [InlineData("session.create", true, true, true, 2)]
+    public async Task SendAsync_CompletedSessionCancelledBeforeReturn_RevealsOnlySuccessfulSessionCreation(
+        string command, bool useControlEndpoint, bool responseHasSessionId, bool success, int recoveryFailure)
+    {
+        var pipeName = $"excelmcp-completed-cancel-{Guid.NewGuid():N}";
+        const string sessionId = "completed-session";
+        var requests = new System.Collections.Concurrent.ConcurrentQueue<ServiceRequest>();
+        var revealed = false;
+        var controlRequests = new System.Collections.Concurrent.ConcurrentQueue<ServiceRequest>();
+        Task<ServiceResponse> Handle(ServiceRequest request)
+        {
+            requests.Enqueue(request);
+            if (request.Command == "window.show")
+            {
+                Assert.Equal(sessionId, request.SessionId);
+                if (recoveryFailure == 2)
+                    throw new InvalidOperationException("The recovery endpoint failed.");
+                revealed = recoveryFailure == 0;
+            }
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = request.Command == "window.show" ? recoveryFailure == 0 : success,
+                ErrorMessage = request.Command == "window.show" && recoveryFailure == 1
+                    ? "The recovery request was refused." : null,
+                SessionId = responseHasSessionId ? sessionId : null,
+                Result = "{\"sessionId\":\"completed-session\"}"
+            });
+        }
+        using var host = new DaemonHost(Handle);
+        using var controlHost = new DaemonHost(request =>
+        {
+            controlRequests.Enqueue(request);
+            return Handle(request);
+        });
+        var hostTask = host.RunAsync(pipeName);
+        var controlTask = controlHost.RunAsync(ServiceClient.GetControlPipeName(pipeName));
+        using var cancellation = new CancellationTokenSource();
+        var clock = new CancelOnDisconnectMonitorDisposalTimeProvider(cancellation);
+        using var client = new ServiceClient(pipeName, TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(10), clock, useControlEndpoint);
+        try
+        {
+            var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                client.SendAsync(new ServiceRequest { Command = command }, cancellation.Token)
+                    .WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.Equal(cancellation.Token, error.CancellationToken);
+            var shouldReveal = success && command is "session.open" or "session.create";
+            Assert.Equal(shouldReveal && recoveryFailure == 0, revealed);
+            Assert.Equal(shouldReveal ? new[] { command, "window.show" } : new[] { command },
+                requests.Select(request => request.Command));
+            Assert.Equal(shouldReveal && useControlEndpoint ? 1 : 0, controlRequests.Count);
+            Assert.True(clock.CancelledAfterResponse);
+        }
+        finally
+        {
+            host.RequestShutdown();
+            controlHost.RequestShutdown();
+            await Task.WhenAll(hostTask, controlTask).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    // The disconnect poll is cancelled only after the RPC reply completed. Cancel
+    // the caller at that boundary, without sleeps or racing the server handler.
+    private sealed class CancelOnDisconnectMonitorDisposalTimeProvider(CancellationTokenSource cancellation) : TimeProvider
+    {
+        public bool CancelledAfterResponse { get; private set; }
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (dueTime != TimeSpan.FromMilliseconds(250))
+                return System.CreateTimer(callback, state, dueTime, period);
+            return new DisposalTimer(() =>
+            {
+                CancelledAfterResponse = true;
+                cancellation.Cancel();
+            });
+        }
+
+        private sealed class DisposalTimer(Action onDispose) : ITimer
+        {
+            private int _disposed;
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) == 0)
+                    onDispose();
+            }
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
+        }
+    }
+
     private sealed class ExpiringBeforeConnectTimeProvider : TimeProvider
     {
         private int _timestampReads;

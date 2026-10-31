@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
@@ -144,7 +145,11 @@ public sealed class ServiceClient : IDisposable
 
                 await disconnectMonitorCts.CancelAsync();
                 var response = await callTask.WaitAsync(requestCts.Token);
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    await RevealCompletedSessionAsync(request, response);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
                 return response;
             }
             finally
@@ -196,6 +201,42 @@ public sealed class ServiceClient : IDisposable
                 ErrorMessage = "Cannot connect to service. Is it running?",
                 ExceptionType = nameof(IOException)
             };
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A completed-session recovery failure is diagnosed without replacing caller cancellation or saving, closing, or replaying workbook work.")]
+    private async Task RevealCompletedSessionAsync(ServiceRequest request, ServiceResponse response)
+    {
+        if (!response.Success || request.Command is not ("session.open" or "session.create"))
+            return;
+
+        try
+        {
+            var sessionId = response.SessionId;
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                using var result = JsonDocument.Parse(response.Result
+                    ?? throw new InvalidOperationException("Session creation returned no result."));
+                sessionId = result.RootElement.GetProperty("sessionId").GetString();
+            }
+            if (string.IsNullOrWhiteSpace(sessionId))
+                throw new InvalidOperationException("Session creation returned no session ID.");
+
+            // The daemon has finished observing this completed request. Reveal its
+            // retained workbook before cancellation discards the reply/session ID.
+            using var recoveryClient = new ServiceClient(_pipeName, useControlEndpoint: _useControlEndpoint);
+            var recovery = await recoveryClient.SendAsync(new ServiceRequest
+            {
+                Command = "window.show",
+                SessionId = sessionId
+            }, TimeSpan.FromSeconds(5), CancellationToken.None);
+            if (!recovery.Success)
+                System.Diagnostics.Trace.TraceError("Could not reveal completed Excel session after cancellation: {0}", recovery.ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError("Could not reveal completed Excel session after cancellation: {0}", ex);
         }
     }
 
