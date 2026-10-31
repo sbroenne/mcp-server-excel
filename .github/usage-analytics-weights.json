@@ -594,6 +594,7 @@
         "set-split": "light",
         "set-state": "light",
         "set-status-bar": "light",
+        "set-view": "light",
         "set-zoom": "light",
         "show": "light",
         "unfreeze-panes": "light"

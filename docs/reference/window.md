@@ -14,6 +14,40 @@ Frozen panes retain rows and columns above/left of a boundary; movable splits
 are different and replace frozen panes. Set zoom and display choices before a
 split when exact pane counts matter, then inspect the resulting view.
 
+### Prepare the view before saving
+
+Use `set-view` to scroll a named sheet and optionally select a cell or continuous
+range. The sheet stays active. Omitting selection keeps its existing selection.
+The command does not save the workbook; explicitly save after checking the view.
+
+```cli
+excelcli -q window set-view --session $sessionId --sheet-name Dashboard --top-left-cell A1 --select A1
+excelcli -q window get-view --session $sessionId --sheet-name Dashboard
+```
+
+```mcp
+window(action: 'set-view', workbook_session_id: sessionId, sheet_name: 'Dashboard', top_left_cell: 'A1', select: 'A1')
+window(action: 'get-view', workbook_session_id: sessionId, sheet_name: 'Dashboard')
+```
+
+Both actions return `topLeftCell`, `selectionKind`, `selectedRangeAddress`, and
+`activeCellAddress`, alongside panes, zoom, and display settings. Addresses are
+Excel's normalized addresses. Non-range selections have no range or active-cell
+address. `get-view` activates the requested sheet but does not select or scroll it.
+
+Frozen panes and movable splits are retained. The scroll position belongs to the
+last pane: the bottom-right pane for splits in both directions, or the bottom/right
+pane for a single split. Frozen or hidden rows and columns may make Excel adjust
+the requested position; inspect `topLeftCell` for the actual result. Panes share
+scrolling in any direction that is not split, following Excel's normal behavior. Neither action
+changes the view mode, zoom, or display options, or intentionally shows Excel.
+
+`--top-left-cell` / `top_left_cell` must identify one cell on the named sheet;
+`--select` / `select` accepts one cell or a continuous range on that sheet.
+References to other sheets or workbooks and multi-area selections are rejected.
+If Excel fails after a view change, do not assume the change was undone.
+Inspect the view before deciding what to do next.
+
 ## Visibility and placement
 
 Preserve existing visibility unless a change is requested or a blocking dialog

@@ -15,6 +15,49 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
     private const string SessionId = "recording-session";
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("A1")]
+    [InlineData("H30:I32")]
+    public async Task SetView_MapsInputsAndReturnsObservedView(string? select)
+    {
+        Dictionary<string, object?> inputs = new()
+        {
+            ["action"] = "set-view",
+            ["workbook_session_id"] = SessionId,
+            ["sheet_name"] = "Dashboard",
+            ["top_left_cell"] = "E20"
+        };
+        if (select is not null)
+            inputs["select"] = select;
+        var expected = select is null
+            ? """{"sheetName":"Dashboard","topLeftCell":"E20"}"""
+            : JsonSerializer.Serialize(new { sheetName = "Dashboard", topLeftCell = "E20", select });
+        var output = await CallAsync("window", inputs, "window.set-view", expected,
+            """{"success":true,"topLeftCell":"$E$20","selectionKind":"range","selectedRangeAddress":"$H$30:$I$32","activeCellAddress":"$H$30"}""");
+        using var json = JsonDocument.Parse(output);
+        Assert.Equal("$E$20", json.RootElement.GetProperty("topLeftCell").GetString());
+        Assert.Equal("range", json.RootElement.GetProperty("selectionKind").GetString());
+        Assert.Equal("$H$30:$I$32", json.RootElement.GetProperty("selectedRangeAddress").GetString());
+        Assert.Equal("$H$30", json.RootElement.GetProperty("activeCellAddress").GetString());
+    }
+
+    [Theory]
+    [InlineData("sheet_name", "Dashboard", "top_left_cell")]
+    [InlineData("top_left_cell", "A1", "sheet_name")]
+    public async Task SetView_MissingRequiredInput_IsProtocolError(string supplied, string value, string missing)
+    {
+        var result = await _fixture.CallResultWithoutDispatchAsync("window", new()
+        {
+            ["action"] = "set-view",
+            ["workbook_session_id"] = SessionId,
+            [supplied] = value
+        });
+        Assert.True(result.IsError);
+        var text = Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
+        Assert.Contains(missing, text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task WindowViewActions_RoundTripThroughMcp()
     {
