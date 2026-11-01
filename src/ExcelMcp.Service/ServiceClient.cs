@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
@@ -138,11 +139,18 @@ public sealed class ServiceClient : IDisposable
                     && disconnectTask.Result
                     && !callTask.IsCompleted)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     return CreateConnectionLostResponse(request);
                 }
 
                 await disconnectMonitorCts.CancelAsync();
-                return await callTask.WaitAsync(requestCts.Token);
+                var response = await callTask.WaitAsync(requestCts.Token);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    await RevealCompletedSessionAsync(request, response);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                return response;
             }
             finally
             {
@@ -152,7 +160,12 @@ public sealed class ServiceClient : IDisposable
         }
         catch (TimeoutException)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return CreateTimeoutResponse(request, connected, nameof(TimeoutException));
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -160,10 +173,12 @@ public sealed class ServiceClient : IDisposable
         }
         catch (ConnectionLostException)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return CreateConnectionLostResponse(request);
         }
         catch (DirectoryNotFoundException ex) when (!connected)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return new ServiceResponse
             {
                 Success = false,
@@ -176,6 +191,7 @@ public sealed class ServiceClient : IDisposable
         }
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return new ServiceResponse
             {
                 Success = false,
@@ -185,6 +201,42 @@ public sealed class ServiceClient : IDisposable
                 ErrorMessage = "Cannot connect to service. Is it running?",
                 ExceptionType = nameof(IOException)
             };
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A completed-session recovery failure is diagnosed without replacing caller cancellation or saving, closing, or replaying workbook work.")]
+    private async Task RevealCompletedSessionAsync(ServiceRequest request, ServiceResponse response)
+    {
+        if (!response.Success || request.Command is not ("session.open" or "session.create"))
+            return;
+
+        try
+        {
+            var sessionId = response.SessionId;
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                using var result = JsonDocument.Parse(response.Result
+                    ?? throw new InvalidOperationException("Session creation returned no result."));
+                sessionId = result.RootElement.GetProperty("sessionId").GetString();
+            }
+            if (string.IsNullOrWhiteSpace(sessionId))
+                throw new InvalidOperationException("Session creation returned no session ID.");
+
+            // The daemon has finished observing this completed request. Reveal its
+            // retained workbook before cancellation discards the reply/session ID.
+            using var recoveryClient = new ServiceClient(_pipeName, useControlEndpoint: _useControlEndpoint);
+            var recovery = await recoveryClient.SendAsync(new ServiceRequest
+            {
+                Command = "window.show",
+                SessionId = sessionId
+            }, TimeSpan.FromSeconds(5), CancellationToken.None);
+            if (!recovery.Success)
+                System.Diagnostics.Trace.TraceError("Could not reveal completed Excel session after cancellation: {0}", recovery.ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError("Could not reveal completed Excel session after cancellation: {0}", ex);
         }
     }
 
@@ -205,11 +257,14 @@ public sealed class ServiceClient : IDisposable
             throw new TimeoutException();
         }
 
-        return configuredTimeout <= remaining ? configuredTimeout : remaining;
+        return configuredTimeout != Timeout.InfiniteTimeSpan && configuredTimeout <= remaining
+            ? configuredTimeout
+            : remaining;
     }
 
-    private static int ToTimeoutMilliseconds(TimeSpan timeout) =>
-        Math.Max(1, checked((int)Math.Ceiling(timeout.TotalMilliseconds)));
+    internal static int ToTimeoutMilliseconds(TimeSpan timeout) =>
+        timeout == Timeout.InfiniteTimeSpan ? Timeout.Infinite
+            : Math.Max(1, checked((int)Math.Ceiling(timeout.TotalMilliseconds)));
 
     private static ServiceResponse CreateTimeoutResponse(
         ServiceRequest request,
