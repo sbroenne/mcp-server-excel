@@ -11,6 +11,18 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.7] - 2026-11-01
+
+### Minor Changes
+
+- [#1284](https://github.com/sbroenne/mcp-server-excel/pull/1284) [`b7fa17a`](https://github.com/sbroenne/mcp-server-excel/commit/b7fa17ac38e5c1918338cac69654f524097eb576) Thanks [@sbroenne](https://github.com/sbroenne)! - Position and align chart titles, set axis line colours and thickness, and show or hide chart and plot-area borders. These options work through both the CLI and MCP Server, including on PivotCharts.
+
+### Patch Changes
+
+- [#1280](https://github.com/sbroenne/mcp-server-excel/pull/1280) [`3b055cb`](https://github.com/sbroenne/mcp-server-excel/commit/3b055cb5e173f5e298969da2a56d2be93c06469d) Thanks [@Antrakt92](https://github.com/Antrakt92)! - Keep caller cancellation distinct from service timeouts and connection failures, including when the pipe disconnects at the same time. Preserve unlimited connection waits while respecting any finite total request deadline.
+
+  If opening or creating a workbook finishes just as the caller cancels, reveal the completed workbook before reporting cancellation. Do not save, close, or undo its changes.
+
 ## [2.6.6] - 2026-10-31
 
 ### Minor Changes
