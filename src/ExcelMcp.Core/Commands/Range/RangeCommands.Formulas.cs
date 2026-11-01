@@ -64,12 +64,14 @@ public partial class RangeCommands
 
                             // Only return actual formulas (starting with =), not values
                             formulaRow.Add(returnedFormula);
-                            valueRow.Add(ConvertErrorForRead(
-                                cellValue,
-                                returnedFormula,
-                                startRow + r - 1,
-                                startColumn + c - 1,
-                                result.CellErrors));
+                            valueRow.Add(ExcelErrorMapper.TryGet(cellValue, out _, out _) && IsNativeError(ctx, range, r, c)
+                                ? ConvertErrorForRead(
+                                    cellValue,
+                                    returnedFormula,
+                                    startRow + r - 1,
+                                    startColumn + c - 1,
+                                    result.CellErrors)
+                                : cellValue);
                         }
 
                         result.Formulas.Add(formulaRow);
@@ -88,12 +90,14 @@ public partial class RangeCommands
                     string returnedFormula = IsReturnedFormula(range, 1, 1, formula, cellValue) ? formula : string.Empty;
                     result.Formulas.Add([returnedFormula]);
                     result.Values.Add([
-                        ConvertErrorForRead(
-                            cellValue,
-                            returnedFormula,
-                            startRow,
-                            startColumn,
-                            result.CellErrors)
+                        ExcelErrorMapper.TryGet(cellValue, out _, out _) && IsNativeError(ctx, range, 1, 1)
+                            ? ConvertErrorForRead(
+                                cellValue,
+                                returnedFormula,
+                                startRow,
+                                startColumn,
+                                result.CellErrors)
+                            : cellValue
                     ]);
                 }
 

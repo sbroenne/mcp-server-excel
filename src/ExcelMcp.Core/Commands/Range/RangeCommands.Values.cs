@@ -54,7 +54,8 @@ public partial class RangeCommands
                         for (int c = 1; c <= result.ColumnCount; c++)
                         {
                             object? cellValue = values[r, c];
-                            if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error))
+                            if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error) ||
+                                !IsNativeError(ctx, range, r, c))
                             {
                                 row.Add(cellValue);
                                 continue;
@@ -86,7 +87,8 @@ public partial class RangeCommands
                     // Single cell - wrap value in 1x1 array
                     result.RowCount = 1;
                     result.ColumnCount = 1;
-                    if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error))
+                    if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error) &&
+                        IsNativeError(ctx, range, 1, 1))
                     {
                         formulaOrArray = ReadFormulas(ctx, range);
                         result.Values.Add([
