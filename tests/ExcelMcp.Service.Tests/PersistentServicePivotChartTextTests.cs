@@ -1,7 +1,10 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -47,7 +50,9 @@ public sealed class PersistentServicePivotChartTextTests(PersistentServiceDataMo
         var created = RequireSuccess(charts.CreateFromPivotTable(batch, pivotName, sheet,
             ChartType.ColumnClustered, chartName: $"PivotText_{Guid.NewGuid():N}"));
         var chartName = created.ChartName;
-        _fixture.Send("chartconfig.set-title", new { chartName, title = "Revenue" });
+        _fixture.Send("chartconfig.set-title", new { chartName, title = "Revenue", left = 16.0, top = 12.0, alignment = "Left" });
+        _fixture.Send("chartconfig.set-axis-format", new { chartName, axis = "Value", lineColor = "#D0D0D0", lineWeight = 2.5, lineVisible = false });
+        _fixture.Send("chartconfig.set-area-format", new { chartName, area = "Chart", lineVisible = false });
         _fixture.Send("chartconfig.set-axis-title", new { chartName, axis = "Value", title = "Amount" });
         _fixture.Send("chartconfig.show-legend", new { chartName, visible = true });
         _fixture.Send("chartconfig.set-data-labels", new { chartName, showValue = true });
@@ -84,7 +89,9 @@ public sealed class PersistentServicePivotChartTextTests(PersistentServiceDataMo
                 element = element.ToString(),
                 axis = element == ChartTextElement.AxisTitle ? "Value" : null
             }).Result!;
+        VerifyLayout(sheet, chartName);
         await _fixture.SaveAndReopenAsync();
+        VerifyLayout(sheet, chartName);
         foreach (var (element, result) in expected)
             Assert.Equal(result, _fixture.Send("chartconfig.get-text-format", new
             {
@@ -98,4 +105,71 @@ public sealed class PersistentServicePivotChartTextTests(PersistentServiceDataMo
         Assert.Equal(plottedBefore, JsonSerializer.Serialize(read.Series));
         Assert.Equal(dataBefore, JsonSerializer.Serialize(RequireSuccess(pivots.GetData(batch, pivotName))));
     }
+
+    private void VerifyLayout(string sheetName, string chartName) =>
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ChartObject? chartObject = null;
+            Excel.Chart? chart = null;
+            Excel.ChartTitle? title = null;
+            Excel.ChartFormat? titleFormat = null;
+            Excel.TextFrame2? frame = null;
+            Office.TextRange2? text = null;
+            Office.ParagraphFormat2? paragraph = null;
+            Excel.Axis? axis = null;
+            Excel.ChartFormat? axisFormat = null;
+            Excel.LineFormat? axisLine = null;
+            Excel.ColorFormat? axisColor = null;
+            Excel.ChartArea? area = null;
+            Excel.ChartFormat? areaFormat = null;
+            Excel.LineFormat? areaLine = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                chartObject = (Excel.ChartObject)sheet.ChartObjects(chartName);
+                chart = chartObject.Chart;
+                title = chart.ChartTitle;
+                Assert.Equal("Revenue", title.Text);
+                Assert.Equal(16, title.Left, precision: 1);
+                Assert.Equal(12, title.Top, precision: 1);
+                titleFormat = title.Format;
+                frame = titleFormat.TextFrame2;
+                text = frame.TextRange;
+                paragraph = text.ParagraphFormat;
+                Assert.Equal(Office.MsoParagraphAlignment.msoAlignLeft, paragraph.Alignment);
+                axis = (Excel.Axis)chart.Axes(Excel.XlAxisType.xlValue);
+                axisFormat = axis.Format;
+                axisLine = axisFormat.Line;
+                axisColor = axisLine.ForeColor;
+                Assert.Equal(0xD0D0D0, axisColor.RGB);
+                Assert.Equal(2.5f, axisLine.Weight);
+                Assert.Equal(Office.MsoTriState.msoFalse, axisLine.Visible);
+                area = chart.ChartArea;
+                areaFormat = area.Format;
+                areaLine = areaFormat.Line;
+                Assert.Equal(Office.MsoTriState.msoFalse, areaLine.Visible);
+            }
+            finally
+            {
+                ComUtilities.Release(ref areaLine);
+                ComUtilities.Release(ref areaFormat);
+                ComUtilities.Release(ref area);
+                ComUtilities.Release(ref axisColor);
+                ComUtilities.Release(ref axisLine);
+                ComUtilities.Release(ref axisFormat);
+                ComUtilities.Release(ref axis);
+                ComUtilities.Release(ref paragraph);
+                ComUtilities.Release(ref text);
+                ComUtilities.Release(ref frame);
+                ComUtilities.Release(ref titleFormat);
+                ComUtilities.Release(ref title);
+                ComUtilities.Release(ref chart);
+                ComUtilities.Release(ref chartObject);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
 }

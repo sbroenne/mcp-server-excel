@@ -1,4 +1,6 @@
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -38,8 +40,19 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetTitle(IExcelBatch batch, string chartName, string title)
+    public OperationResult SetTitle(IExcelBatch batch, string chartName, string title,
+        double? left = null, double? top = null, ChartTitleAlignment? alignment = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(chartName);
+        ArgumentNullException.ThrowIfNull(title);
+        if (left.HasValue && !double.IsFinite(left.Value))
+            throw new ArgumentOutOfRangeException(nameof(left), "Title position must be finite.");
+        if (top.HasValue && !double.IsFinite(top.Value))
+            throw new ArgumentOutOfRangeException(nameof(top), "Title position must be finite.");
+        if (alignment.HasValue && !Enum.IsDefined(alignment.Value))
+            throw new ArgumentOutOfRangeException(nameof(alignment));
+        if (title.Length == 0 && (left.HasValue || top.HasValue || alignment.HasValue))
+            throw new ArgumentException("Position and alignment cannot be set when hiding the title.", nameof(title));
         return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
@@ -50,6 +63,12 @@ public partial class ChartCommands
             }
 
             Excel.ChartTitle? chartTitle = null;
+            Excel.ChartFormat? format = null;
+            Excel.TextFrame2? frame = null;
+            Office.TextRange2? text = null;
+            Office.ParagraphFormat2? paragraph = null;
+            var step = "setting title visibility";
+            var applied = new List<string>();
             try
             {
                 // Set title (empty string hides title)
@@ -60,17 +79,94 @@ public partial class ChartCommands
                 else
                 {
                     findResult.Chart.HasTitle = true;
+                    applied.Add("title visibility");
                     chartTitle = findResult.Chart.ChartTitle;
+                    step = "setting title text";
                     chartTitle.Text = title;
+                    applied.Add("title text");
+                    // Assigning Position can crash Data Model PivotCharts; use the coordinate setters directly.
+                    if (left.HasValue)
+                    {
+                        step = "setting title left";
+                        chartTitle.Left = left.Value;
+                        applied.Add("left");
+                    }
+                    if (top.HasValue)
+                    {
+                        step = "setting title top";
+                        chartTitle.Top = top.Value;
+                        applied.Add("top");
+                    }
+                    if (alignment.HasValue)
+                    {
+                        step = "setting title alignment";
+                        format = chartTitle.Format;
+                        frame = format.TextFrame2;
+                        text = frame.TextRange;
+                        paragraph = text.ParagraphFormat;
+                        paragraph.Alignment = (Office.MsoParagraphAlignment)alignment.Value;
+                        applied.Add("alignment");
+                    }
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
+            catch (COMException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Chart '{chartName}': Excel failed while {step}. " +
+                    $"Applied settings: {string.Join(", ", applied)}. The failing setting may also have changed; no rollback was attempted. {ex.Message}", ex);
+            }
             finally
             {
+                ComUtilities.Release(ref paragraph);
+                ComUtilities.Release(ref text);
+                ComUtilities.Release(ref frame);
+                ComUtilities.Release(ref format);
                 ComUtilities.Release(ref chartTitle);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetAxisFormat(IExcelBatch batch, string chartName, ChartAxisType axis,
+        string? lineColor = null, double? lineWeight = null, bool? lineVisible = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(chartName);
+        var (axisType, axisGroup) = MapAxisType(axis);
+        ValidateMaterialFormat(null, lineWeight);
+        if (lineColor is not null) _ = FormattingHelpers.ParseColor(lineColor);
+        if (lineColor is null && lineWeight is null && lineVisible is null)
+            throw new ArgumentException("Supply at least one axis line setting.");
+        return batch.Execute((ctx, ct) =>
+        {
+            var found = FindChart(ctx.Book, chartName);
+            Excel.Axis? targetAxis = null;
+            Excel.ChartFormat? format = null;
+            try
+            {
+                var chart = found.Chart ?? throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+                if (!(bool)(object)chart.HasAxis[axisType, axisGroup])
+                    throw new InvalidOperationException($"Chart '{chartName}' has no {axis} axis.");
+                targetAxis = (Excel.Axis)chart.Axes(axisType, axisGroup);
+                format = targetAxis.Format;
+                ApplyLineFormat(format, lineColor, lineWeight, lineVisible);
+                return new OperationResult { Success = true, Action = "set-axis-format", FilePath = batch.WorkbookPath };
+            }
+            catch (COMException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Chart '{chartName}', {axis} axis: Excel failed while formatting the axis line. " +
+                    $"The line may be visible and earlier colour or weight changes may remain; no rollback was attempted. {ex.Message}", ex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref format);
+                ComUtilities.Release(ref targetAxis);
+                if (found.Chart != null) ComUtilities.Release(ref found.Chart!);
+                if (found.Shape != null) ComUtilities.Release(ref found.Shape!);
             }
         });
     }

@@ -350,6 +350,9 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     [InlineData("""{"command":"worksheetstyle.get-tab-color","sessionId":"missing-session","args":{"sheetName":"Sheet1"}}""")]
     [InlineData("""{"command":"datamodelrelationship.list-relationships","sessionId":"missing-session","args":{}}""")]
     [InlineData("""{"command":"vba.run","sessionId":"missing-session","args":{"procedureName":"Main","timeoutSeconds":60}}""")]
+    [InlineData("""{"command":"chartconfig.set-title","sessionId":"missing-session","args":{"chartName":"Sales","title":"Revenue","left":16,"top":12,"alignment":"Left"}}""")]
+    [InlineData("""{"command":"chartconfig.set-axis-format","sessionId":"missing-session","args":{"chartName":"Sales","axis":"ValueSecondary","lineColor":"#D0D0D0","lineWeight":1.5,"lineVisible":false}}""")]
+    [InlineData("""{"command":"chartconfig.set-area-format","sessionId":"missing-session","args":{"chartName":"Sales","area":"Plot","lineVisible":false}}""")]
     public async Task RawBatch_AcceptsCliGroupAndParameterNames(string entryJson)
     {
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");

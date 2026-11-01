@@ -2,6 +2,19 @@ using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
+/// <summary>Horizontal paragraph alignment within a chart title.</summary>
+public enum ChartTitleAlignment
+{
+    /// <summary>Align title text to the left.</summary>
+    Left = 1,
+
+    /// <summary>Center title text.</summary>
+    Center = 2,
+
+    /// <summary>Align title text to the right.</summary>
+    Right = 3
+}
+
 /// <summary>
 /// Whether Excel treats source rows or columns as chart series.
 /// </summary>
