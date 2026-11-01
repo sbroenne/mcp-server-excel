@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. set-series-axis-group assigns Primary/Secondary. set-error-bars uses typed error_bar_options. set-point-format uses point_options; marker points support their own colors/style/size, not transparency/outline weight. Series data, point-format and error-bar writes reject PivotCharts; use pivottable_field for their fields. set-text-format supports regular charts and PivotCharts and changes only supplied font settings on existing elements. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
+    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. set-series-axis-group assigns Primary/Secondary. set-error-bars uses typed error_bar_options. set-point-format uses point_options; marker points support their own colors/style/size, not transparency/outline weight. Series data, point-format and error-bar writes reject PivotCharts; use pivottable_field for their fields. set-text-format supports regular charts and PivotCharts and changes only supplied font settings on existing elements. set-title accepts left/top in chart-relative points and Left/Center/Right alignment. set-axis-format styles an existing axis line; line_visible=false hides lines, also on set-area-format. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
 [McpReadOnlyActions("get-error-bars", "get-point-format", "get-series-settings", "get-axis-number-format",
     "get-axis-scale", "get-gridlines", "list-trendlines", "get-plot-options", "get-text-format")]
 public interface IChartConfigCommands
@@ -56,7 +56,7 @@ public interface IChartConfigCommands
     /// <param name="bold">Optional bold setting; false turns bold off</param>
     /// <param name="italic">Optional italic setting; false turns italic off</param>
     /// <param name="color">Optional text colour as #RRGGBB</param>
-    /// <param name="axis">Required for AxisTitle; optional matching Category/CategorySecondary or Value/ValueSecondary for tick labels, defaulting to primary. Not used by other elements.</param>
+    /// <param name="axis">Category/Value for primary axes, CategorySecondary/ValueSecondary for secondary axes. Primary aliases Category; Secondary aliases Value on the primary group. For text-format actions, required for AxisTitle, optional matching selector for tick labels, and invalid for other elements.</param>
     /// <param name="seriesIndex">DataLabels only: omitted or 0 changes all series, positive selects one existing series. Every selected series must already have labels.</param>
     [ServiceAction("set-text-format")]
     ChartTextFormatResult SetTextFormat(IExcelBatch batch, [RequiredParameter] string chartName,
@@ -177,16 +177,43 @@ public interface IChartConfigCommands
         [RequiredParameter] ChartType chartType);
 
     /// <summary>
-    /// Sets chart title.
+    /// Sets chart title and optional position and paragraph alignment on regular charts or PivotCharts.
+    /// Empty title hides it; position/alignment cannot be supplied when hiding. Omitted layout settings are preserved.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    /// <param name="title">Title text to display</param>
+    /// <param name="title">Title text to display; empty string hides the title</param>
+    /// <param name="left">Optional finite horizontal position in points from the chart's left edge; switches to custom title placement</param>
+    /// <param name="top">Optional finite vertical position in points from the chart's top edge; switches to custom title placement</param>
+    /// <param name="alignment">Optional Left, Center, or Right paragraph alignment within the title, independent of its position</param>
     [ServiceAction("set-title")]
     OperationResult SetTitle(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
-        [RequiredParameter, AllowEmptyString] string title);
+        [RequiredParameter, AllowEmptyString] string title,
+        double? left = null,
+        double? top = null,
+        ChartTitleAlignment? alignment = null);
+
+    /// <summary>
+    /// Formats the line of an existing regular-chart or PivotChart axis.
+    /// Omitted settings are preserved; changing colour or weight does not show a hidden axis line.
+    /// The selected axis must exist; this does not create axes or change gridlines or tick labels.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Category/Value for primary axes, CategorySecondary/ValueSecondary for secondary axes. Primary aliases Category; Secondary aliases Value on the primary group.</param>
+    /// <param name="lineColor">Optional line colour as #RRGGBB</param>
+    /// <param name="lineWeight">Optional finite positive line weight in points; use lineVisible=false to hide the line, not zero weight</param>
+    /// <param name="lineVisible">Optional true to show or false to hide the line without removing the chart element</param>
+    [ServiceAction("set-axis-format")]
+    OperationResult SetAxisFormat(
+        IExcelBatch batch,
+        [RequiredParameter] string chartName,
+        [RequiredParameter] ChartAxisType axis,
+        string? lineColor = null,
+        double? lineWeight = null,
+        bool? lineVisible = null);
 
     /// <summary>
     /// Sets axis title.
@@ -439,6 +466,7 @@ public interface IChartConfigCommands
     /// <summary>
     /// Applies fill and border formatting to the chart area or plot area.
     /// Colors use #RRGGBB; transparency is 0-1; line weight is measured in points.
+    /// Omitted settings are preserved. Colour/weight shows the border unless lineVisible=false is supplied.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -446,7 +474,8 @@ public interface IChartConfigCommands
     /// <param name="fillColor">Fill color as #RRGGBB</param>
     /// <param name="fillTransparency">Fill transparency from 0 (opaque) to 1 (transparent)</param>
     /// <param name="lineColor">Border color as #RRGGBB</param>
-    /// <param name="lineWeight">Border weight in points</param>
+    /// <param name="lineWeight">Finite positive border weight in points; use lineVisible=false instead of zero weight to hide it</param>
+    /// <param name="lineVisible">Optional true to show or false to hide the border; false takes precedence over supplied border colour/weight</param>
     [ServiceAction("set-area-format")]
     OperationResult SetAreaFormat(
         IExcelBatch batch,
@@ -455,7 +484,8 @@ public interface IChartConfigCommands
         string? fillColor = null,
         double? fillTransparency = null,
         string? lineColor = null,
-        double? lineWeight = null);
+        double? lineWeight = null,
+        bool? lineVisible = null);
 
     // === TRENDLINES ===
 

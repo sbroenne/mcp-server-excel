@@ -134,6 +134,46 @@ can leave earlier settings applied: inspect the reported target and read the
 current state before deciding what to change next. Formatting does not change
 source data or promise that future PivotTable refreshes retain every override.
 
+## Title placement and chart lines
+
+`set-title` accepts `left` / `--left` and `top` / `--top` in points from the
+chart's own edges, not the worksheet. Supplying either selects custom title
+placement. `alignment` / `--alignment` aligns text within the title; it does
+not move the title box. Omitted layout settings are preserved. An empty title
+hides it and cannot be combined with position or alignment settings.
+
+Use `set-axis-format` to change an existing axis line's colour, weight, or
+visibility without changing its tick labels or gridlines. Select `Category`
+or `Value` for primary axes and `CategorySecondary` or `ValueSecondary` for
+secondary axes, matching the other axis commands. The axis must already exist.
+Omitted settings are preserved, including visibility when only colour or
+weight is supplied.
+
+For example, place a title at the top left, lighten the value axis, and hide
+the chart border:
+
+```mcp
+chart_config(action: 'set-title', workbook_session_id: sessionId, chart_name: 'MonthlySales', title: 'Monthly sales', left: 16, top: 12, alignment: 'Left')
+chart_config(action: 'set-axis-format', workbook_session_id: sessionId, chart_name: 'MonthlySales', axis: 'Value', line_color: '#D0D0D0', line_weight: 1, line_visible: true)
+chart_config(action: 'set-area-format', workbook_session_id: sessionId, chart_name: 'MonthlySales', area: 'Chart', line_visible: false)
+```
+
+```cli
+excelcli -q chartconfig set-title --session $sessionId --chart-name MonthlySales --title 'Monthly sales' --left 16 --top 12 --alignment Left
+excelcli -q chartconfig set-axis-format --session $sessionId --chart-name MonthlySales --axis Value --line-color '#D0D0D0' --line-weight 1 --line-visible true
+excelcli -q chartconfig set-area-format --session $sessionId --chart-name MonthlySales --area Chart --line-visible false
+```
+
+Line weights must be finite and positive. Hide a line with `line_visible: false`
+/ `--line-visible false`, not a zero weight. On `set-area-format`, this also
+works for `area: 'Plot'` / `--area Plot`; explicit false takes precedence over
+supplied border colour or weight. Without an explicit visibility setting,
+supplying area border colour or weight continues to show the border.
+Batch JSON uses `lineColor`, `lineWeight`, and `lineVisible`.
+
+These settings also work on PivotCharts. Excel errors remain failures and can
+leave earlier changes applied; no automatic undo is performed.
+
 ## Percentage data labels
 
 To remove all data labels from the selected series, explicitly set all five

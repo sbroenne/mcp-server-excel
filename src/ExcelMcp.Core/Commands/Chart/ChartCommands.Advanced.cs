@@ -1,5 +1,6 @@
 using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -168,8 +169,14 @@ public partial class ChartCommands
         string? fillColor = null,
         double? fillTransparency = null,
         string? lineColor = null,
-        double? lineWeight = null)
+        double? lineWeight = null,
+        bool? lineVisible = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(chartName);
+        if (!Enum.IsDefined(area)) throw new ArgumentOutOfRangeException(nameof(area));
+        ValidateMaterialFormat(fillTransparency, lineWeight);
+        if (fillColor is not null) _ = FormattingHelpers.ParseColor(fillColor);
+        if (lineColor is not null) _ = FormattingHelpers.ParseColor(lineColor);
         return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
@@ -197,13 +204,19 @@ public partial class ChartCommands
                     format = plotArea.Format;
                 }
 
-                ApplyMaterialFormat(format, fillColor, fillTransparency, lineColor, lineWeight);
+                ApplyMaterialFormat(format, fillColor, fillTransparency, lineColor, lineWeight, lineVisible);
                 return new OperationResult
                 {
                     Success = true,
                     Action = "set-area-format",
                     FilePath = batch.WorkbookPath
                 };
+            }
+            catch (COMException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Chart '{chartName}', {area} area: Excel failed while formatting the fill or border. " +
+                    $"The border may be visible and earlier fill, colour or weight changes may remain; no rollback was attempted. {ex.Message}", ex);
             }
             finally
             {
@@ -222,14 +235,13 @@ public partial class ChartCommands
         string? fillColor,
         double? fillTransparency,
         string? lineColor,
-        double? lineWeight)
+        double? lineWeight,
+        bool? lineVisible = null)
     {
         ValidateMaterialFormat(fillTransparency, lineWeight);
 
         Excel.FillFormat? fill = null;
-        Excel.LineFormat? line = null;
         Excel.ColorFormat? fillForeColor = null;
-        Excel.ColorFormat? lineForeColor = null;
         try
         {
             if (fillColor != null || fillTransparency.HasValue)
@@ -248,47 +260,61 @@ public partial class ChartCommands
                 }
             }
 
-            if (lineColor != null || lineWeight.HasValue)
-            {
-                line = format.Line;
-                line.Visible = Office.MsoTriState.msoTrue;
-                if (lineColor != null)
-                {
-                    lineForeColor = line.ForeColor;
-                    lineForeColor.RGB = FormattingHelpers.ParseColor(lineColor);
-                }
-
-                if (lineWeight.HasValue)
-                {
-                    line.Weight = (float)lineWeight.Value;
-                }
-            }
+            ApplyLineFormat(format, lineColor, lineWeight,
+                lineVisible ?? (lineColor is not null || lineWeight.HasValue ? true : null));
         }
         finally
         {
-            ComUtilities.Release(ref lineForeColor!);
             ComUtilities.Release(ref fillForeColor!);
-            ComUtilities.Release(ref line!);
             ComUtilities.Release(ref fill!);
+        }
+    }
+
+    private static void ApplyLineFormat(Excel.ChartFormat format, string? lineColor,
+        double? lineWeight, bool? lineVisible)
+    {
+        if (lineColor is null && lineWeight is null && lineVisible is null) return;
+        Excel.LineFormat? line = null;
+        Excel.ColorFormat? color = null;
+        try
+        {
+            line = format.Line;
+            var visibility = lineVisible.HasValue
+                ? (lineVisible.Value ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse)
+                : line.Visible;
+            // Excel ignores colour writes on hidden lines until the line is shown.
+            if (lineColor is not null || lineWeight.HasValue) line.Visible = Office.MsoTriState.msoTrue;
+            if (lineColor is not null)
+            {
+                color = line.ForeColor;
+                color.RGB = FormattingHelpers.ParseColor(lineColor);
+            }
+            if (lineWeight.HasValue) line.Weight = (float)lineWeight.Value;
+            line.Visible = visibility;
+        }
+        finally
+        {
+            ComUtilities.Release(ref color);
+            ComUtilities.Release(ref line);
         }
     }
 
     private static void ValidateMaterialFormat(double? fillTransparency, double? lineWeight)
     {
-        if (fillTransparency is < 0 or > 1)
+        if (fillTransparency.HasValue && (!double.IsFinite(fillTransparency.Value) || fillTransparency is < 0 or > 1))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(fillTransparency),
                 fillTransparency,
-                "Fill transparency must be between 0 and 1.");
+                "Fill transparency must be finite and between 0 and 1.");
         }
 
-        if (lineWeight is <= 0)
+        if (lineWeight.HasValue && (!double.IsFinite(lineWeight.Value) || !float.IsFinite((float)lineWeight.Value) || lineWeight is <= 0))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(lineWeight),
                 lineWeight,
-                "Line weight must be greater than zero.");
+                "Line weight must be finite and greater than zero.");
         }
     }
 }

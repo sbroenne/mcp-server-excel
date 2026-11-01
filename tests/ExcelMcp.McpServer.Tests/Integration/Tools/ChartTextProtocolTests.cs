@@ -13,6 +13,69 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class ChartTextProtocolTests(RecordingProgramTransportFixture fixture)
 {
     [Fact]
+    public async Task SetTitle_ForwardsPositionAndAlignment()
+    {
+        var call = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-title",
+            ["workbook_session_id"] = "session-1",
+            ["chart_name"] = "Sales",
+            ["title"] = "Revenue",
+            ["left"] = 16,
+            ["top"] = 12,
+            ["alignment"] = "Left"
+        }, RecordingToolTest.Success("""{"success":true}"""), "chartconfig.set-title",
+            """{"chartName":"Sales","title":"Revenue","left":16,"top":12,"alignment":"Left"}""");
+        Assert.False(call.Result.IsError);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LineFormatting_ForwardsVisibilityAndSecondaryAxis(bool area)
+    {
+        var action = area ? "set-area-format" : "set-axis-format";
+        var call = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = action,
+            ["workbook_session_id"] = "session-1",
+            ["chart_name"] = "Sales",
+            [area ? "area" : "axis"] = area ? "Plot" : "ValueSecondary",
+            ["line_color"] = "#D0D0D0",
+            ["line_weight"] = 1.5,
+            ["line_visible"] = false
+        }, RecordingToolTest.Success("""{"success":true}"""), $"chartconfig.{action}",
+            area
+                ? """{"chartName":"Sales","area":"Plot","lineColor":"#D0D0D0","lineWeight":1.5,"lineVisible":false}"""
+                : """{"chartName":"Sales","axis":"ValueSecondary","lineColor":"#D0D0D0","lineWeight":1.5,"lineVisible":false}""");
+        Assert.False(call.Result.IsError);
+    }
+
+    [Fact]
+    public async Task TitleAndLineFormatting_OmittedSettingsStayOmitted()
+    {
+        var title = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-title",
+            ["workbook_session_id"] = "session-1",
+            ["chart_name"] = "Sales",
+            ["title"] = "Revenue"
+        }, RecordingToolTest.Success("""{"success":true}"""), "chartconfig.set-title",
+            """{"chartName":"Sales","title":"Revenue"}""");
+        Assert.False(title.Result.IsError);
+        var axis = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-axis-format",
+            ["workbook_session_id"] = "session-1",
+            ["chart_name"] = "Sales",
+            ["axis"] = "Value",
+            ["line_color"] = "#D0D0D0"
+        }, RecordingToolTest.Success("""{"success":true}"""), "chartconfig.set-axis-format",
+            """{"chartName":"Sales","axis":"Value","lineColor":"#D0D0D0"}""");
+        Assert.False(axis.Result.IsError);
+    }
+
+    [Fact]
     public async Task SetTextFormat_PreservesExplicitFalseAndFontSettings()
     {
         var call = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
@@ -83,8 +146,10 @@ public sealed class ChartTextProtocolTests(RecordingProgramTransportFixture fixt
         var tools = await fixture.ListToolsAsync();
         var write = Assert.Single(tools, tool => tool.Name == "chart_config");
         var read = Assert.Single(tools, tool => tool.Name == "chart_config_read");
-        foreach (var field in new[] { "element", "font_name", "font_size", "bold", "italic", "color" })
+        foreach (var field in new[] { "element", "font_name", "font_size", "bold", "italic", "color",
+            "left", "top", "alignment", "line_visible" })
             Assert.True(write.JsonSchema.GetProperty("properties").TryGetProperty(field, out _), field);
+        Assert.Contains("set-axis-format", write.Description, StringComparison.Ordinal);
         Assert.Contains("get-text-format", read.Description, StringComparison.Ordinal);
         Assert.Contains("mixedFields", read.Description, StringComparison.Ordinal);
         Assert.Contains("set-text-format", write.Description, StringComparison.Ordinal);

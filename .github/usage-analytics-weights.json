@@ -122,6 +122,7 @@
         "list-trendlines": "light",
         "remove-series": "medium",
         "set-area-format": "medium",
+        "set-axis-format": "medium",
         "set-axis-number-format": "medium",
         "set-axis-scale": "medium",
         "set-axis-title": "medium",
