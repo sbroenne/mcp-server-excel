@@ -378,12 +378,21 @@ public partial class NamedRangeCommands
                 namesCollection = ctx.Book.Names;
                 string formula = $"={reference.TrimStart('=')}";
                 string r1c1Formula = ToR1C1Formula(ctx.App, formula);
-                created = namesCollection.Add(Name: name, RefersToR1C1: r1c1Formula);
+                // Names.Add parses decimal separators locally; the property setter accepts invariant formulas.
+                created = namesCollection.Add(Name: name, RefersTo: "=0");
                 if (created is null)
                     throw new InvalidOperationException(
                         $"Excel did not confirm creating named range '{name}'. Inspect workbook names before retrying.");
+                created.RefersToR1C1 = r1c1Formula;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
+            }
+            catch (Exception ex) when (created is not null && CreatedObjectFailure.CanReport(ex))
+            {
+                throw DescribeCreatedNameFailure(name, ex, () =>
+                    (object)created.RefersToR1C1 is string retainedReference
+                        ? retainedReference
+                        : throw new InvalidOperationException("Excel did not return the retained name's reference."));
             }
             finally
             {
@@ -392,6 +401,28 @@ public partial class NamedRangeCommands
                 ComUtilities.Release(ref existing);
             }
         });
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A failed retained-name inspection is combined with the original creation failure and rethrown; neither failure is suppressed.")]
+    internal static InvalidOperationException DescribeCreatedNameFailure(
+        string name, Exception cause, Func<string> readReference)
+    {
+        string remainingState;
+        try
+        {
+            remainingState = $"Named range '{name}' remains with R1C1 reference '{readReference()}'.";
+        }
+        catch (Exception inspectionFailure) when (inspectionFailure is not OperationCanceledException)
+        {
+            remainingState = $"The current reference of named range '{name}' could not be inspected.";
+            cause = new AggregateException(cause, inspectionFailure);
+        }
+        return CreatedObjectFailure.CreateDescribed(
+            "Assigning the requested reference",
+            $"named range '{name}'",
+            $"{remainingState} It was not deleted automatically; inspect workbook names before retrying.",
+            cause);
     }
 
     /// <inheritdoc />
