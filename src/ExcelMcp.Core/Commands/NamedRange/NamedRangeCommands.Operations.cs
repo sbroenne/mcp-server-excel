@@ -416,13 +416,27 @@ public partial class NamedRangeCommands
         catch (Exception inspectionFailure) when (inspectionFailure is not OperationCanceledException)
         {
             remainingState = $"The current reference of named range '{name}' could not be inspected.";
-            cause = new AggregateException(cause, inspectionFailure);
+            cause = cause is COMException assignmentFailure
+                ? new NamedRangeAssignmentFailure(assignmentFailure, inspectionFailure)
+                : new AggregateException(cause, inspectionFailure);
         }
         return CreatedObjectFailure.CreateDescribed(
             "Assigning the requested reference",
             $"named range '{name}'",
             $"{remainingState} It was not deleted automatically; inspect workbook names before retrying.",
             cause);
+    }
+
+    private sealed class NamedRangeAssignmentFailure : COMException
+    {
+        public NamedRangeAssignmentFailure(COMException assignmentFailure, Exception inspectionFailure)
+            : base($"{assignmentFailure.Message} Retained-reference inspection also failed: {inspectionFailure.Message}" +
+                (inspectionFailure is COMException com ? $" [COM: 0x{com.HResult:X8}]" : string.Empty),
+                new AggregateException(assignmentFailure, inspectionFailure))
+        {
+            // Keep the primary native code discoverable while retaining both exception objects.
+            HResult = assignmentFailure.HResult;
+        }
     }
 
     /// <inheritdoc />
