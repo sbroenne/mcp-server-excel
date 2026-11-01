@@ -369,7 +369,7 @@ public partial class NamedRangeCommands
             try
             {
                 // Check if parameter already exists
-                existing = FindNameByKey(ctx.Book, name);
+                existing = FindExistingNameForCreation(ctx.Book, name);
                 if (existing != null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' already exists");

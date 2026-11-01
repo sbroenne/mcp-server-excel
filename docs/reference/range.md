@@ -268,6 +268,10 @@ itself refresh its load.
 
 Creation first adds the requested name with reference `=0`, then assigns the
 requested reference. Invalid names are rejected before that first step completes.
+Existing names are rejected before mutation, including surrounding spaces,
+optional quotes around a sheet scope, and unqualified names that resolve to a
+local name on the workbook's active sheet. Names in different explicit scopes
+remain distinct.
 If assigning the reference fails, the error reports the remaining name and its
 reference when readable. The name is not deleted automatically; inspect it before
 retrying, and remove it only if that is intended.
