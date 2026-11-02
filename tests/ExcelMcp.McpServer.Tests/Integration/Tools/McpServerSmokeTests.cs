@@ -180,7 +180,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(StartupCommands,
             startupResults.Select(result => result.GetProperty("command").GetString()));
         Assert.All(startupResults, result => Assert.True(result.GetProperty("success").GetBoolean()));
-        var sessionId = startupResults[0].GetProperty("sessionId").GetString();
+        var sessionId = startupResults[0].GetProperty("workbook_session_id").GetString();
         Assert.NotNull(sessionId);
         _output.WriteLine($"  Batch startup captured its session for worksheet creation and writing: {sessionId}");
 
@@ -450,7 +450,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             foreach (var item in items.EnumerateArray().Where(item =>
                 item.GetProperty("command").GetString() is "session.create" or "session.open" or "session.attach" &&
                 item.GetProperty("success").GetBoolean()))
-                _trackedSessionIds.Add(item.GetProperty("sessionId").GetString()!);
+                _trackedSessionIds.Add(item.GetProperty("workbook_session_id").GetString()!);
         }
         if (toolName == "file" && json.RootElement.GetProperty("success").GetBoolean())
         {

@@ -31,6 +31,24 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
     }
 
     [Theory]
+    [InlineData("worksheet_style", "worksheetstyle", "sheet_name", "sheetName")]
+    [InlineData("range_format", "rangeformat", "range_address", "rangeAddress")]
+    [InlineData("powerquery", "powerquery", "m_code_file", "mCodeFile")]
+    [InlineData("file", "session", "open_workbook_id", "workbookId")]
+    [InlineData("file", "session", "allow_remembered_trust", "allowRememberedTrust")]
+    [InlineData("file_read", "session", "file_path", "filePath")]
+    public async Task Discovery_ExposesExactBatchCommandAndArgumentNames(
+        string toolName, string category, string parameter, string batchKey)
+    {
+        var tool = Assert.Single(await fixture.ListToolsAsync(), tool => tool.Name == toolName);
+        var properties = tool.JsonSchema.GetProperty("properties");
+        Assert.Contains($"Batch command: {category}.{{action}}.",
+            properties.GetProperty("action").GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains($"Batch args key: {batchKey}.",
+            properties.GetProperty(parameter).GetProperty("description").GetString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("sheet.list", "worksheet_read", "list", true)]
     [InlineData("sheet.copy-to-file", "worksheet", "copy-to-file", false)]
     [InlineData("session.open", "file", "open", false)]
@@ -70,6 +88,59 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         Assert.Equal("range.get-values", item.GetProperty("command").GetString());
         Assert.True(item.GetProperty("success").GetBoolean());
         Assert.Equal("[[42]]", item.GetProperty("values").GetRawText());
+    }
+
+    [Theory]
+    [InlineData("SHEET.list", "sheet.list", "recording-session")]
+    [InlineData("sheet.LIST", "sheet.list", "recording-session")]
+    [InlineData("ShEeT.LiSt", "sheet.list", "recording-session")]
+    [InlineData("SESSION.LIST", "session.list", null)]
+    public async Task MixedCase_UsesCanonicalDispatchAndRetainsOriginalCommand(
+        string command, string canonicalCommand, string? sessionId)
+    {
+        var call = await fixture.CallSequenceAsync("batch", Arguments(
+            JsonSerializer.Serialize(new[] { new { command } })),
+            RecordingToolTest.Success("""{"success":true,"sheets":[],"sessions":[]}"""));
+        Assert.False(call.Result.IsError == true);
+        RecordingToolTest.AssertRequest(Assert.Single(call.Requests), canonicalCommand, sessionId, null);
+        using var output = Parse(call.Result);
+        Assert.Equal(command, output.RootElement.GetProperty("results")[0].GetProperty("command").GetString());
+    }
+
+    [Theory]
+    [InlineData("Timeout", null)]
+    [InlineData("Cancelled", null)]
+    [InlineData("ServiceUnavailable", """{"outcome":"unknown","message":"Work may still be running."}""")]
+    [InlineData("ComInterop", """{"outcome":"unknown","retained":true}""")]
+    public async Task UnconfirmedCompletion_StopsBeforeAnotherWorkbookEvenWhenContinueIsDefault(
+        string category, string? partialState)
+    {
+        var arguments = Arguments(
+            """[{"command":"sheet.list"},{"command":"sheet.list","sessionId":"another-workbook"}]""");
+        arguments.Remove("stop_on_error");
+        var call = await fixture.CallSequenceAsync("batch", arguments,
+            new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = category,
+                ErrorMessage = "Original operation did not confirm completion.",
+                PartialState = partialState
+            },
+            RecordingToolTest.Success("""{"success":true,"sheets":[]}"""));
+        RecordingToolTest.AssertRequest(Assert.Single(call.Requests), "sheet.list", "recording-session", null);
+        using var output = Parse(call.Result);
+        Assert.True(call.Result.IsError);
+        Assert.Equal(2, output.RootElement.GetProperty("totalCount").GetInt32());
+        Assert.Equal(1, output.RootElement.GetProperty("executedCount").GetInt32());
+        Assert.True(output.RootElement.GetProperty("stoppedEarly").GetBoolean());
+        var failure = Assert.Single(output.RootElement.GetProperty("results").EnumerateArray());
+        Assert.Equal(category, failure.GetProperty("errorCategory").GetString());
+        Assert.Equal("Original operation did not confirm completion.", failure.GetProperty("errorMessage").GetString());
+        if (partialState is not null)
+        {
+            using var expected = JsonDocument.Parse(partialState);
+            Assert.True(JsonElement.DeepEquals(expected.RootElement, failure.GetProperty("partialState")));
+        }
     }
 
     [Theory]
@@ -176,7 +247,40 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         RecordingToolTest.AssertRequest(call.Requests[0], command, null, commands[0].GetProperty("args").GetRawText());
         RecordingToolTest.AssertRequest(call.Requests[1], "sheet.list", "override-session", null);
         RecordingToolTest.AssertRequest(call.Requests[2], "sheet.list", "new-session", null);
-        Assert.Equal("new-session", output.RootElement.GetProperty("results")[0].GetProperty("sessionId").GetString());
+        var startup = output.RootElement.GetProperty("results")[0];
+        Assert.Equal("new-session", startup.GetProperty("workbook_session_id").GetString());
+        Assert.False(startup.TryGetProperty("sessionId", out _));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SessionSave_UsesTheSameSessionFieldAsTheFileTool(bool success)
+    {
+        var response = new ServiceResponse
+        {
+            Success = success,
+            SessionId = "recording-session",
+            Result = JsonSerializer.Serialize(new { success, sessionId = "recording-session", saved = success }),
+            ErrorCategory = success ? null : "ComInterop",
+            ErrorMessage = success ? null : "Save failed; workbook retained."
+        };
+        var single = await fixture.CallSequenceAsync("file", new()
+        {
+            ["action"] = "save",
+            ["workbook_session_id"] = "recording-session"
+        }, response);
+        var batch = await fixture.CallSequenceAsync("batch", Arguments("""[{"command":"session.save"}]"""), response);
+        using var normal = Parse(single.Result);
+        using var output = Parse(batch.Result);
+        var item = output.RootElement.GetProperty("results")[0];
+        Assert.Equal("recording-session", item.GetProperty("workbook_session_id").GetString());
+        Assert.False(item.TryGetProperty("sessionId", out _));
+        var expected = System.Text.Json.Nodes.JsonNode.Parse(normal.RootElement.GetRawText())!.AsObject();
+        expected["index"] = 0;
+        expected["command"] = "session.save";
+        Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(expected), item));
+        Assert.Equal(!success, batch.Result.IsError == true);
     }
 
     [Theory]

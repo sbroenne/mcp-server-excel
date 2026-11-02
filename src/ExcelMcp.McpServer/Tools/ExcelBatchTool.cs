@@ -46,11 +46,13 @@ public static partial class ExcelBatchTool
     /// Uses the excelcli batch entry format: command is group.action (range.get-values, sheet.list, session.open),
     /// args uses Service camelCase keys (sheetName, rangeAddress), and each entry may override sessionId.
     /// Only commands exposed by MCP tools are accepted; service lifecycle commands and nested batches are rejected.
+    /// Tool action and parameter descriptions give the exact batch command and argument names.
     /// Supply JSON arrays and objects directly, not strings containing JSON.
     /// workbook_session_id supplies the default session. Without one, successful session.open/create/attach
-    /// captures sessionId for later entries; closing that default session clears it.
+    /// captures the returned workbook session for later entries; closing that default session clears it.
     /// Other returned values are not substituted. Use individual tools when later steps need inspection.
     /// Continues after errors by default; set stop_on_error:true for dependent steps.
+    /// Timeouts, cancellation, and reported unknown completion always stop further commands, because Excel work may still be running.
     /// Results contain each executed or rejected entry's zero-based index, command, success and normal MCP JSON fields.
     /// totalCount, executedCount and stoppedEarly report how much of the list was processed.
     /// Any failed entry sets the batch's success:false and MCP error flag. Cancellation stops further commands.
@@ -115,22 +117,22 @@ public static partial class ExcelBatchTool
                      entry.Command.Equals("session.attach", StringComparison.OrdinalIgnoreCase)))
                 {
                     activeSession = outcome.Data?["sessionId"]?.GetValue<string>();
-                    if (string.IsNullOrWhiteSpace(activeSession))
-                        throw new InvalidOperationException("Workbook startup returned no session ID.");
                 }
                 if (outcome.Success &&
                     entry.Command.Equals("session.close", StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(sessionId, activeSession, StringComparison.OrdinalIgnoreCase))
                     activeSession = null;
 
-                var item = JsonNode.Parse(outcome.ToToolJson())!.AsObject();
+                var item = operation is { Tool: "file" or "file_read" } fileOperation
+                    ? ExcelFileTool.ConvertSessionResult(outcome, fileOperation.Action)
+                    : JsonNode.Parse(outcome.ToToolJson())!.AsObject();
                 item["index"] = index;
                 item["command"] = entry.Command;
                 results.Add(item);
                 if (!outcome.Success)
                 {
                     firstFailure ??= outcome;
-                    if (stop_on_error || outcome.Error?["category"]?.GetValue<string>() == "Cancelled")
+                    if (stop_on_error || outcome.MayStillBeRunning)
                         break;
                 }
             }
@@ -162,14 +164,17 @@ public static partial class ExcelBatchTool
     {
         var tool = operation?.Tool ?? "other";
         var action = operation?.Action ?? "other";
+        var command = operation is { } known
+            ? ServiceRegistry.GetMcpCommand(known.Tool, known.Action)
+            : entry.Command;
         var stopwatch = Stopwatch.StartNew();
         var invocation = new ToolInvocationResult(ToolInvocationOutcome.Failed, ToolFailureClass.Unclassified);
         try
         {
-            var validationFailure = await Task.Run(() => ValidateCommand(entry, operation, sessionId, validateArguments),
+            var validationFailure = await Task.Run(() => ValidateCommand(entry, operation, command, sessionId, validateArguments),
                 cancellationToken).WaitAsync(cancellationToken);
             var outcome = validationFailure ?? await ExcelToolsBase.ForwardResultToServiceAsync(
-                bridge, entry.Command, sessionId, entry.Args, cancellationToken);
+                bridge, command, sessionId, entry.Args, cancellationToken);
             invocation = ExcelToolsBase.ClassifyToolResponse(tool, action, outcome.ToToolJson());
             return outcome;
         }
@@ -189,18 +194,19 @@ public static partial class ExcelBatchTool
     private static ResultJson? ValidateCommand(
         BatchCommandEntry entry,
         (string Tool, string Action, bool RequiresSession)? operation,
+        string command,
         string? sessionId,
         Action<string, string?> validateArguments)
     {
         try
         {
             if (operation is null)
-                throw new ArgumentException($"Command '{entry.Command}' is not available in MCP batches. Use commands exposed by MCP tools.");
+                throw new ArgumentException($"Command '{entry.Command}' is not available in MCP batches. Use the batch command and argument names in MCP tool descriptions.");
             if (entry.SessionId is not null && string.IsNullOrWhiteSpace(entry.SessionId))
                 throw new ArgumentException("sessionId must be a non-empty string.");
             if (entry.Args is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null) })
                 throw new ArgumentException("args must be a JSON object or null.");
-            validateArguments(entry.Command, entry.Args?.GetRawText());
+            validateArguments(command, entry.Args?.GetRawText());
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
