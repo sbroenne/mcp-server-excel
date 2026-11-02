@@ -10,13 +10,14 @@ const { Minimatch } = vsceRequire('minimatch') as typeof import('minimatch');
 
 const included = [
 	'package.json', 'README.md', 'LICENSE', 'icon.png',
-	'bin/Sbroenne.ExcelMcp.McpServer.exe', 'out/extension.js', 'out/prerequisites.js',
-	'skills/excel-mcp-report-formatting/SKILL.md'
+	'bin/Sbroenne.ExcelMcp.McpServer.exe', 'out/extension.js', 'out/prerequisites.js'
 ];
 const excluded = [
 	'src/extension.ts', 'out/extension.js.map', 'out/tests/fixture.js',
 	'tests/extension.test.ts', 'node_modules/minimatch/index.js',
-	'.vscode/settings.json', 'tsconfig.json', 'vitest.config.mts', 'old.vsix'
+	'.vscode/settings.json', 'tsconfig.json', 'vitest.config.mts', 'old.vsix',
+	'skills/excel-mcp-report-formatting/SKILL.md',
+	'skills/excel-cli/SKILL.md', 'skills/excel-cli/references/range.md'
 ];
 
 async function inspectFixture(extraIgnore = '', extraFiles: string[] = []) {
@@ -43,6 +44,7 @@ describe('VSCE packaging file filters', () => {
 		const files = await inspectFixture();
 		expect(files).toHaveLength(included.length);
 		expect(files).toEqual(expect.arrayContaining(included));
+		expect(files.some(file => file.startsWith('skills/'))).toBe(false);
 	});
 
 	it('preserves an explicit negation without including other source maps', async () => {
@@ -67,6 +69,6 @@ describe('VSCE minimatch preprocessing limits', () => {
 		const expected = parts.map(part => [...part]);
 		const compare = vi.spyOn(matcher, 'partsMatch');
 		expect(matcher.secondPhasePreProcess(parts)).toEqual(expected);
-		expect(compare.mock.calls.length).toBe(0);
+		expect(compare).not.toHaveBeenCalled();
 	});
 });

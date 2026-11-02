@@ -517,6 +517,80 @@ public sealed class ReleaseMetadataScriptTests
         finally { Directory.Delete(sandbox, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("none", false)]
+    [InlineData("GenerateOnly", false)]
+    [InlineData("PopulateReferences", false)]
+    [InlineData("GenerateOnly", true)]
+    [InlineData("PopulateReferences", true)]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task PluginRepair_RebuildsExactSourceWithOptionalLegacyGenerator(string generatorMode, bool generationFails)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            WriteFile(sandbox, Path.Combine("automation", "scripts", "Install-AdoBuildTools.ps1"),
+                "$global:pluginRepairCalls.Add('install-ado')");
+            WriteFile(sandbox, Path.Combine("source", "scripts", "Build-Plugins.ps1"), """
+                param([string]$Version, [string]$OutputDir)
+                $global:pluginRepairCalls.Add("plugins:$Version`:$OutputDir")
+                """);
+            if (generatorMode != "none")
+            {
+                var parameters = generatorMode == "GenerateOnly"
+                    ? "param([switch]$GenerateOnly, [string]$Version)"
+                    : "param([switch]$PopulateReferences)";
+                var validation = generatorMode == "GenerateOnly"
+                    ? "if (-not $GenerateOnly -or $Version -ne '1.2.3') { throw 'Wrong generator arguments.' }"
+                    : "if (-not $PopulateReferences) { throw 'Wrong generator arguments.' }";
+                WriteFile(sandbox, Path.Combine("source", "scripts", "Build-AgentSkills.ps1"),
+                    parameters + "\n" + validation + "\n" +
+                    $"$global:pluginRepairCalls.Add('generate:{generatorMode}')\n" +
+                    (generationFails ? "throw 'fixture generation failed'" : ""));
+            }
+
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
+            var step = ExtractPowerShellStep(workflow, "Recover or rebuild only the requested release");
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                $env:VERSION='1.2.3'
+                $env:TAG='v1.2.3'
+                $env:GITHUB_REPOSITORY='fixture/source'
+                $global:pluginRepairCalls = [Collections.Generic.List[string]]::new()
+                function gh {
+                    if (($args -join ' ') -ne 'release view v1.2.3 --repo fixture/source --json assets') {
+                        throw "Unexpected remote command: $args"
+                    }
+                    $global:LASTEXITCODE = 0
+                    '{"assets":[]}'
+                }
+                function dotnet {
+                    if (($args -join ' ') -ne 'build Sbroenne.ExcelMcp.sln -c Release -p:Version=1.2.3') {
+                        throw "Unexpected build command: $args"
+                    }
+                    $global:pluginRepairCalls.Add('build')
+                    $global:LASTEXITCODE = 0
+                }
+                try {
+                    {{step}}
+                } finally {
+                    ConvertTo-Json -InputObject @($global:pluginRepairCalls.ToArray()) |
+                        Set-Content -LiteralPath (Join-Path $PSScriptRoot 'calls.json')
+                }
+                """);
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+            Assert.True((result.ExitCode == 0) != generationFails, result.CombinedOutput);
+            var expected = new List<string> { "install-ado", "build" };
+            if (generatorMode != "none") { expected.Add($"generate:{generatorMode}"); }
+            if (!generationFails) { expected.Add("plugins:1.2.3:..\\built-plugins"); }
+            var calls = JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(sandbox, "calls.json")));
+            Assert.Equal(expected, calls);
+            if (generationFails) { Assert.Contains("fixture generation failed", result.Stderr, StringComparison.Ordinal); }
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
