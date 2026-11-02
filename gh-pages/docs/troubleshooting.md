@@ -94,8 +94,8 @@ starts the service from the selected CLI version. See the
 
 ### `npx` commands fail
 
-The npm server/CLI, npx-based MCPB, auto-configuration (`add-mcp`), and skill
-installation require **Node.js with npm/npx on PATH**. Claude's built-in Node.js
+The npm server/CLI, npx-based MCPB, auto-configuration (`add-mcp`), and plugin
+launchers require **Node.js with npm/npx on PATH**. Claude's built-in Node.js
 does not guarantee the external npx command is available:
 
 ```powershell

@@ -8,7 +8,7 @@
   index aligned), and proposed
   requirements in GitHub issues. Core contracts define operation behavior; do
   not maintain parallel specification copies. Agent guidance sources follow
-  [product guidance](../skills/AGENTS.md).
+  [product guidance](agents/product-guidance.md).
 - EXL030 validates advertised counts and distribution website links during MCP
   compilation using documentation inputs and the compiled Core manifest.
   Update affected `doc-counts.json` values, headlines, and canonical feature

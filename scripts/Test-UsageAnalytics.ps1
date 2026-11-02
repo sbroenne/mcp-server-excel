@@ -442,6 +442,10 @@ try {
 
     . (Join-Path $PSScriptRoot "UsageAnalyticsWeights.ps1")
     $weights = Read-UsageAnalyticsWeights -Path (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json")
+    Assert-True ($weights.ToolMap["list-actions"] -eq "list_actions" -and
+        $weights.WeightByName["list_actions/run"] -eq 1 -and
+        -not $weights.ToolMap.Contains("list_actions_read")) `
+        "Compact CLI discovery must map to its light CLI-only action."
     Assert-True ($weights.ToolMap["rangeformat"] -eq "range_format") `
         "CLI category names are not mapped to MCP tool names."
     Assert-True ($weights.ToolMap["range_read"] -eq "range") `
@@ -556,6 +560,8 @@ try {
 
     $validWeights = Get-Content -LiteralPath (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json") -Raw
     $invalidWeights = @{
+        "CLI category" = $validWeights.Replace('"list-actions": ["list_actions"]', '"list actions": ["list_actions"]')
+        "base MCP tool name" = $validWeights.Replace('"list_actions": {', '"list-actions": {')
         "unknown level" = $validWeights.Replace('"get-values": "light"', '"get-values": "enormous"')
         "positive whole number" = $validWeights.Replace('"heavy": 10', '"heavy": 0')
         "exactly light 1" = $validWeights.Replace('"heavy": 10', '"heavy": 9')

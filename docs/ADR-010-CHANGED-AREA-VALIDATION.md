@@ -81,10 +81,10 @@ Primary and cleanup failures must both remain visible.
 
 Website-only, test-only and runtime-source-only PR changes no longer prepare
 every distribution. Package source, project/build configuration, launcher and
-shared skill inputs select their dependent output formats. Test-only npm changes
+shared packaging inputs select their dependent output formats. Test-only npm changes
 run npm checks without preparing real runtime packages. Missing or invalid plan
 fields fail, and CI completion requires selected jobs to succeed and unselected
-jobs to be skipped. Skills, Python validation and the .NET SDK are prepared only
+jobs to be skipped. The .NET SDK is prepared only
 for the components that need them; synthetic npm tests do not need .NET.
 
 This deliberately trades some pre-merge coverage for less repeated work.
@@ -99,7 +99,6 @@ Actions and optional local troubleshooting use the same scripts; availability
 locally does not make packaging a commit prerequisite. Actions owns authorized
 publication and reruns checks on submitted source.
 
-Generated skills are officially validated before hosted package construction.
 Extension source checks precede runtime publishing; one compilation serves
 both VSIX targets. Finished-package inspection and native runtime checks remain
 necessary afterward. Coordinated metadata and prepared-output ownership remain

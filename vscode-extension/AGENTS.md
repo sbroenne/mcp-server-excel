@@ -3,13 +3,12 @@
 Follow the [repository rules](../AGENTS.md). These are implementation
 instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-review-rules).
 Excel usage guidance comes from native MCP descriptions and repository docs.
-The optional report-formatting skill is authored under `skills`; do not maintain
-a separate tool reference in this extension.
+Do not maintain a separate tool reference or bundle agent skills in this extension.
 
-- The extension bundles a self-contained Windows MCP Server and generated skill;
+- The extension bundles a self-contained Windows MCP Server without bundled skills;
   no separate user .NET install. Keep provider IDs in `package.json` and
   `src/extension.ts` aligned.
-- `bin/`, `skills/excel-mcp-report-formatting/`, and extension `CHANGELOG.md` are packaging outputs.
+- `bin/` and extension `CHANGELOG.md` are packaging outputs.
   Edit repository sources instead.
 - Do not bump versions for local tests: `npm version` can create commits/tags.
   The unified release workflow owns versions.

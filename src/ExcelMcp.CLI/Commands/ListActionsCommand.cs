@@ -21,7 +21,8 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
                 new KeyValuePair<string, IEnumerable<string>>(kv.Key, kv.Value)),
             StringComparer.OrdinalIgnoreCase)
         {
-            ["session"] = new[] { "create", "open", "close", "list", "save", "discover", "attach" }
+            ["session"] = new[] { "create", "open", "close", "list", "save", "discover", "attach",
+                "test", "notices", "enable-editing", "enable-connections", "enable-macros" }
         };
 
         if (!string.IsNullOrWhiteSpace(settings.CommandName))
@@ -51,7 +52,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         {
             success = true,
             workflow = "1) session open/create <file>, or session discover then session attach --workbook-id <id>, to get sessionId; 2) workbook commands use --session <id>; 3) session save saves explicitly; session close closes the selected workbook (add --save to save changes). Service shutdown leaves newly attached workbooks open.",
-            example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range-address A1 --values 'Hello' → session close --save --session abc",
+            example = "session open file.xlsx -> returns data.sessionId -> sheet list --session <id> -> session close --session <id>",
             commands = all
         };
         return CliResultOutput.WriteJson(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions), "list-actions");

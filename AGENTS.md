@@ -78,7 +78,7 @@ Paths are relative to the repository root.
 | `tests/**/*.cs` | [Testing strategy](tests/AGENTS.md) |
 | Workflows, project files, SDK/build configuration, PowerShell scripts, `.changeset/**` | [Build and release](scripts/AGENTS.md) |
 | README/index files, FEATURES, CHANGELOG, SECURITY, PRIVACY, docs, specs, skills, or website | [Documentation](docs/AGENTS.md) |
-| Skill sources, Core command metadata, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](skills/AGENTS.md) |
+| Core command metadata, generators, MCP, or native help | [Product agent guidance](docs/agents/product-guidance.md) |
 | MCP Server or MCP generator | [MCP boundaries](src/ExcelMcp.McpServer/AGENTS.md) |
 | `llm-tests/**` | [LLM evaluations](llm-tests/AGENTS.md) |
 | Repository/agent instructions, CONTEXT, or `docs/agents/**` | [Instruction maintenance](docs/AGENTS.md#instruction-maintenance) |
@@ -109,9 +109,9 @@ assumption that passing compilation proves runtime correctness.
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed
   contract through both entry points, tests, and shared guidance.
-- Keep agent-facing metadata, server instructions, skills, and recovery messages
+- Keep agent-facing metadata, server instructions, native help, and recovery messages
   consistent with implemented behavior. Follow the product agent guidance above;
-  do not edit generated or installed skill copies.
+  do not edit generated or installed product copies.
 - Preserve exact tool, action, parameter, and flag names in agent guidance.
   When MCP and CLI spellings differ, show both explicitly or use native examples;
   do not replace identifiers with vague descriptions.

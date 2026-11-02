@@ -34,15 +34,15 @@ public sealed class TestSelectionTests
     {
         var run = await ValidationSelectionTests.RunCasesAsync(
         [
-            ["scripts/Build-AgentSkills.ps1", "Packaging,SkillGeneration"],
-            ["docs/reference/report-formatting.md", "Packaging,SkillGeneration"],
+            ["scripts/Build-AgentSkills.ps1", "Packaging"],
+            ["docs/reference/report-formatting.md", "Packaging"],
             ["scripts/Build-Plugins.ps1", "Packaging"],
             ["scripts/Update-ReleaseVersionMetadata.ps1", "Packaging"],
             [".github/workflows/publish-mcp-registry.yml", "Packaging"],
             ["mcpb/README.md", "Packaging"],
             ["src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs", "ScriptSafety"],
-            ["tests/Shared/GeneratedAssetsFixture.cs", "Packaging,SkillGeneration"],
-            ["tests/Shared/PackagingScriptTestHelper.cs", "Packaging,SkillGeneration"],
+            ["tests/Shared/GeneratedAssetsFixture.cs", "Packaging"],
+            ["tests/Shared/PackagingScriptTestHelper.cs", "Packaging"],
             ["infrastructure/azure/deploy-appinsights.ps1", "ScriptSafety"],
             ["videos/excel-mcp-intro/Capture-Evidence.ps1", "ScriptSafety"]
         ], """
@@ -97,8 +97,8 @@ public sealed class TestSelectionTests
                     throw 'Contract labels changed.'
                 }
             }
-            $selected = @(Get-FreeTestSelection -Plan $plan -Local -HookTests -SkillTests -PackagingTests)
-            if (($selected.Owner -join ',') -cne 'ScriptSafety,SkillGeneration,Packaging') { throw 'Explicit local owners lost.' }
+            $selected = @(Get-FreeTestSelection -Plan $plan -Local -HookTests -PackagingTests)
+            if (($selected.Owner -join ',') -cne 'ScriptSafety,Packaging') { throw 'Explicit local owners lost.' }
             if (@(Get-FreeTestSelection -Plan $plan -Local).Count) { throw 'An empty local selection claimed tests.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);

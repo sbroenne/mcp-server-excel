@@ -24,9 +24,16 @@ The executable provides the discovery path without a skill or external guide:
 
 ```cli
 excelcli.exe --help
+excelcli.exe list-actions range
 excelcli.exe batch --help
 excelcli.exe range set-values --help
 ```
+
+`list-actions <command>` returns only the exact action names as compact JSON,
+without starting the service or connecting to Excel. Omit `<command>` to list
+the workbook command categories and their actions. Use action-specific help for
+inputs and defaults; category-only help includes options for every action.
+Reuse help already read for the same CLI version unless a detail is unresolved.
 
 Batch help includes runnable PowerShell examples, input fields, session rules,
 and result checks. Action-specific help maps its CLI flags to the exact

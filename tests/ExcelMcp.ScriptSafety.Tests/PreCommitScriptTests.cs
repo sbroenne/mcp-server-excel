@@ -58,7 +58,7 @@ public sealed class PreCommitScriptTests
             ("scripts/Publish-PreparedPlugins.ps1", true, false, false),
             ("scripts/PluginContent.mjs", true, false, false),
             (".github/workflows/publish-plugins.yml", true, false, false),
-            ("scripts/Build-AgentSkills.ps1", true, false, true),
+            ("scripts/Build-AgentSkills.ps1", true, false, false),
             ("tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", true, false, false),
             ("scripts/pre-commit.ps1", true, false, false),
             (".github/workflows/ci.yml", true, false, false),
@@ -67,15 +67,15 @@ public sealed class PreCommitScriptTests
             ("src/ExcelMcp.McpServer/Program.cs", true, true, false),
             ("src/ExcelMcp.Cleanup/Program.cs", true, true, false),
             ("src/ExcelMcp.Generators.Cli/Generator.cs", true, false, false),
-            ("docs/reference/report-formatting.md", true, false, true),
-            ("Directory.Build.props", true, true, true),
-            ("Directory.Packages.props", true, true, true),
-            ("global.json", true, true, true),
-            (".editorconfig", true, false, true),
+            ("docs/reference/report-formatting.md", true, false, false),
+            ("Directory.Build.props", true, true, false),
+            ("Directory.Packages.props", true, true, false),
+            ("global.json", true, true, false),
+            (".editorconfig", true, false, false),
             ("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true, false),
             ("src/ExcelMcp.Core/Commands/Range/Deleted.cs\nvscode-extension/src/renamed.ts", true, true, false),
             ("docs/reference/range.md", false, false, false),
-            ("skills/excel-cli-report-formatting/SKILL.md", true, false, true)
+            ("skills/excel-cli-report-formatting/SKILL.md", true, false, false)
         ];
         var json = System.Text.Json.JsonSerializer.Serialize(cases.Select(item => new { item.Path, item.Build, item.Excel, item.SkillTests }));
         var result = await ValidationSelectionTests.RunAsync($$"""

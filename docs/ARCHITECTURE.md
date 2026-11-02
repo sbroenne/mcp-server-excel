@@ -111,7 +111,7 @@ explain the reasons and tradeoffs behind these boundaries.
 5. **MCP Server** (`src/ExcelMcp.McpServer`) exposes generated MCP tools and
    calls its own controller, independent of the CLI daemon.
 6. **Source generators** (`src/ExcelMcp.Generators*`) generate CLI commands,
-   MCP schemas, and skill manifests from Core interfaces.
+   MCP schemas, and service routing metadata from Core interfaces.
 
 The generators share parameter aggregation, requiredness, and input-type
 projections instead of reconstructing those rules separately. The MCP request

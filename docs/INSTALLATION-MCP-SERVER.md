@@ -45,7 +45,7 @@ choose the one matching your Windows architecture.
 Use this order to avoid setup confusion:
 
 1. **Choose one primary setup path**:
-   - **VS Code Extension** (GitHub Copilot users) — bundles the server and Excel skill
+   - **VS Code Extension** (GitHub Copilot users) — bundles the server
    - **Claude Desktop MCPB** — one-click MCP installation
    - **GitHub Copilot Plugin** (Copilot CLI users) — marketplace installation
    - **npm package** (other MCP clients) — runs the self-contained server through `npx`
@@ -74,11 +74,9 @@ Restart VS Code after installation. Windows PowerShell 5.1 is not supported.
    - With VS Code's default settings, the bundled **excel-mcp** server starts
      automatically when your request needs Excel tools. Approve server or
      tool use if prompted.
-   - Copilot can load `excel-mcp-report-formatting` for requested report presentation.
-     Type `/skills` to open VS Code's Configure Skills menu.
 
-The extension includes a self-contained MCP server and its optional formatting skill.
-No separate .NET, Node.js, CLI, or skill installation is needed. The CLI is
+The extension includes a self-contained MCP server without bundled skills.
+No separate .NET, Node.js, or CLI installation is needed. The CLI is
 not included; install it separately if needed. Installing the extension does
 not start an Excel workbook or approve server access for you.
 
@@ -595,7 +593,7 @@ After installation:
 2. **Explore features:** See the [feature overview](../FEATURES.md) for capabilities; the MCP tool descriptions provide current actions and inputs.
 3. **Read the guides:**
    - [CLI Installation Guide](INSTALLATION-CLI.md) - same features as terminal commands, usually with fewer AI tokens
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp-report-formatting) - cross-platform AI guidance
+   - [Report formatting](reference/report-formatting.md) - optional presentation guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

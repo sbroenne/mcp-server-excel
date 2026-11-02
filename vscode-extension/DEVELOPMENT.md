@@ -1,7 +1,7 @@
 # VS Code Extension Development
 
 The Excel MCP Server extension bundles a self-contained Windows MCP executable
-and one Agent Skill. It ships separate VSIX packages for Windows x64 and
+without bundled agent skills. It ships separate VSIX packages for Windows x64 and
 Windows ARM64 installations of VS Code, each containing a matching native
 server executable. Native ARM64 server and CLI executables are also distributed
 through npm and selected by ARM64 Node.js. Extension users do not need a
@@ -14,7 +14,6 @@ vscode-extension/
 ├── src/extension.ts          # Extension activation and MCP registration
 ├── out/                      # Compiled JavaScript
 ├── bin/                      # Self-contained MCP Server built for packaging
-├── skills/excel-mcp-report-formatting/ # Build copy of the formatting skill
 ├── scripts/                  # Build-time manifest validation
 ├── tests/                    # Vitest registration and setup regressions
 ├── vitest.config.mts         # Node tests with a test-only VS Code API replacement
@@ -29,13 +28,9 @@ vscode-extension/
 └── icon.png                  # Marketplace icon
 ```
 
-Do not edit files under `vscode-extension/skills/excel-mcp-report-formatting/` directly. The
-shared package command copies the prepared MCP skill from
-`artifacts/generated-skills/` into an isolated extension staging directory.
-
 After a Release solution build, `npm run package` uses
 `scripts/Build-ReleasePackages.ps1 -Components Extension`. It publishes the MCP
-runtimes for x64 and ARM64, generates complete skills, installs locked extension
+runtimes for x64 and ARM64, installs locked extension
 dependencies, and creates and inspects both VSIX files under `artifacts/packages/`.
 When npm packages are built in the same run, the extension reuses their prepared
 ARM64 server. It does not clean or overwrite this source directory. For an
@@ -78,24 +73,6 @@ create Excel or open a workbook.
 The first-run Getting Started action opens the published user guides, not
 installation instructions for an extension that is already installed.
 
-### Agent Skill
-
-The `chatSkills` contribution registers the packaged skill:
-
-```json
-"chatSkills": [
-  {
-    "name": "excel-mcp-report-formatting",
-    "description": "Optional presentation conventions for requested Excel reports.",
-    "path": "./skills/excel-mcp-report-formatting/SKILL.md"
-  }
-]
-```
-
-VS Code's Extension Features table reads `name` and `description` from the
-manifest. Runtime skill discovery reads the matching frontmatter from
-`SKILL.md`; the build validates that the names agree.
-
 ## Prerequisites
 
 - Windows
@@ -128,9 +105,7 @@ configuration, caches, reports, and developer-only `AGENTS.md`/`CLAUDE.md`
 instructions do not ship, including nested instruction files.
 
 `npm run compile` validates Marketplace assets and feature metadata before
-compiling production TypeScript. It needs the generated skill inputs present
-in the prepared package stage; the source directory deliberately does not
-contain those generated copies.
+compiling production TypeScript. It does not require generated skill inputs.
 
 Build the complete release-shaped VSIX:
 
@@ -141,13 +116,12 @@ npm run package
 Packaging performs these steps automatically:
 
 1. Prepares self-contained Windows x64 and native ARM64 MCP Server executables.
-2. Copies and stamps the canonical Agent Skill.
-3. Copies the generated root changelog.
-4. Validates feature and Marketplace metadata and compiles TypeScript.
-5. Runs lint, test-source type checking, and the focused Vitest suite.
-6. Copies the matching server before each `vsce package --target win32-x64` or
+2. Copies the generated root changelog.
+3. Validates feature and Marketplace metadata and compiles TypeScript.
+4. Runs lint, test-source type checking, and the focused Vitest suite.
+5. Copies the matching server before each `vsce package --target win32-x64` or
    `--target win32-arm64` invocation.
-7. Inspects both VSIX targets, versions, all skill files, the actual bundled
+6. Inspects both VSIX targets, versions, the absence of skill files, the actual bundled
    executable's CPU architecture, compiled source, and exclusions for development
    files, developer instructions, and the CLI. A mislabeled server or leaked
    instruction file fails packaging.
@@ -156,8 +130,7 @@ To prepare and inspect the bundled executable through the shared package path,
 run these commands from the repository root:
 
 ```powershell
-.\scripts\Build-AgentSkills.ps1 -GenerateOnly
-.\scripts\Build-ReleasePackages.ps1 -Components Extension -SkillsDirectory artifacts\generated-skills -OutputDirectory artifacts\extension-check
+.\scripts\Build-ReleasePackages.ps1 -Components Extension -OutputDirectory artifacts\extension-check
 .\artifacts\extension-check\runtimes\Mcp\Sbroenne.ExcelMcp.McpServer.exe --version
 # On ARM64 Windows, also check the native server:
 .\artifacts\extension-check\runtimes\Mcp-arm64\Sbroenne.ExcelMcp.McpServer.exe --version
@@ -174,7 +147,6 @@ run these commands from the repository root:
 4. Confirm the MCP server appears in VS Code's MCP management UI.
 5. Open the extension's Features tab and verify:
    - MCP Servers shows `excel-mcp` and `Excel MCP Server`.
-   - Chat Skills shows the skill name, description, and path.
 
 ### Packaged VSIX
 
@@ -182,7 +154,7 @@ run these commands from the repository root:
 2. Use **Extensions: Install from VSIX...** in VS Code.
 3. Select `excel-mcp-<version>.vsix` for Windows x64 or
    `excel-mcp-<version>-win32-arm64.vsix` for native ARM64 VS Code.
-4. Reload VS Code and verify the MCP server and Agent Skill.
+4. Reload VS Code and verify the MCP server.
 
 The VSIX files are approximately 60-65 MB. Most of their size is the compressed,
 self-contained MCP Server; the unpacked executable is approximately 150-165 MB,
@@ -228,9 +200,8 @@ ID and the ID passed to `registerMcpServerDefinitionProvider` must both be
 
 ### Feature metadata validation fails
 
-Keep the provider ID and label populated. Keep every Chat Skill's manifest
-name synchronized with the `name` field in its `SKILL.md` frontmatter, and
-provide a manifest description for VS Code's Features table.
+Keep the provider ID and label populated and synchronized with the registration
+in `src/extension.ts`. The manifest must not contribute chat skills.
 
 ### Package contents are wrong
 

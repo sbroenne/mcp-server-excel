@@ -67,9 +67,8 @@ private workers launched from that entry point, not in the controller or tray.
 - Annotated Core interfaces and their implementations define operation contracts and behavior.
 - `docs/features/` documents user-facing behavior.
 - `docs/reference/` owns general workflows, limitations, and recovery documentation.
-- `skills/` contains a small CLI launcher-discovery skill and the CLI and MCP
-  report-formatting skills; packaging selects the formatting skills' reference
-  from `docs/reference/report-formatting.md`.
+- Native CLI help and MCP schemas provide product discovery. Optional formatting
+  advice lives in `docs/reference/report-formatting.md`; no agent skills are bundled.
 
 When these sources disagree, confirm the current implementation and update the stale source instead of creating another competing definition.
 

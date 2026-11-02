@@ -4,8 +4,8 @@ These guides explain decisions, sequencing, recovery, and important limitations
 for both supported entry points. They are not a separate command reference or
 automatically loaded skills.
 
-Use the MCP tool descriptions or `excelcli --help` followed by
-`excelcli <command> --help` for current actions and inputs. The examples here
+Use the MCP tool descriptions or `excelcli list-actions <command>` followed by
+`excelcli <command> <action> --help` for current actions and inputs. The examples here
 illustrate workflows, not every supported option. For an overview of what you
 can accomplish, see [features](../../FEATURES.md).
 
@@ -44,4 +44,4 @@ can accomplish, see [features](../../FEATURES.md).
 - [Optional report formatting](report-formatting.md)
 
 For installation, see [Claude Desktop](../guides/CLAUDE-DESKTOP.md) and
-[agent skills](../AGENT-SKILLS.md).
+[agent guidance](../AGENT-SKILLS.md).

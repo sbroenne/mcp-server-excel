@@ -282,9 +282,8 @@ operation behavior; keep the feature guides and shared guidance aligned with the
 
 Use current declared action names and verify operation tables and category
 counts. Resolve EXL030 diagnostics with the reported expected values, include
-the reviewed count changes in the same PR, and rebuild Release. Keep explicit
-skill preparation through `scripts\Build-AgentSkills.ps1` and the affected
-contract/skill tests; compilation does not prepare or validate every skill output.
+the reviewed count changes in the same PR, and rebuild Release. Use the affected contract/discovery tests for metadata changes and packaging
+checks for distribution changes; compilation alone does not validate packages.
 See the [website authoring guide](../gh-pages/README.md#publishing-canonical-documentation)
 for source maps, wrappers, navigation, and machine-readable outputs.
 

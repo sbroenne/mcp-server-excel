@@ -54,7 +54,7 @@ retain product checks but defer distribution-only defects to complete main check
 Explicit `Build-ReleasePackages.ps1 -Components ...` runs may narrow components.
 The same packaging commands are available for local troubleshooting; a complete
 local package run is not required for every edit or commit. Actions runs cheap
-skill/extension source checks before expensive packaging and retains checks of
+extension source checks before expensive packaging and retains checks of
 the finished distributions. Publication stays in authorized Actions workflows.
 
 For the constraints behind this workflow, including completion checks, output
@@ -451,8 +451,8 @@ stdout is reserved for JSON-RPC.
 The server exposes tools, not prompts or resources, and sends no MCP elicitation
 requests. Consent advice in descriptions and instructions must be handled by
 the client; it is not an enforced server dialog. For generated
-skills and minimal server instructions, see
-[Maintaining skills and server guidance](../docs/AGENT-SKILLS.md#authoring-and-packaging).
+native help and minimal server instructions, see
+[Maintaining agent guidance](../docs/AGENT-SKILLS.md#authoring-and-packaging).
 
 ## 📋 **MCP Registry Manifest**
 

@@ -10,7 +10,6 @@ param(
     [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins')]
     [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins'),
     [string]$Version,
-    [string]$SkillsDirectory,
     [string]$McpRuntimeExecutable,
     [string]$CliRuntimeExecutable,
     [string]$OutputDirectory,
@@ -25,20 +24,9 @@ if (-not $Components.Count) { throw 'At least one release package component is r
 if (-not $IsWindows) { throw 'Package installation checks require Windows (not Excel).' }
 if (-not $Version) { $Version = (Read-PackageJson (Join-Path $root 'package.json')).version }
 $Version = Get-PackageVersion $Version
-$needsSkills = 'Plugins' -in $Components -or 'Extension' -in $Components
-if ($SkillsDirectory) {
-    $SkillsDirectory = [IO.Path]::GetFullPath($SkillsDirectory, $root)
-    if ($needsSkills) {
-        $names = if ('Plugins' -in $Components) { @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting') } else { @('excel-mcp-report-formatting') }
-        foreach ($name in $names) {
-            $stamp = Join-Path $SkillsDirectory "$name\VERSION"
-            if (-not [IO.File]::Exists($stamp) -or [IO.File]::ReadAllText($stamp).Trim() -cne $Version) { throw "Prepared $name skill must match package version $Version." }
-        }
-    }
-}
 if (-not $OutputDirectory) { $OutputDirectory = "artifacts\packages\$([Guid]::NewGuid().ToString('N'))" }
 $output = [IO.Path]::GetFullPath($OutputDirectory, $root)
-Assert-PackageOutputPath $output $root @($SkillsDirectory, $McpRuntimeExecutable, $CliRuntimeExecutable)
+Assert-PackageOutputPath $output $root @($McpRuntimeExecutable, $CliRuntimeExecutable)
 if ([IO.Path]::Exists($output)) { throw "Use a new package output directory: $output" }
 [IO.Directory]::CreateDirectory($output) | Out-Null
 
@@ -81,12 +69,8 @@ function New-VerifiedNuGetPackage {
 $extensionStage = $null
 $primary = $null
 try {
-    if ($needsSkills -and -not $SkillsDirectory) {
-        $SkillsDirectory = Join-Path $output 'generated-skills'
-        & (Join-Path $PSScriptRoot 'Build-AgentSkills.ps1') -Version $Version -OutputDir $SkillsDirectory -GenerateOnly | Out-Host
-    }
     if ('Extension' -in $Components) {
-        $extensionStage = Initialize-ExtensionPackage -RepoRoot $root -Version $Version -SkillsDirectory $SkillsDirectory -SkipExtensionTests:$SkipExtensionTests
+        $extensionStage = Initialize-ExtensionPackage -RepoRoot $root -Version $Version -SkipExtensionTests:$SkipExtensionTests
     }
     $prepared = @{}
     $runtimes = @()
@@ -116,7 +100,7 @@ try {
     if ('Mcpb' -in $Components) { & (Join-Path $root 'mcpb\Build-McpBundle.ps1') -Version $Version -OutputDir (Join-Path $output 'mcpb') | Out-Host }
     if ('Plugins' -in $Components) {
         $plugins = Join-Path $output 'plugins'
-        & (Join-Path $PSScriptRoot 'Build-Plugins.ps1') -Version $Version -OutputDir $plugins -SkillsDirectory $SkillsDirectory | Out-Host
+        & (Join-Path $PSScriptRoot 'Build-Plugins.ps1') -Version $Version -OutputDir $plugins | Out-Host
         [IO.Compression.ZipFile]::CreateFromDirectory($plugins, (Join-Path $output "excel-plugins-v$Version.zip"))
     }
     if ($extensionStage) {

@@ -145,6 +145,9 @@ internal sealed class Program
             config.AddCommand<BatchCommand>("batch")
                 .WithDescription("Run a known sequence in one CLI call, avoiding repeated launches. See batch --help for input examples.");
 
+            config.AddCommand<ListActionsCommand>("list-actions")
+                .WithDescription("List workbook command categories and exact action names as compact JSON, without connecting to Excel. Then use <command> <action> --help for inputs.");
+
             // Session commands
             config.AddBranch("session", branch =>
             {

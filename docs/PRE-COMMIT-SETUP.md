@@ -41,9 +41,9 @@ selected from staged paths by
 | Extension, npm wrappers, or Claude bundle inputs without packaging regressions | No | No |
 | Packaging/release scripts, tested Azure scripts, or evidence capture script | Yes | No |
 | Tests | Yes | Selected `Fast` cases, when applicable |
-| Hook, CI policy, analyzer rules, or skill templates | Yes | No |
+| Hook, CI policy, analyzer rules, or plugin templates | Yes | No |
 | Core, COM, Service, Cleanup, either entry point, or generators | Yes | Selected `Fast` cases, when applicable |
-| Central build/dependency settings or embedded shared skill guidance | Yes | Selected `Fast` cases |
+| Central build/dependency settings or shared packaging guidance | Yes | Selected `Fast` cases |
 | Unknown inputs | Selection fails with the missing mapping | Not run |
 
 Mixed commits combine the applicable checks. During a merge, selection compares
@@ -84,7 +84,6 @@ Compiler diagnostics do not prove every COM lifetime or error-result path is
 correct. Local build cleanup remains pipe-scoped and must
 not stop another worktree's sessions.
 
-Skill preparation,
 packaging/release, and script safety checks live in separate test projects.
 CI runs packaging regressions; local runs for packaging changes may build packages in
 temporary folders and use disposable local publication repositories. Actual
@@ -94,7 +93,7 @@ does not substitute for affected feature tests.
 
 ## Failures and partial staging
 
-Before build-based checks, relevant source, test, skill, script and central
+Before build-based checks, relevant source, test, script and central
 configuration inputs must match the Git index. Unstaged or untracked inputs
 that would change the build stop validation. Stage or set aside those changes
 explicitly; the hook never changes the index for you. Unrelated documentation

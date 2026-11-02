@@ -415,7 +415,7 @@ Ordinary documentation and developer instructions, including nested `AGENTS.md`
 and `CLAUDE.md`, avoid unrelated .NET test selections. Shipped documentation
 is different: root, product, and npm-package READMEs, `LICENSE`, `CHANGELOG.md`, and
 `docs\AGENT-SKILLS.md` select their owning tooling checks,
-not runtime tests. Authored skill and plugin template trees remain package inputs,
+not runtime tests. Plugin template trees remain package inputs,
 including instruction files that their copy steps have not excluded. The extension
 excludes developer instructions from its VSIX. Shared inputs include affected
 dependencies; multiple inputs form a union. Main and manual CI runs select
@@ -423,11 +423,10 @@ complete validation.
 
 Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
 tests except `AdapterTestKind=System`; `Process` contains the CLI system
-regressions; `Tooling` contains the selected skill-generation, packaging, and
+regressions; `Tooling` contains the selected packaging and
 script-safety checks. Each Tooling project has its own filter, so a script-safety
 change cannot broaden a documentation-count or publication selection in another
-project. Skill sources, the shared report-formatting guide, and skill preparation
-also select plugin bootstrap tests, which check the assembled plugins and their
+project. Changes removing former skill inputs select plugin bootstrap tests, which check the assembled plugins and their
 published layout. Plugin validation checks current files, versions, launch
 settings, local links, and script behavior rather than a list of historical
 command names.
@@ -454,8 +453,7 @@ EXL030 validates count inputs during MCP compilation using the compiled Core
 manifest; there is no standalone count scanner or updater. Use the diagnostic's
 exact expected values to update affected source counts, review the changes,
 then rebuild. Retain `McpToolSurfaceTests` for compiled read-tool identities and
-help-banner behavior, and `SkillPreparationTests` for exact prepared-skill
-identities; these are stronger runtime contracts, not source regex checks.
+help-banner behavior; these are stronger runtime contracts, not source regex checks.
 Preparatory CI builds follow the saved plan for selected projects and dependencies.
 When a full Release solution build is required, the first selected group owns it.
 All preparatory builds disable
@@ -497,7 +495,7 @@ CI partition. To prepare just its build inputs:
 
 Choose a group listed in the saved plan; an unselected or empty group is an error.
 Omitting the group retains the complete Excel-free run; existing
-`-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
+`-Local`, `-Contracts`, `-HookTests`, and `-PackagingTests`
 selections remain supported. `-Local -Contracts` includes generated routing,
 MCP generation and registration, both CLI and MCP usage-analytics mappings,
 the advertised MCP tool surface, and authored calculation examples checked
@@ -519,7 +517,7 @@ Package preparation uses the same PowerShell command as Actions, without publish
 ```
 
 Use a new output directory. Existing `Build-ReleasePackages.ps1`,
-`Build-NpmPackages.ps1`, `Test-NpmPackages.ps1`, `Build-AgentSkills.ps1`,
+`Build-NpmPackages.ps1`, `Test-NpmPackages.ps1`,
 `Build-Plugins.ps1` and `mcpb\Build-McpBundle.ps1` keep their parameters and
 own their named operations directly. Shared helpers cover process deadlines and
 filesystem/archive safety; no C# packaging bootstrap is involved.
@@ -550,23 +548,12 @@ Check native CLI help through the CLI parser, not by launching it from a skill
 documentation scanner. Authored prose still needs review; API tests do not
 validate its examples automatically.
 
-Shared skill Markdown selects the existing skill-generation checks locally,
-not Excel E2E. Program source and mixed runtime changes can still select Excel
-validation; unknown operational inputs fail selection. Run the focused skill
-selection after a Release build:
-
-```powershell
-& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -SkillTests
-```
-
 Excel-free distribution and script checks have separate projects:
 `ExcelMcp.Packaging.Tests` owns release metadata, plugin publication, package
 contents, and launch wrappers; `ExcelMcp.ScriptSafety.Tests` owns commit hooks,
-validation selection, and script safety. `ExcelMcp.SkillGeneration.Tests` owns
-only skill preparation, references, and native examples.
+validation selection, and script safety.
 Changed paths select the owning checks locally and in CI. Full validation runs
-all three projects. Changes to the shared packaging helpers select both skill
-and packaging checks, without unrelated runtime tests.
+both projects. Changes to the shared packaging helpers select packaging checks, without unrelated runtime tests.
 
 ```powershell
 & .\scripts\Invoke-ExcelFreeTests.ps1 -Local -PackagingTests
@@ -881,7 +868,6 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs
 dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=CLI-main.trx'
 dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=MCP-main.trx'
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ComInterop-normal.trx'
-dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Skills-normal.trx'
 dotnet test tests\ExcelMcp.Packaging.Tests\ExcelMcp.Packaging.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Packaging-normal.trx'
 dotnet test tests\ExcelMcp.ScriptSafety.Tests\ExcelMcp.ScriptSafety.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ScriptSafety-normal.trx'
 dotnet test tests\ExcelMcp.Diagnostics.Tests\ExcelMcp.Diagnostics.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Diagnostics-normal.trx'
@@ -900,7 +886,7 @@ exclusive Excel collection. CLI acceptance keeps representative executable,
 pipe, persistence, and shutdown wiring without repeating that workbook matrix.
 Use an outer hard deadline in addition to the per-test hang limit: up to eight
 hours for ordinary Core, two hours for ordinary CLI/MCP, 90 minutes for
-ComInterop, 30 minutes for skills/screenshots, 45 minutes for Core VBA, and
+ComInterop, 30 minutes for screenshots, 45 minutes for Core VBA, and
 10 minutes for each transport-VBA run. Stop on nonzero
 exit codes or zero matching cases.
 
@@ -938,7 +924,6 @@ tests/
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
 ├── ExcelMcp.ComInterop.Tests/     # COM utilities and session infrastructure
-├── ExcelMcp.SkillGeneration.Tests/ # Skill preparation and native examples
 ├── ExcelMcp.Packaging.Tests/        # Packaging, releases, and plugin publication
 └── ExcelMcp.ScriptSafety.Tests/     # Commit hooks and script safety
 
@@ -1048,7 +1033,7 @@ uv run pytest mcp_tests\test_mcp_chart_positioning.py --aitest-json TestResults\
 
 - Windows desktop with Excel installed
 - GitHub Copilot access and auth via `gh auth login`, `GITHUB_TOKEN`, or `GH_TOKEN`
-- Release binaries and freshly generated skills; see the LLM README for setup
+- Release binaries and explicitly supplied historical skills for skill comparisons; see the LLM README for setup
 
 The offline command above needs neither Excel nor authentication. Live runs
 must be sequential and may incur costs. The default model is `gpt-6.1-sol`,

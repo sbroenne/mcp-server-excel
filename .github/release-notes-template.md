@@ -25,8 +25,9 @@ Node.js 18 or later with npm and `npx` is required for the plugins, Claude
 Desktop bundle, and npm installations. The VS Code extension and standalone
 executables do not need Node.js or .NET. NuGet tools require .NET 10.
 
-The plugins and VS Code extension include optional report-formatting guidance;
-no separate skill download is needed. See the
+The plugins and VS Code extension do not bundle agent skills. Optional
+[report-formatting guidance](https://excelmcpserver.dev/reference/report-formatting/)
+remains available as documentation. See the
 [installation guide](https://excelmcpserver.dev/installation/) for setup,
 updates, and troubleshooting.
 

@@ -21,7 +21,7 @@ function Get-ValidationPlan {
         if ($LASTEXITCODE -ne 0) { throw 'Cannot determine changed validation inputs.' }
     }
     $runtime = @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service')
-    $tooling = @('Packaging', 'ScriptSafety', 'SkillGeneration')
+    $tooling = @('Packaging', 'ScriptSafety')
     $allOwners = @($runtime + $tooling + 'Diagnostics')
     $plan = [ordered]@{
         SchemaVersion = 2; Build = $false; Excel = $false; FullE2E = $false
@@ -152,7 +152,6 @@ function Get-ValidationPlan {
         if ($path -match '^(docs/(?!agents/)|gh-pages/|samples/world-bank-dashboard/|README\.md$|FEATURES\.md$|CHANGELOG\.md$|LICENSE$|doc-counts\.json$)') { $plan.Docs = $true }
         switch -Regex -CaseSensitive ($path) {
             '^(skills/|scripts/Build-AgentSkills\.ps1$|docs/(AGENT-SKILLS\.md|reference/report-formatting\.md)$)' {
-                Add-Filter Tooling SkillGeneration 'Feature=SkillGeneration'
                 Add-Filter Tooling Packaging 'Feature=PluginBootstrap'; break
             }
             '^(\.github/plugins/|scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|\.github/workflows/publish-plugins\.yml$)' {
@@ -160,7 +159,7 @@ function Get-ValidationPlan {
             }
             '^mcpb/' { Add-Filter Tooling Packaging 'Feature=McpbPackaging'; break }
             '^scripts/(PackageHelpers|ExtensionPackaging)\.ps1$' {
-                Add-Owner Packaging; Add-Owner SkillGeneration; Add-Filter Tooling ScriptSafety 'Feature=PreCommit'; break
+                Add-Owner Packaging; Add-Filter Tooling ScriptSafety 'Feature=PreCommit'; break
             }
             '^(doc-counts\.json$|scripts/check-doc-counts\.ps1$)' {
                 Add-Filter Tooling ScriptSafety 'FullyQualifiedName~DocumentationAnalyzerTests'
@@ -194,6 +193,7 @@ function Get-ValidationPlan {
             '^tests/ExcelMcp\.([^/]+)\.Tests/(.+)' {
                 $owner = $Matches[1]
                 $file = $Matches[2]
+                if ($owner -eq 'SkillGeneration') { Add-Owner Packaging; break }
                 if ($owner -notin $allOwners) { throw "No validation mapping for $path." }
                 $excelTransport = $owner -eq 'McpServer' -and
                     $file -match '^Integration/Tools/(ExcelFileToolProtocolRegressionTests|McpProcessOwnershipTests|McpServerSmokeTests|McpSessionLifetimeTests|SharePointWorkbookTests|McpIntegrationTestBase|McpOwnedExcelProcesses|McpProgramTransportFixture|McpResponseAssertions|ProgramTransportTestHost)(?:\.[^/]+)?\.cs$'
@@ -212,7 +212,7 @@ function Get-ValidationPlan {
                 break
             }
             '^tests/Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$' {
-                Add-Owner Packaging; Add-Owner SkillGeneration; break
+                Add-Owner Packaging; break
             }
             '^tests/Shared/(TelemetryUserIdentityTests|UsageTelemetry)' {
                 Add-Filter Fast CLI 'Feature=Telemetry'; Add-Filter Fast McpServer 'Feature=Telemetry'; break
@@ -292,7 +292,6 @@ function Get-ValidationPlan {
     }
     $plan.Excel = $plan.ExcelSelections.Count -gt 0 -or $plan.FullE2E
     $plan.HookTests = $plan.ToolingFilters.ContainsKey('ScriptSafety')
-    $plan.SkillTests = $plan.ToolingFilters.ContainsKey('SkillGeneration')
     $plan.PackagingTests = $plan.ToolingFilters.ContainsKey('Packaging')
     foreach ($name in @('ChangedPaths', 'BuildProjects', 'CodeQlLanguages', 'ExcelGroups', 'PackageComponents')) {
         $plan[$name] = @($plan[$name] | Sort-Object -Unique)

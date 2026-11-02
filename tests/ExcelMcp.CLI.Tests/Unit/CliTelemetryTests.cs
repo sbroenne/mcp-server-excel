@@ -14,6 +14,25 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class CliTelemetryTests
 {
     [Theory]
+    [InlineData("list-actions")]
+    [InlineData("list-actions range")]
+    [InlineData("list-actions private-workbook-name")]
+    [InlineData("LIST-ACTIONS private-workbook-name")]
+    public void ListActionsTelemetry_UsesFixedLabelsWithoutCategoryArgument(string commandLine)
+    {
+        var command = CliTelemetry.ResolveCliCommand(commandLine.Split(' '));
+        Assert.Equal("list-actions.run", command);
+        var (invocation, request) = CliTelemetry.CreateCommandInvocationTelemetry(
+            command, 25, succeeded: true, errorCategory: null);
+        Assert.Equal("list-actions/run", invocation.Name);
+        Assert.Equal("list-actions", invocation.Properties["Tool"]);
+        Assert.Equal("run", invocation.Properties["Action"]);
+        Assert.Equal("list-actions/run", request.Name);
+        Assert.Equal("list-actions", request.Properties["Tool"]);
+        Assert.Equal("run", request.Properties["Action"]);
+    }
+
+    [Theory]
     [InlineData("discover")]
     [InlineData("attach")]
     public void CreateCommandInvocationTelemetry_RecoveryUsesCanonicalLabels(string action)

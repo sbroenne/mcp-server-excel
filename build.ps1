@@ -54,9 +54,6 @@ if ($options['--list-projects']) { Get-SelectedBuildProjects $plan $group; retur
 $deadline = if ($options['--deadline-seconds']) { [int]$options['--deadline-seconds'] } else { 0 }
 if ($options.ContainsKey('--deadline-seconds') -and ($deadline -lt 1 -or $deadline -gt 28800)) { throw 'A hard deadline must be 1-28800 seconds.' }
 if ($verb -eq 'build' -or -not $options['--no-build']) { Invoke-SelectedBuild $plan $group }
-if ($verb -eq 'validate' -and $plan.DocumentationCounts -and (-not $group -or $group -eq $plan.DocumentationChecksGroup)) {
-    & (Join-Path $PSScriptRoot 'scripts\Build-AgentSkills.ps1') -GenerateOnly
-}
 if ($verb -ne 'build') {
     $results = if ($options['--results-directory']) { $options['--results-directory'] } else { Join-Path $PSScriptRoot "TestResults\selected-$([Guid]::NewGuid().ToString('N'))" }
     foreach ($kind in $(if ($group -and $group -ne 'Excel') { @($group) } elseif ($group -eq 'Excel') { @() } else { $plan.CiTestGroups })) {

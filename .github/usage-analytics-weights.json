@@ -34,6 +34,7 @@
     "datamodelrelationship": ["datamodel_relationship"],
     "diag": ["diag"],
     "drawing": ["drawing"],
+    "list-actions": ["list_actions"],
     "namedrange": ["namedrange"],
     "other": ["other"],
     "pivottable": ["pivottable"],
@@ -76,6 +77,13 @@
       }
     },
     "batch": {
+      "feature": "other",
+      "cliOnly": true,
+      "actions": {
+        "run": "light"
+      }
+    },
+    "list_actions": {
       "feature": "other",
       "cliOnly": true,
       "actions": {
