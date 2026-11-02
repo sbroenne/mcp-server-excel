@@ -56,14 +56,15 @@ From the repository root:
 
 ```powershell
 dotnet build Sbroenne.ExcelMcp.sln -c Release
-& .\scripts\Build-AgentSkills.ps1 -GenerateOnly
 Set-Location llm-tests
 uv sync
 ```
 
-Generate skills from their canonical sources. Do not test stale installed
-copies or edit generated `SKILL.md` files. The published-plugin experiment below
-deliberately uses an installed published package instead of generated sources.
+Current product packages do not ship skills or provide a skill-generation step.
+Historical skill-value experiments require explicitly staged, frozen skill inputs;
+do not treat leftover generated files as current product guidance. The
+published-plugin experiment below deliberately uses an installed published package.
+Normal tool-only evaluations do not need a skill.
 
 ## Run the right checks
 

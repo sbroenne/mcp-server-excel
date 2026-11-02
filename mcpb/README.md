@@ -151,6 +151,6 @@ details and the accepted telemetry-off limitation.
 
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - [Feature Reference](https://excelmcpserver.dev/features/)
-- [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/AGENT-SKILLS.md) - Cross-platform AI guidance
+- [Agent guidance](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/AGENT-SKILLS.md) - Native discovery and optional documentation
 - [Privacy Policy](https://excelmcpserver.dev/privacy/)
 - [License (MIT)](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)

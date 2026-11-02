@@ -70,7 +70,7 @@ public sealed class TypedPackageOperationsTests
                 {"version":"{{{version}}}","extensionKind":["ui"],"os":["win32"],"scripts":{"vscode:prepublish":"npm run compile"}}
                 """);
             File.WriteAllText(Path.Combine(sandbox, "CHANGELOG.md"), "Fixture changelog");
-            var skills = Path.Combine(sandbox, "prepared");
+            var skills = Path.Combine(extension, "skills");
             var skill = Directory.CreateDirectory(Path.Combine(skills, "excel-mcp-report-formatting")).FullName;
             File.WriteAllText(Path.Combine(skill, "VERSION"), version);
             File.WriteAllText(Path.Combine(skill, "SKILL.md"), "Fixture skill");
@@ -116,7 +116,7 @@ public sealed class TypedPackageOperationsTests
                         } finally { $zip.Dispose() }
                     }
                 }
-                $stage = Initialize-ExtensionPackage $root '{{{version}}}' '{{{skills}}}' -SkipExtensionTests:${{{skipExtensionTests}}}
+                $stage = Initialize-ExtensionPackage $root '{{{version}}}' -SkipExtensionTests:${{{skipExtensionTests}}}
                 try {
                     Complete-ExtensionPackages $stage '{{{version}}}' '{{{output}}}' @{
                         Mcp = "$root\runtimes\x64\Sbroenne.ExcelMcp.McpServer.exe"
@@ -159,8 +159,7 @@ public sealed class TypedPackageOperationsTests
                     var actual = reader.ReadBytes(expected.Length);
                     Assert.Equal(machine, BitConverter.ToUInt16(actual, offset + 4));
                     Assert.Equal(expected, actual);
-                    using var skillReader = new StreamReader(archive.GetEntry("extension/skills/excel-mcp-report-formatting/SKILL.md")!.Open());
-                    Assert.Equal("Fixture skill", skillReader.ReadToEnd());
+                    Assert.DoesNotContain(archive.Entries, entry => entry.FullName.StartsWith("extension/skills/", StringComparison.Ordinal));
                 }
                 var debug = File.ReadAllBytes(Path.Combine(output, "extension", "bin", "Sbroenne.ExcelMcp.McpServer.exe"));
                 Assert.Equal(RuntimeInformation.OSArchitecture == Architecture.Arm64 ? (ushort)0xaa64 : (ushort)0x8664, BitConverter.ToUInt16(debug, offset + 4));

@@ -155,6 +155,7 @@ jobs:
             "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
           foreach ($plugin in @('excel-mcp', 'excel-cli')) {
             $root = [IO.Path]::GetFullPath((Join-Path 'built-plugins' "$plugin\skills"))
+            if (-not (Test-Path -LiteralPath $root)) { continue }
             $files = @(Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
               [IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
             })

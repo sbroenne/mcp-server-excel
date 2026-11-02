@@ -13,7 +13,7 @@ public sealed class TypedPackageMigrationTests
     {
         var run = await ValidationSelectionTests.RunAsync($$"""
             $plan = Get-ValidationPlan -Paths 'scripts/{{file}}'
-            if ('Packaging' -notin $plan.ToolingProjects -or 'SkillGeneration' -notin $plan.ToolingProjects -or
+            if ('Packaging' -notin $plan.ToolingProjects -or
                 $plan.Excel -or $plan.FullE2E) { throw 'Wrong package helper consumers.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);

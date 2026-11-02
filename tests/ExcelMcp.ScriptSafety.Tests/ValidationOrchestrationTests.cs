@@ -114,7 +114,6 @@ public sealed class ValidationOrchestrationTests
                     -not $workflow.Contains('documentation_counts: ${{ steps.select.outputs.documentation_counts }}') -or
                     -not $workflow.Contains('full_solution_build: ${{ steps.select.outputs.full_solution_build }}') -or
                     -not $workflow.Contains('full_solution_build_group: ${{ steps.select.outputs.full_solution_build_group }}') -or
-                    -not $workflow.Contains("if: matrix.group == needs.changes.outputs.documentation_checks_group && needs.changes.outputs.documentation_counts == 'true'") -or
                     -not $workflow.Contains("if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group")) {
                     throw 'Workflow does not route the selected documentation checks.'
                 }
@@ -151,12 +150,7 @@ public sealed class ValidationOrchestrationTests
                     throw "$jobName does not use the selected job condition."
                 }
             }
-            foreach ($stepName in @('Generate complete skill inputs', 'Setup Python for skill validation', 'Install pinned Agent Skills validator', 'Validate generated skills before packaging')) {
-                $step = [regex]::Match($packages, "(?s)- name: $stepName`r?`n(?<step>.*?)(?=`r?`n      - name:|\z)").Groups['step'].Value
-                if (-not $step.Contains("if: needs.changes.outputs.package_skills == 'true'")) {
-                    throw "$stepName must run only for components that consume skills."
-                }
-            }
+            if ($packages.Contains('Build-AgentSkills') -or $packages.Contains('skills-ref')) { throw 'Retired skill preparation remains.' }
             $step = [regex]::Match($packages, '(?s)- name: Build and verify distributable packages\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
             $script = ($step -split 'run: \|\r?\n', 2)[1]
             $script = $script -replace '(?m)^          ', ''
@@ -165,7 +159,7 @@ public sealed class ValidationOrchestrationTests
                 $plan.PackageComponents = @($components)
                 function Read-ValidationPlan { param($Path) $plan }
                 $global:packageArguments = $null
-                function Invoke-PackageCapture { param($Components, $SkillsDirectory) $global:packageArguments = $PSBoundParameters }
+                function Invoke-PackageCapture { param($Components) $global:packageArguments = $PSBoundParameters }
                 $invocation = $script -replace '\. ./scripts/ValidationExecution\.ps1', '' `
                     -replace './scripts/Build-ReleasePackages\.ps1', 'Invoke-PackageCapture'
                 $failed = $false
@@ -174,8 +168,6 @@ public sealed class ValidationOrchestrationTests
                     if (-not $failed -or $null -ne $global:packageArguments) { throw 'Empty selection invoked package defaults.' }
                 } else {
                     if ($failed -or ($global:packageArguments.Components -join ',') -cne ($components -join ',')) { throw 'Package component arguments changed.' }
-                    $needsSkills = 'Extension' -in $components -or 'Plugins' -in $components
-                    if ($global:packageArguments.ContainsKey('SkillsDirectory') -ne $needsSkills) { throw 'Wrong prepared skill argument.' }
                 }
             }
             """);

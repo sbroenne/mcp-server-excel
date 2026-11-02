@@ -77,6 +77,14 @@ function discoveryPayload(version) {
 }
 
 export function registerPolicyTests() {
+    test('skill-free plugins publish removal and ignore only release stamps', () => {
+        const previous = discoveryPayload('2.3.0');
+        const next = new Map([...discoveryPayload('2.4.0')].filter(([name]) => !name.includes('/skills/')));
+        validatePublication(next);
+        assert.deepEqual(compareTrees(previous, next).changedPlugins, ['excel-cli', 'excel-mcp']);
+        const newer = new Map([...discoveryPayload('2.5.0')].filter(([name]) => !name.includes('/skills/')));
+        assert.deepEqual(compareTrees(next, newer).changedPaths, []);
+    });
     test('CLI discovery plus formatting passes publication guards with both skill stamps validated', () => {
         const files = discoveryPayload('2.3.0');
         validatePublication(files);
@@ -111,7 +119,8 @@ export function registerPolicyTests() {
         const body = section.split('        run: |')[1]
             .replace(/          python -m pip install[^\n]*\n[^\n]*\n/, '')
             .replace(/^          /gm, '');
-        for (const files of [payload('2.3.0'), scopedPayload('2.3.0'), discoveryPayload('2.3.0')]) {
+        for (const files of [payload('2.3.0'), scopedPayload('2.3.0'), discoveryPayload('2.3.0'),
+            new Map([...discoveryPayload('2.3.0')].filter(([name]) => !name.includes('/skills/')))]) {
             const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-workflow-skills-'));
             try {
                 writeTree(fixture, new Map([...files].filter(([name]) => name.startsWith('plugins/'))

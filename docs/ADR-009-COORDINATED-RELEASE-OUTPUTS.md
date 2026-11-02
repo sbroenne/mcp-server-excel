@@ -12,7 +12,7 @@ content can retain its existing tag even when the runtime release advances.
 ## Reasons and tradeoffs
 
 Independent component versioning and hand-edited package copies would let
-documentation, launchers, skills, and binaries drift. Coordinated preparation
+documentation, launchers, and binaries drift. Coordinated preparation
 keeps release metadata and output ownership explicit.
 
 Publishing every time regardless of content would create meaningless plugin

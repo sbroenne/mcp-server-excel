@@ -185,7 +185,7 @@ public sealed class ValidationSelectionTests
         ], """
             $plan = Get-ValidationPlan -Paths $case[0]
             if ($plan.ToolingFilters.Packaging -cne 'Feature=PluginBootstrap') { throw 'Packaged skill inputs must select plugin bootstrap checks.' }
-            if ($plan.ToolingFilters.SkillGeneration -cne 'Feature=SkillGeneration') { throw 'Skill generation checks missing.' }
+            if ($plan.ToolingProjects -contains 'SkillGeneration') { throw 'Retired skill generation project selected.' }
             if (($plan.PackageComponents -join ',') -notmatch 'Plugins') { throw 'Plugin package checks missing.' }
             if ($plan.FastProjects.Count -or $plan.ProcessProjects.Count -or $plan.Excel) { throw 'Unrelated runtime checks selected.' }
             """);

@@ -5,12 +5,11 @@
 ## Context and decision
 
 Product operation descriptions come from command metadata and native help.
-The CLI plugin keeps a small discovery skill for its npx launcher because plugin
-installation does not put `excelcli` on PATH. This skill supplies the missing
-entry point, not a copied command catalog.
-Optional report-formatting skills supply presentation guidance, not another
-operation catalog. Shared documentation is prepared into website and package
-outputs rather than independently maintained there.
+Product packages do not bundle agent skills. CLI discovery uses native help and
+`list-actions`; plugin documentation identifies the npx launcher. Optional report
+formatting advice stays in the reference documentation, not automatically loaded
+agent instructions. Shared documentation is prepared into website outputs rather
+than independently maintained there.
 
 Contributor instructions use shared root/nested `AGENTS.md` files for current
 Copilot, Claude Code, and Codex. ADRs supply architectural reasons; instructions
@@ -23,9 +22,10 @@ Copied catalogs and per-client rule sets can disagree after a change. Keeping
 one source limits that drift and avoids filling agent context with instructions
 unrelated to the task.
 
-The product skill comparison described in the skill guide supports narrowing
-broad automatic guidance for its tested tasks; it does not prove that formatting
-skills or this contributor layout improve all agents.
+There is no established benefit that justifies shipping duplicate formatting
+instructions or a CLI discovery skill. Removing them reduces maintained guidance
+without changing supported workbook operations; it does not itself prove a speed
+or quality improvement.
 
 Shared instructions trade client-specific tuning for consistency. Native file
 discovery still differs between clients, so a common filename does not guarantee
@@ -34,7 +34,7 @@ source edits reach installed packages.
 
 ## Implementation and guidance
 
-- [Skill preparation](../scripts/Build-AgentSkills.ps1) and [skill scope](AGENT-SKILLS.md)
+- [Native agent guidance](AGENT-SKILLS.md)
 - [Website source handling](../gh-pages/sitegen/sources.py)
 - [Contributor discovery](agents/development.md)
-- [Instruction maintenance](AGENTS.md#instruction-maintenance) and [product guidance sources](../skills/AGENTS.md)
+- [Instruction maintenance](AGENTS.md#instruction-maintenance) and [product guidance sources](agents/product-guidance.md)

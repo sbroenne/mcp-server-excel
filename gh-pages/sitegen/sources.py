@@ -61,7 +61,7 @@ def _feature(output: str, source: str, url: str, title: str) -> Page:
 
 
 # Canonical documentation references (docs/reference/<name>.md ->
-# /reference/<slug>/). Only report formatting is also packaged as a skill
+# /reference/<slug>/). Report formatting remains optional documentation, not a packaged skill
 # reference.
 _REFERENCE_PAGES = {
     "workflows.md": "skills-workflows.md",

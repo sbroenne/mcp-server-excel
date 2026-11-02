@@ -3,7 +3,7 @@
 . (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
 
 function Get-TestProject([string]$Owner) {
-    if ($Owner -notin @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'Diagnostics', 'Packaging', 'ScriptSafety', 'SkillGeneration')) {
+    if ($Owner -notin @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'Diagnostics', 'Packaging', 'ScriptSafety')) {
         throw "Unexpected test project: $Owner."
     }
     Join-Path (Split-Path -Parent $PSScriptRoot) "tests\ExcelMcp.$Owner.Tests\ExcelMcp.$Owner.Tests.csproj"
@@ -31,7 +31,7 @@ function Read-ValidationPlan([string]$Path) {
         $allowed = switch ($kind) {
             Fast { @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'Diagnostics') }
             Process { @('CLI') }
-            Tooling { @('Packaging', 'ScriptSafety', 'SkillGeneration') }
+            Tooling { @('Packaging', 'ScriptSafety') }
         }
         $filters = $plan["${kind}Filters"]
         if ($filters -isnot [Collections.IDictionary]) { throw "Missing $kind project filters." }
@@ -119,7 +119,6 @@ function Get-FreeTestSelection {
         [switch]$Local,
         [switch]$Contracts,
         [switch]$HookTests,
-        [switch]$SkillTests,
         [switch]$PackagingTests
     )
     $filters = [ordered]@{}
@@ -150,7 +149,7 @@ function Get-FreeTestSelection {
                 if ($filters.Contains($owner)) { $filters[$owner] += "|$selected" } else { $filters[$owner] = $selected }
             }
         }
-        foreach ($entry in @(@('ScriptSafety', $HookTests), @('SkillGeneration', $SkillTests), @('Packaging', $PackagingTests))) {
+        foreach ($entry in @(@('ScriptSafety', $HookTests), @('Packaging', $PackagingTests))) {
             if ($entry[1]) { $filters[$entry[0]] = 'RequiresExcel=false' }
         }
         if ($Contracts) { foreach ($owner in @('Core', 'CLI', 'McpServer')) {
@@ -158,7 +157,7 @@ function Get-FreeTestSelection {
         } }
         $onDemand = $Plan.ToolingOnDemandFilters
     } else {
-        foreach ($owner in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
+        foreach ($owner in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'Packaging', 'ScriptSafety')) {
             $filters[$owner] = 'RequiresExcel=false'
         }
     }

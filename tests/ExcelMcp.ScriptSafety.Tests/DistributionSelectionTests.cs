@@ -86,13 +86,13 @@ public sealed class DistributionSelectionTests
                     $outputs = Get-Content $env:GITHUB_OUTPUT
                     foreach ($expected in @(
                         "packages=$($case.Packages)", "npm=$($case.Npm)",
-                        "package_skills=$($case.Skills)", "package_dotnet=$($case.Dotnet)"
+                        "package_dotnet=$($case.Dotnet)"
                     )) {
                         if ($expected -cnotin $outputs) { throw "Missing $expected for $($case.Path)." }
                     }
                 }
                 $workflow = Get-Content .\.github\workflows\ci.yml -Raw
-                foreach ($name in @('packages','npm','package_skills','package_dotnet')) {
+                foreach ($name in @('packages','npm','package_dotnet')) {
                     if (-not $workflow.Contains("$name`: " + '${{ steps.select.outputs.' + $name + ' }}')) {
                         throw "Workflow does not export $name."
                     }

@@ -5,7 +5,7 @@ generation, validation, and publication. `sbroenne/mcp-server-excel-plugins` is
 output-only: never fix generated files there by hand.
 
 The two plugins contain launch configuration, an argument-safe CLI wrapper, and
-complete skills, not bundled runtimes. They use the public npm packages through
+no agent skills or bundled runtimes. They use the public npm packages through
 `npx` and require Node.js 18 or later.
 
 ## Required secret
@@ -28,8 +28,7 @@ attempting publication. Never print the credential.
 `release.yml` builds and verifies every package through
 `scripts\Build-ReleasePackages.ps1`. Each standalone runtime is published once;
 the extension reuses the MCP executable, while the Claude bundle contains a
-direct npx configuration rather than a runtime. Complete skills are generated once for the package set and consumed by the
-plugins and extension.
+direct npx configuration rather than a runtime. Product packages do not bundle skills.
 
 After GitHub Release assets and npm packages exist, the release calls
 `publish-plugins.yml` as a reusable workflow with the exact tag, final release
@@ -45,7 +44,7 @@ repair path; registry failures are recovered through a new patch release.
 
 ## Publish only changed output
 
-After validating the prepared plugins and skills, the publisher prepares a
+After validating the prepared plugins, the publisher prepares a
 disposable complete publication tree from the exact source release. It compares
 the files Git will distribute against both publication `HEAD` and its current
 immutable published tag **before** staging the destination, committing, pushing,
@@ -135,12 +134,12 @@ modify repository secrets, variables or permissions.
 
 ## Manual repair
 
-Current skill and plugin build commands run directly in PowerShell, with no
+Current plugin build commands run directly in PowerShell, with no
 C# packaging bootstrap. They use the source checkout containing the invoked
 script. Exact-release repair still consumes the verified prepared release
 payload or the explicitly requested tagged source, not current untagged content.
-Preparation and publication remain separate. PR/release jobs validate generated
-skills early; publication also validates downloaded or recovered skills.
+Preparation and publication remain separate. PR/release jobs validate launcher-only packages; historical release repair still
+validates downloaded or recovered legacy skills.
 
 With publication authorization, rerun an existing release:
 
@@ -155,8 +154,9 @@ that source's generator. Missing or unsupported legacy inputs fail; there is no
 fallback to current source.
 
 The workflow serializes publication, blocks downgrades and mismatched tags,
-validates plugin identities and wrapper-only contents, and validates both skills
-with the pinned official Agent Skills validator. Automatic duplicates are
+validates plugin identities and wrapper-only contents, and validates any skills
+in historical payloads with the pinned official Agent Skills validator.
+Current payloads have no skills to validate. Automatic duplicates are
 skipped. Manual repair compares generated output before committing; identical
 output does not create an empty commit. The explicit manual path uses raw output
 differences too, so it can restore missing/mismatched known version stamps and
@@ -235,13 +235,11 @@ operation.
 Unsynchronized hand edits in the published repository are prohibited and may be
 overwritten. For every change:
 
-1. Edit canonical inputs under `.github/plugins/`, the actual `skills/<name>`
-   directories, `docs/reference/report-formatting.md`, or their owning
-   build/workflow files. General reference docs are not packaged into plugins.
-2. Build Release and generate complete skills using
-   `scripts\Build-AgentSkills.ps1 -GenerateOnly`.
-3. Build versioned plugins using `scripts\Build-Plugins.ps1 -Version <version>`.
-   Use `-SkillsDirectory` to consume an explicit prepared skills directory.
+1. Edit canonical inputs under `.github/plugins/` or their owning build/workflow
+   files. Reference documentation is not packaged into plugins.
+2. Build Release when runtime or metadata changes require it.
+3. Build versioned launcher-only plugins using
+   `scripts\Build-Plugins.ps1 -Version <version>`.
 4. Run `scripts\Sync-PublishedPluginRepo.ps1` against a disposable local output
    directory and run its generated `tests\Test-Plugins.ps1`. Inspect the complete
    publication tree, including `.github/plugin/marketplace.json` and
@@ -257,8 +255,8 @@ must be available to identify previously owned overlay paths.
 Merging a source PR does not publish plugins. A release or authorized manual
 repair must run the publication path.
 
-Skill validation shares the deterministic layout rules used by the publication
-guard. It accepts the CLI discovery-plus-formatting pair, formatting-only
+Historical skill validation shares the deterministic layout rules used by the publication
+guard. Current packages have no skills; legacy repair accepts the CLI discovery-plus-formatting pair, formatting-only
 packages, and immutable legacy packages with their general skill and references.
 Both CLI skills must carry the exact release version. Mixed old reference
 collections with the new discovery skill, unknown skill directories, and mixed
@@ -270,7 +268,6 @@ From the source repository root:
 
 ```powershell
 dotnet build Sbroenne.ExcelMcp.sln -c Release
-.\scripts\Build-AgentSkills.ps1 -GenerateOnly
 .\scripts\Build-Plugins.ps1 -Version 1.2.3 -OutputDir artifacts\plugin-check
 New-Item -ItemType Directory artifacts\publication-check
 .\scripts\Sync-PublishedPluginRepo.ps1 -PublishedRepoDir artifacts\publication-check -BuiltPluginsDir artifacts\plugin-check -Version 1.2.3
@@ -286,7 +283,6 @@ These commands create local output only. Do not dispatch a real release as a tes
 - **Tag/commit/version mismatch:** use the intended existing release, not its
   original pre-metadata workflow commit.
 - **Downgrade blocked:** an older release cannot overwrite newer publication.
-- **Missing skill input:** build Release, then explicitly generate skills.
 - **No commit:** the destination already matches the prepared output.
 - **Publication skipped:** only validated release bookkeeping changed; use the
   reported retained tag for an independent marketplace catch-up, not the newer

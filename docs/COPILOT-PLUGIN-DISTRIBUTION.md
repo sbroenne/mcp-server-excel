@@ -7,7 +7,7 @@ This document outlines how the Excel MCP Server and Excel CLI are distributed as
 ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plugin marketplace:
 
 - **`excel-mcp`** — MCP Server with 63 tools across 33 feature areas (433 operations) for conversational AI (Claude Desktop, Copilot chat)
-- **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
+- **`excel-cli`** — argument-safe CLI launcher for coding agents (token-efficient, `--help` discoverable)
 
 Both plugins are maintained in a separate published repository and published
 from this source repo when their distributed content changes. They are also
@@ -36,19 +36,15 @@ plugins/excel-mcp/
 ├── plugin.json         # Agent Plugins 1.0 manifest
 ├── mcp.json            # Portable stdio config that launches npx @latest
 ├── version.txt         # Published version
-├── agents/             # Optional agent definitions
-└── skills/             # Optional excel-mcp-report-formatting skill
 
 plugins/excel-cli/
 ├── plugin.json         # Agent Plugins 1.0 manifest
 ├── version.txt         # Published version
-├── bin/                # Argument-safe PowerShell launcher for npx
-└── skills/             # Optional excel-cli-report-formatting skill
+└── bin/                # Argument-safe PowerShell launcher for npx
 ```
 
-Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows/Excel compatibility.
-
-Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
+Agent Plugins discovers MCP servers from root `mcp.json`. The manifests contain
+only Agent Plugins 1.0 fields. Neither plugin bundles agent skills.
 
 Both plugins use the public npm packages through `npx`; no runtime binaries are
 bundled in the plugin package. The MCP plugin's `mcp.json` launches
@@ -58,7 +54,7 @@ quoted JSON arguments on Windows. Node.js 18 or later is required. npm resolves
 the `latest` tag and manages package caching, subject to its cache policy; there
 is no plugin-owned release downloader or update checker. No global installation
 helper, PATH change, or separate global MCP registration is required.
-The publish workflow validates this launch-configuration/CLI-wrapper/skill payload
+The publish workflow validates this launch-configuration/CLI-wrapper payload
 before comparing complete prepared publication output.
 
 ## Installation
@@ -96,7 +92,7 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 
 ### Excel CLI Plugin
 
-Provides the argument-safe npx wrapper plus skill guidance for coding agents:
+Provides the argument-safe npx wrapper without bundled skills for coding agents:
 
 ```powershell
 copilot plugin install excel-cli@awesome-copilot
@@ -125,10 +121,9 @@ not every product release has a matching tag in the published repository.
 Plugin publication is automatic during releases; Awesome Copilot listing
 maintenance is manual:
 
-1. **Skill updates** → Modify the actual `skills/<name>/SKILL.md` entries or `docs/reference/report-formatting.md`, then run `Build-AgentSkills.ps1 -GenerateOnly`. Other reference documentation is not bundled.
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release compares complete prepared output,
-   including generated references and source-owned root overlays
+   including source-owned root overlays
 4. **Awesome Copilot listing** → Edit listings manually for changed plugin
    content, using actual immutable published output commits. Root-overlay-only
    updates do not need a listing PR. Use an existing published tag for catch-up;

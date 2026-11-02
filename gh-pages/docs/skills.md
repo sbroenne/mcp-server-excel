@@ -1,9 +1,9 @@
 ---
-title: Agent Skills
-description: Optional MCP and CLI formatting skills for requested Excel reports, with installation instructions and evidence about broad skill costs.
-keywords: "Excel agent skills, AI skills, Copilot skills, MCP skills, pytest-skill-engineering"
+title: Agent guidance
+description: Discover Excel operations through native CLI help and MCP schemas, with optional report-formatting documentation.
+keywords: "Excel agent guidance, CLI help, MCP schemas, report formatting"
 ---
 
-# Agent Skills
+# Agent guidance
 
 --8<-- "_generated/skills.md"

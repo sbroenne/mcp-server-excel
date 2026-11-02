@@ -1,7 +1,7 @@
 #Requires -Version 7.4
 
 function Initialize-ExtensionPackage {
-    param([string]$RepoRoot, [string]$Version, [string]$SkillsDirectory, [switch]$SkipExtensionTests)
+    param([string]$RepoRoot, [string]$Version, [switch]$SkipExtensionTests)
     $stage = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpextension-$([Guid]::NewGuid().ToString('N'))"
     [IO.Directory]::CreateDirectory($stage) | Out-Null
     try {
@@ -10,9 +10,6 @@ function Initialize-ExtensionPackage {
             if ($name -in @('node_modules', 'bin', 'out', 'skills') -or [IO.Path]::GetExtension($entry) -eq '.vsix') { continue }
             Copy-PackageItem $entry (Join-Path $stage $name)
         }
-        $skill = Join-Path $stage 'skills\excel-mcp-report-formatting'
-        Copy-PackageItem (Join-Path $SkillsDirectory 'excel-mcp-report-formatting') $skill
-        [IO.File]::WriteAllText((Join-Path $skill 'VERSION'), $Version)
         Copy-PackageItem (Join-Path $RepoRoot 'CHANGELOG.md') (Join-Path $stage 'CHANGELOG.md')
         $path = Join-Path $stage 'package.json'
         $manifest = Read-PackageJson $path
@@ -57,19 +54,15 @@ function Assert-ExtensionPackage {
             [IO.Compression.ZipFileExtensions]::ExtractToFile($zip.GetEntry('extension/bin/Sbroenne.ExcelMcp.McpServer.exe'), $inspection, $false)
             Assert-PackageRuntimeArchitecture $inspection $Architecture
         } finally { Remove-PackageItem $inspection }
-        foreach ($file in [IO.Directory]::EnumerateFiles((Join-Path $Stage 'skills\excel-mcp-report-formatting'), '*', [IO.SearchOption]::AllDirectories)) {
-            $relative = [IO.Path]::GetRelativePath($Stage, $file).Replace('\', '/')
-            if (-not $zip.GetEntry("extension/$relative")) { throw "VSIX is missing $relative." }
-        }
-        if ((Read-VsixEntry $zip 'extension/skills/excel-mcp-report-formatting/VERSION').Trim() -cne $Version) { throw 'VSIX skill version does not match the package.' }
         $manifest = Read-VsixEntry $zip 'extension/package.json' | ConvertFrom-Json -AsHashtable
+        if ($manifest.contributes -and $manifest.contributes.Contains('chatSkills')) { throw 'VSIX must not contribute skills.' }
         if ($manifest.version -cne $Version -or ($manifest.extensionKind -join ',') -cne 'ui' -or ($manifest.os -join ',') -cne 'win32') {
             throw 'VSIX version or local Windows host metadata is incorrect.'
         }
         $metadata = [xml](Read-VsixEntry $zip 'extension.vsixmanifest')
         if ($metadata.SelectSingleNode("//*[local-name()='Identity']").GetAttribute('TargetPlatform') -cne $target) { throw "VSIX target does not match $target." }
         foreach ($entry in $zip.Entries) {
-            if ($entry.FullName -cmatch '^extension/(?:node_modules|tests|scripts|\.vitest|coverage|out/tests)/|^extension/(?:vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)|^extension/(?:.*/)?(?:AGENTS|CLAUDE)\.md$') {
+            if ($entry.FullName -cmatch '^extension/(?:skills|node_modules|tests|scripts|\.vitest|coverage|out/tests)/|^extension/(?:vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)|^extension/(?:.*/)?(?:AGENTS|CLAUDE)\.md$') {
                 throw "VSIX contains development files or the CLI: $($entry.FullName)"
             }
         }

@@ -24,7 +24,6 @@ watch:
   - ../SECURITY.md
   - ../PRIVACY.md
   - ../docs
-  - ../skills
   - ../src/ExcelMcp.CLI/README.md
   - ../src/ExcelMcp.McpServer/README.md
   - ../samples/world-bank-dashboard
@@ -158,7 +157,7 @@ nav:
     - Excel to PowerPoint briefing: samples/world-bank-briefing.md
     - Usage analytics: usage-analytics.md
     - Examples & use cases: use-cases.md
-    - Agent Skills: skills.md
+    - Agent guidance: skills.md
     - FAQ: faq.md
     - Troubleshooting: troubleshooting.md
     - Architecture: architecture.md

@@ -42,10 +42,16 @@ public sealed class PluginOutputSafetyTests
             Directory.CreateDirectory(prior);
             File.WriteAllText(Path.Combine(prior, "prior.txt"), "last good");
             File.WriteAllText(Path.Combine(outputDir, "unrelated.txt"), "keep");
-            var result = await RunPowerShellFileAsync(BuildPluginsScript,
-                ["-Version", TestVersion, "-OutputDir", outputDir, "-SkillsDirectory", Path.Combine(sandbox, "missing")]);
+            var stagedRepo = Directory.CreateDirectory(Path.Combine(sandbox, "source")).FullName;
+            var scripts = Directory.CreateDirectory(Path.Combine(stagedRepo, "scripts")).FullName;
+            foreach (var name in new[] { "Build-Plugins.ps1", "PackageHelpers.ps1" })
+            {
+                File.Copy(Path.Combine(RepoRoot, "scripts", name), Path.Combine(scripts, name));
+            }
+            var result = await RunPowerShellFileAsync(Path.Combine(scripts, "Build-Plugins.ps1"),
+                ["-Version", TestVersion, "-OutputDir", outputDir]);
             Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("missing", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("excel-cli", result.CombinedOutput, StringComparison.Ordinal);
             Assert.Equal("last good", File.ReadAllText(Path.Combine(prior, "prior.txt")));
             Assert.Equal("keep", File.ReadAllText(Path.Combine(outputDir, "unrelated.txt")));
         }

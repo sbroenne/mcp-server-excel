@@ -46,37 +46,6 @@ public sealed class McpbPackagingScriptTests
         finally { DeleteDirectoryIfExists(sandbox); }
     }
 
-    [Theory]
-    [InlineData("excel-cli", "wrong-version")]
-    [InlineData("excel-cli", "")]
-    [InlineData("excel-cli-report-formatting", "wrong-version")]
-    [InlineData("excel-cli-report-formatting", "")]
-    [InlineData("excel-mcp-report-formatting", "wrong-version")]
-    [InlineData("excel-mcp-report-formatting", "")]
-    public async Task AggregatePackaging_RejectsMismatchedPreparedSkillsBeforeCreatingOutput(string invalidSkill, string stamp)
-    {
-        var sandbox = CreateSandbox("prepared-skill-version");
-        try
-        {
-            StageMcpbInputs(sandbox);
-            var skills = Path.Combine(sandbox, "prepared");
-            foreach (var name in new[] { "excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting" })
-            {
-                var directory = Directory.CreateDirectory(Path.Combine(skills, name)).FullName;
-                var version = name == invalidSkill ? stamp : "1.2.3";
-                if (version.Length > 0) { File.WriteAllText(Path.Combine(directory, "VERSION"), version); }
-            }
-            var output = Path.Combine(sandbox, "artifacts", "packages");
-            var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Build-ReleasePackages.ps1"),
-                ["-Components", "Plugins", "-Version", "1.2.3", "-SkillsDirectory", skills, "-OutputDirectory", output]);
-            Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("skill must match package version", result.CombinedOutput, StringComparison.Ordinal);
-            Assert.Contains($"Prepared {invalidSkill} skill", result.CombinedOutput, StringComparison.Ordinal);
-            Assert.False(Directory.Exists(output));
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
-    }
-
     [Fact]
     public async Task FailedBuild_PreservesExistingOutput()
     {
@@ -139,7 +108,7 @@ public sealed class McpbPackagingScriptTests
 
     [Theory]
     [InlineData("version.txt")]
-    [InlineData("skills/excel-cli-report-formatting/SKILL.md")]
+    [InlineData("bin/start-cli.ps1")]
     public async Task PublicationSync_IncompletePayloadCannotReplaceExistingOutput(string missingFile)
     {
         var sandbox = CreateSandbox("publication-incomplete-payload");
@@ -155,8 +124,7 @@ public sealed class McpbPackagingScriptTests
                 var manifest = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", name, "plugin.json"));
                 File.WriteAllText(Path.Combine(plugin, "plugin.json"), manifest.Replace("0.0.0", "1.2.3", StringComparison.Ordinal));
                 foreach (var file in new[] {
-                    "README.md", "version.txt", $"skills/{name}-report-formatting/SKILL.md",
-                    $"skills/{name}-report-formatting/VERSION", $"skills/{name}-report-formatting/references/report-formatting.md"
+                    "README.md", "version.txt"
                 })
                 {
                     var destination = Path.Combine(plugin, file);

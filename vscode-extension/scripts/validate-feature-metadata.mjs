@@ -54,20 +54,6 @@ for (const provider of providers) {
   );
 }
 
-const skills = manifest.contributes?.chatSkills ?? [];
-assert.ok(skills.length > 0, 'At least one chat skill must be contributed.');
-const skillNames = new Set();
-for (const skill of skills) {
-  assertText(skill.path, 'Every chat skill must have a path.');
-  assertText(skill.name, `Chat skill '${skill.path}' must declare a display name for the Features tab.`);
-  assertText(skill.description, `Chat skill '${skill.path}' must declare a description for the Features tab.`);
-  assert.ok(!skillNames.has(skill.name), `Chat skill name is duplicated: ${skill.name}`);
-  skillNames.add(skill.name);
-
-  const skillPath = assertPackagedFile(skill.path, 'Chat skill');
-  const skillContents = readFileSync(skillPath, 'utf8');
-  const frontmatterName = skillContents.match(/^---\s*\r?\n[\s\S]*?^name:\s*['"]?([^'"\r\n]+)['"]?\s*$[\s\S]*?^---\s*$/m)?.[1]?.trim();
-  assert.equal(skill.name, frontmatterName, `Chat skill '${skill.path}' name must match its SKILL.md frontmatter.`);
-}
+assert.equal(manifest.contributes?.chatSkills, undefined, 'The extension must not bundle chat skills.');
 
 console.log('VS Code extension Marketplace and feature metadata is complete.');

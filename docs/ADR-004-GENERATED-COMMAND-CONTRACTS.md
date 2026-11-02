@@ -35,4 +35,4 @@ responsibilities.
 - Hand-written MCP tool: [file](../src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs)
 - [Screenshot image conversion](../src/ExcelMcp.McpServer/Tools/ScreenshotImageResult.cs)
 - [Contract checks](../src/ExcelMcp.Core/AGENTS.md)
-- [Agent-facing metadata sources](../skills/AGENTS.md)
+- [Agent-facing metadata sources](agents/product-guidance.md)

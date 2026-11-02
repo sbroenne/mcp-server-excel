@@ -44,4 +44,4 @@ can accomplish, see [features](../../FEATURES.md).
 - [Optional report formatting](report-formatting.md)
 
 For installation, see [Claude Desktop](../guides/CLAUDE-DESKTOP.md) and
-[agent skills](../AGENT-SKILLS.md).
+[agent guidance](../AGENT-SKILLS.md).

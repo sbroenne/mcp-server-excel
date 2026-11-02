@@ -10,9 +10,9 @@ All ExcelMcp components are released together with a single version tag:
 |-----------|---------------------|----------------------|-------------|
 | **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx -y @sbroenne/mcp-server-excel@latest` or `mcp-excel.exe` — no .NET runtime required |
 | **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx -y @sbroenne/excelcli@latest` or `excelcli.exe` — no .NET runtime required |
-| **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server and its skill |
+| **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server |
 | **MCPB** | Claude Desktop bundle | — | Direct npx configuration with `@latest`; requires Node.js/npm on PATH |
-| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with npx launch configuration, an argument-safe CLI wrapper, and skills |
+| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with npx launch configuration, an argument-safe CLI wrapper |
 
 ## Unified Release Workflow
 
@@ -28,7 +28,7 @@ When you run the release workflow, all components are released together:
    - x64 and ARM64 ZIP files (primary distribution)
    - NuGet package (secondary distribution)
 2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained x64 and ARM64 exe ZIPs [primary] + NuGet pack [secondary]
-3. **VS Code Extension** → Self-contained Windows x64 and ARM64 VSIX packages (bundle the MCP executable and skill) → VS Code Marketplace
+3. **VS Code Extension** → Self-contained Windows x64 and ARM64 VSIX packages (bundle the MCP executable) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **GitHub Copilot Plugins** → `publish-plugins.yml` compares prepared output and
    publishes only real content changes; unchanged plugins retain their prior
@@ -57,8 +57,8 @@ When you run the release workflow, all components are released together:
 | `RELEASE-INPUTS.json` and `release-metadata.patch` | Build-input record and exact metadata patch | GitHub Release (workflow path/source commit, patch digest, final release commit/tag, and artifact digests; not a signed provenance attestation) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
-| `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
-| `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable and skill) |
+| `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable) |
+| `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |
 | `excel-plugins-v{version}.zip` | ZIP | GitHub Release (prepared plugin payload for exact-release repairs) |
 
@@ -112,7 +112,7 @@ involved. Shared PowerShell selects tests and verifies their results; standard
 .NET and xUnit commands own compilation, test discovery, and execution.
 Complete local packaging is not a normal commit prerequisite.
 
-Hosted jobs validate generated skills before packaging. Extension source checks
+Extension source checks
 run before runtime publishing, and both VSIX targets reuse one compilation.
 Finished-package inspection, launcher checks, and native ARM64 checks remain
 separate requirements; source checks cannot establish their results.
@@ -194,9 +194,9 @@ The `publish-plugins.yml` workflow consumes prepared release plugins:
     - Copies canonical plugin structure from this source repository
     - Copies npx launch configuration and the argument-safe CLI wrapper from `.github/plugins/`
     - Strips committed runtime payloads from plugin bundles so the published repo contains no bundled runtimes
-    - Stamps plugin.json, version.txt and skill VERSION for candidate validation,
+    - Stamps plugin.json and version.txt for candidate validation,
       while npx launchers still target the latest npm runtime
-    - Consumes complete generated skills from the released source and stamps the release version
+    - Prepares launcher-only plugins from the released source
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches
     - Rejects downgrade publishes
@@ -223,7 +223,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 - ✅ **Idempotent** — Safe to re-run on the same version
 - ✅ **Exact candidate version** — A real publication uses the source release's
   version; unchanged output retains its earlier plugin version/tag
-- ✅ **No stale fallback** — Distributable builds require an explicit version; canonical skill sources contain no `VERSION` file
+- ✅ **No stale fallback** — Distributable builds require an explicit version
 - ✅ **Output-compared** — version-only prepared output creates no commit, push
   or tag; product/npm publication still proceeds
 - ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
@@ -233,7 +233,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
   `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel`
 
 **Surface note:**
-- The release automation publishes plugin bundles (manifests, skills, agents, MCP config, and the CLI wrapper) to the published repo.
+- The release automation publishes plugin bundles (manifests, MCP config, and the CLI wrapper) to the published repo.
 - Those bundles intentionally exclude self-contained runtime binaries. They use `npx -y @sbroenne/mcp-server-excel@latest` or `npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching. Plugins do not download GitHub release ZIPs or install global helpers.
 - Plugin versions can intentionally lag product/npm versions.
 - The published repo is the marketplace; this source repo only owns inputs, overlays, and automation.
@@ -304,7 +304,7 @@ expected values, review them in the same PR as the code, then rebuild.
 There is no separate count updater. Release automation and the website consume
 those reviewed totals rather than independently deriving headline values.
 Compiler count validation does not replace compiled tool-surface behavior,
-prepared-skill identity tests, or release package validation.
+plugin payload identity tests, or release package validation.
 
 The GitHub repository description is a manually maintained repository setting,
 not generated release metadata. Keep it free of version numbers and operation

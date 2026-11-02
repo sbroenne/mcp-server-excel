@@ -25,6 +25,6 @@ Follow [repository review checks](../../AGENTS.md#code-review-rules) and
 
 Descriptions, input naming, server instructions, supported MCP capabilities,
 and guidance validation follow
-[Agent guidance sources](../../skills/AGENTS.md).
+[Agent guidance sources](../../docs/agents/product-guidance.md).
 
 Manual routing example and explanation: [DEVELOPMENT](../../docs/DEVELOPMENT.md).

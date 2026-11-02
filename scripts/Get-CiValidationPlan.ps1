@@ -43,7 +43,6 @@ if ($env:GITHUB_OUTPUT) {
         "build_only=$($plan.BuildOnly)".ToLowerInvariant()
         "packages=$($plan.PackageComponents.Count -gt 0)".ToLowerInvariant()
         "npm=$($plan.NpmTests)".ToLowerInvariant()
-        "package_skills=$(@($plan.PackageComponents | Where-Object { $_ -in @('Extension', 'Plugins') }).Count -gt 0)".ToLowerInvariant()
         "package_dotnet=$(@($plan.PackageComponents | Where-Object { $_ -in @('Cli', 'Mcp', 'Extension') }).Count -gt 0)".ToLowerInvariant()
         "codeql_matrix=$codeQlMatrix"
         "codeql=$($plan.CodeQlLanguages.Count -gt 0)".ToLowerInvariant()

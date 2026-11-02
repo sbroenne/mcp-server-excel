@@ -92,29 +92,6 @@ public abstract class PluginTestBase(ITestOutputHelper output)
             server.GetProperty("args").EnumerateArray().Select(value => value.GetString()!).ToArray());
     }
 
-    protected static void AssertSkillDirectoryMatchesSource(
-        string sourceRoot, string builtRoot, string expectedVersion)
-    {
-        var sourceFiles = Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories)
-            .Select(path => Path.GetRelativePath(sourceRoot, path))
-            .Where(path => path != "VERSION")
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-        var builtFiles = Directory.GetFiles(builtRoot, "*", SearchOption.AllDirectories)
-            .Select(path => Path.GetRelativePath(builtRoot, path))
-            .Where(path => path != "VERSION")
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-        Assert.Equal(sourceFiles, builtFiles);
-        foreach (var path in sourceFiles)
-        {
-            Assert.Equal(
-                File.ReadAllBytes(Path.Combine(sourceRoot, path)),
-                File.ReadAllBytes(Path.Combine(builtRoot, path)));
-        }
-        Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(builtRoot, "VERSION")).Trim());
-    }
-
     protected static string CreateSandbox(string name)
     {
         var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcp-{name}-{Guid.NewGuid():N}");
@@ -144,11 +121,6 @@ public abstract class PluginTestBase(ITestOutputHelper output)
         Dictionary<string, string>? environmentVariables = null,
         int timeoutMs = 30000)
     {
-        if (scriptPath == BuildPluginsScript && arguments.Contains("-Version", StringComparer.Ordinal)
-            && !arguments.Contains("-SkillsDirectory", StringComparer.Ordinal))
-        {
-            arguments = [.. arguments, "-SkillsDirectory", GeneratedAssetsFixture.SkillsDirectory];
-        }
         var escapedArguments = arguments.Select(argument =>
             argument.Length > 0 && argument[0] == '-' ? argument : $"'{argument.Replace("'", "''")}'");
         var startInfo = new ProcessStartInfo

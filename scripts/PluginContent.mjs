@@ -146,6 +146,7 @@ export function pluginSkillNames(name, files) {
     if (!pluginNames.includes(name) || !Array.isArray(files) || files.some(file => typeof file !== 'string')) {
         throw new Error('Invalid plugin skill layout input.');
     }
+    if (files.length === 0) return [];
     const formatting = `${name}-report-formatting`;
     const skills = files.includes(`${formatting}/SKILL.md`) ? [formatting] : [name];
     if (name === 'excel-cli' && skills[0] === formatting && files.includes(`${name}/SKILL.md`)) skills.push(name);
