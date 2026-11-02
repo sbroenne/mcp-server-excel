@@ -262,7 +262,7 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
     private static HashSet<string> ExpectedParameters(string tool, string action)
     {
         var names = new HashSet<string>(StringComparer.Ordinal) { "action" };
-        if (tool is "file" or "file_read")
+        if (tool is "file" or "file_read" or "batch")
         {
             var method = typeof(Program).Assembly.GetTypes()
                 .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)

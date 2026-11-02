@@ -95,7 +95,10 @@ public class Program
                     Use file_read discover to find an already-open workbook, then file attach with its open_workbook_id; attach connects without reopening the workbook or changing unsaved state. Discovery includes workbooks already connected to this host and returns their sessionId. Discovery can be incomplete; check its errors before concluding a workbook is absent.
                     Open/create/attach and file_read list entries return workbook_session_id. Pass it as workbook_session_id to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
-                    Await each dependent call before the next; different sessions can run independently.
+                    Use batch run when the commands and their arguments are known in advance; use individual tools when the next step depends on inspecting a result.
+                    Batch commands run in order and continue after errors by default; set stop_on_error:true for dependent steps.
+                    Timeouts, cancellation, and reported unknown completion always stop a batch; inspect affected session state before more work.
+                    Outside a batch, await each dependent call before the next; different sessions can run independently.
                     Do not open a workbook that is already open in Excel when it can be attached. A workbook must not be open in another Excel instance for a new open session. Reuse known visibility preferences;
                     preserve existing visibility unless a change is requested. New sessions default to hidden.
                     Leaving a workbook open means retaining its session, not showing a hidden window.

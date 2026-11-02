@@ -32,6 +32,12 @@ public sealed class ResultJson
     /// <summary>Exact retained state reported by the execution owner.</summary>
     public JsonNode? PartialState { get; private set; }
 
+    /// <summary>Whether Excel work may still be running after the reported failure.</summary>
+    public bool MayStillBeRunning =>
+        Error?["category"]?.GetValue<string>() is "Timeout" or "Cancelled" ||
+        PartialState is JsonObject state && state["outcome"] is JsonValue value &&
+        value.TryGetValue<string>(out var outcome) && outcome == "unknown";
+
     /// <summary>Serialization preserves false, zero, and null business values.</summary>
     public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {

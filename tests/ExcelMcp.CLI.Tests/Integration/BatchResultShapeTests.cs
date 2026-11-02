@@ -302,14 +302,15 @@ public sealed class BatchResultShapeTests
             first + "\n" + """{"command":"diag.ping"}""");
 
         Assert.Equal(1, result.ExitCode);
+        var shouldStop = stopOnError || failure == "communication";
         var expectedProgress = new List<(int, string, bool)>();
         if (failure != "validation")
             expectedProgress.Add((1, "range.get-values", false));
-        if (!stopOnError)
+        if (!shouldStop)
             expectedProgress.Add((2, "diag.ping", true));
         AssertProgress(result.Stderr, 2, expectedProgress.ToArray());
         var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(stopOnError ? 1 : 2, lines.Length);
+        Assert.Equal(shouldStop ? 1 : 2, lines.Length);
         using var json = JsonDocument.Parse(lines[0]);
         var item = json.RootElement;
         Assert.Equal(0, item.GetProperty("index").GetInt32());
@@ -330,14 +331,16 @@ public sealed class BatchResultShapeTests
         if (failure == "communication")
         {
             Assert.Equal("Communication error: Synthetic pipe failure", error.GetProperty("message").GetString());
+            Assert.Equal(nameof(IOException), error.GetProperty("exceptionType").GetString());
+            Assert.Equal("unknown", item.GetProperty("partialState").GetProperty("outcome").GetString());
         }
         if (failure == "negative-result")
         {
             Assert.Equal("Synthetic operation failure", error.GetProperty("message").GetString());
             Assert.False(item.TryGetProperty("result", out _));
         }
-        Assert.Equal((failure == "validation" ? 0 : 1) + (stopOnError ? 0 : 1), requests.Count);
-        if (!stopOnError)
+        Assert.Equal((failure == "validation" ? 0 : 1) + (shouldStop ? 0 : 1), requests.Count);
+        if (!shouldStop)
         {
             using var next = JsonDocument.Parse(lines[1]);
             Assert.Equal(1, next.RootElement.GetProperty("index").GetInt32());

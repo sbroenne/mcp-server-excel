@@ -147,6 +147,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        (\"file\" or \"file_read\", _) => \"session.\" + action,");
         sb.AppendLine("        _ => tool + \".\" + action");
         sb.AppendLine("    };");
+        sb.AppendLine("    /// <summary>Source-derived MCP identity and session requirement for a Service command.</summary>");
+        sb.AppendLine("    public static (string Tool, string Action, bool RequiresSession)? GetMcpOperation(string command) => command.ToLowerInvariant() switch");
+        sb.AppendLine("    {");
+        foreach (var category in categories.Where(category => category.HasMcpToolAttribute))
+            foreach (var method in category.Methods)
+                sb.AppendLine($"        \"{category.Category}.{method.ActionName}\" => (\"{method.McpTool}\", \"{method.ActionName}\", {(!category.NoSession && method.HasBatchParameter).ToString().ToLowerInvariant()}),");
+        sb.AppendLine("        _ => null");
+        sb.AppendLine("    };");
         sb.AppendLine("}");
         return sb.ToString();
 

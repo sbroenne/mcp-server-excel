@@ -171,10 +171,10 @@ public sealed class ServiceClient : IDisposable
         {
             return CreateTimeoutResponse(request, connected, nameof(OperationCanceledException));
         }
-        catch (ConnectionLostException)
+        catch (ConnectionLostException ex)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return CreateConnectionLostResponse(request);
+            return CreateConnectionLostResponse(request, innerError: ex.Message);
         }
         catch (DirectoryNotFoundException ex) when (!connected)
         {
@@ -192,6 +192,8 @@ public sealed class ServiceClient : IDisposable
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (connected)
+                return CreateConnectionLostResponse(request, nameof(IOException), ex.Message);
             return new ServiceResponse
             {
                 Success = false,
@@ -199,7 +201,8 @@ public sealed class ServiceClient : IDisposable
                 SessionId = request.SessionId,
                 ErrorCategory = "ServiceUnavailable",
                 ErrorMessage = "Cannot connect to service. Is it running?",
-                ExceptionType = nameof(IOException)
+                ExceptionType = nameof(IOException),
+                InnerError = ex.Message
             };
         }
     }
@@ -316,7 +319,8 @@ public sealed class ServiceClient : IDisposable
         return false;
     }
 
-    private static ServiceResponse CreateConnectionLostResponse(ServiceRequest request)
+    private static ServiceResponse CreateConnectionLostResponse(
+        ServiceRequest request, string exceptionType = nameof(ConnectionLostException), string? innerError = null)
     {
         return new ServiceResponse
         {
@@ -324,8 +328,10 @@ public sealed class ServiceClient : IDisposable
             Command = request.Command,
             SessionId = request.SessionId,
             ErrorCategory = "ServiceUnavailable",
-            ErrorMessage = "Connection to service lost while waiting for a response. The daemon may have exited or restarted; run 'excelcli service status' or 'excelcli service stop' and retry.",
-            ExceptionType = nameof(ConnectionLostException)
+            ErrorMessage = "Connection to service lost while waiting for a response. Excel work may still be running; inspect the affected session before further work. Do not repeat edits automatically.",
+            ExceptionType = exceptionType,
+            InnerError = innerError,
+            PartialState = """{"outcome":"unknown","message":"The service response could not be confirmed. Excel work may still be running; inspect the affected session before further work."}"""
         };
     }
 

@@ -304,13 +304,13 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // Keep action as a required enum so schema consumers get a strict enum without nullable sentinels.
-        sb.AppendLine($"        [Description(\"The action to perform\")] {enumTypeName} action,");
+        sb.AppendLine($"        [Description(\"The action to perform. Batch command: {info.Category}.{{action}}.\")] {enumTypeName} action,");
         sb.AppendLine("        Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge bridge,");
 
         // Session parameter (if required)
         if (hasSession)
         {
-            sb.Append($"        [Description(\"{EscapeStringLiteral(sessionDescription)}\")] ");
+            sb.Append($"        [Description(\"{EscapeStringLiteral(sessionDescription)}. Batch entry key: sessionId (outside args).\")] ");
             sb.Append(requiresSession ? "string workbook_session_id" : "string? workbook_session_id = null");
             sb.Append(",");
             sb.AppendLine();
@@ -486,6 +486,7 @@ public class McpToolGenerator : IIncrementalGenerator
             }
             if (description is not null)
                 description = RenderMcpParameterNames(description, exposedParams);
+            description = $"{description} Batch args key: {ep.Name}.".Trim();
 
             // Determine MCP type and conversion
             if (pInfo != null && pInfo.IsEnum && pInfo.EnumTypeName != null)

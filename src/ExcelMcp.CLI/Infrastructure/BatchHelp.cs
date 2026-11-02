@@ -43,7 +43,9 @@ internal static class BatchHelp
               0 means all succeeded; 1 means an error occurred.
               Progress is written separately to stderr, including in quiet mode.
               Use --stop-on-error for dependent steps (default: continue after errors).
-              A batch is not all-or-nothing: earlier changes remain after a failure.
+              Timeouts, cancellation, and reported unknown completion always stop
+              later commands because Excel work may still be running.
+              A batch is not all-or-nothing. Individual commands can save or discard edits.
               Batch does not undo or save automatically. Excel AutoSave, if enabled,
               can still persist edits. Inspect partial results before
               deciding what to do next; do not blindly repeat writes.

@@ -342,7 +342,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
             (!tool.JsonSchema.TryGetProperty("required", out var required) ||
              !required.EnumerateArray().Any(value => value.GetString() == "workbook_session_id")))
             .Select(tool => tool.Name).Order().ToArray();
-        Assert.Equal(["file", "file_read", "powerquery_trace_read", "worksheet"], optional);
+        Assert.Equal(["batch", "file", "file_read", "powerquery_trace_read", "worksheet"], optional);
     }
 
     [Theory]

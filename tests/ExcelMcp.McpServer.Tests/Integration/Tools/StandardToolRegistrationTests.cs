@@ -25,6 +25,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.Equal(McpToolSurface.ToolCount, tools.Count);
         Assert.False(string.IsNullOrWhiteSpace(Client.ServerInstructions));
+        Assert.Contains("Use batch run when the commands and their arguments are known in advance", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("use individual tools when the next step depends on inspecting a result", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("continue after errors by default; set stop_on_error:true for dependent steps", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("reported unknown completion always stop a batch", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("Outside a batch, await each dependent call", Client.ServerInstructions, StringComparison.Ordinal);
         Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
         Assert.Null(Client.ServerCapabilities.Prompts);
         Assert.Null(Client.ServerCapabilities.Resources);
@@ -379,14 +384,15 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
                 if (camelCase == property.Name || camelCase == "sessionId")
                     continue; // sessionId is a local variable name in authored workflow examples.
 
-                // Nested JSON object keys keep their schema spelling; inspect only top-level prose.
+                // Nested JSON keys and explicitly labelled batch args keep their Service spelling.
                 var prose = new[] { tool.Description }.Concat(
                     tool.JsonSchema.GetProperty("properties").EnumerateObject()
                         .Where(p => p.Value.TryGetProperty("description", out _))
                         .Select(p => p.Value.GetProperty("description").GetString()!));
                 foreach (var description in prose)
                 {
-                    var topLevelProse = Regex.Replace(description, @"\{[^{}]*\}", string.Empty);
+                    var topLevelProse = Regex.Replace(description,
+                        @"\{[^{}]*\}|Batch args key: [A-Za-z][A-Za-z0-9]*\.", string.Empty);
                     Assert.False(Regex.IsMatch(topLevelProse, $@"\b{Regex.Escape(camelCase)}\b"),
                         $"{tool.Name} describes '{camelCase}' instead of '{property.Name}': {description}");
                 }

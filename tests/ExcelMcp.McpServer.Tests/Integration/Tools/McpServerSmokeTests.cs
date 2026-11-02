@@ -4,6 +4,7 @@
 using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -38,9 +39,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("RequiresExcel", "true")]
 public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 {
+    private static readonly string[] StartupCommands = ["session.create", "sheet.create", "range.set-values"];
+    private static readonly string[][] InitialValues = [["persisted-smoke-value"]];
+    private static readonly string[][] DefaultSessionValues = [["default-session"]];
+    private static readonly string[][] OverrideSessionValues = [["override-session"]];
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly string _testExcelFile;
+    private readonly HashSet<string> _trackedSessionIds = new(StringComparer.Ordinal);
 
     // MCP transport pipes
     private readonly Pipe _clientToServerPipe = new();
@@ -96,6 +102,17 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         _disposed = true;
 
         var failures = new List<Exception>();
+        foreach (var sessionId in _trackedSessionIds.ToArray())
+        {
+            try
+            {
+                await CloseSmokeWorkbookAsync(sessionId);
+            }
+            catch (Exception cleanupFailure)
+            {
+                failures.Add(cleanupFailure);
+            }
+        }
         try
         {
             await ProgramTransportTestHost.StopAsync(
@@ -142,16 +159,30 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // =====================================================================
         _output.WriteLine("✓ Step 1: Creating workbook and opening session via MCP protocol...");
 
-        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
+        var createResult = await CallSuccessfulToolAsync("batch", new()
         {
-            ["action"] = "create",
-            ["file_path"] = _testExcelFile
+            ["action"] = "run",
+            ["commands"] = new object[]
+            {
+                new { command = "session.create", args = new { filePath = _testExcelFile } },
+                new { command = "sheet.create", args = new { sheetName = "Data" } },
+                new
+                {
+                    command = "range.set-values",
+                    args = new { sheetName = "Data", rangeAddress = "A1", values = InitialValues }
+                }
+            }
         });
-        AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
-        var sessionId = GetJsonProperty(createResult, "workbook_session_id");
+        using var created = JsonDocument.Parse(createResult);
+        AssertBatchCounts(created.RootElement, total: 3, processed: 3);
+        var startupResults = created.RootElement.GetProperty("results").EnumerateArray().ToArray();
+        Assert.Equal(StartupCommands,
+            startupResults.Select(result => result.GetProperty("command").GetString()));
+        Assert.All(startupResults, result => Assert.True(result.GetProperty("success").GetBoolean()));
+        var sessionId = startupResults[0].GetProperty("workbook_session_id").GetString();
         Assert.NotNull(sessionId);
-        _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
+        _output.WriteLine($"  Batch startup captured its session for worksheet creation and writing: {sessionId}");
 
         var listSessionsResult = await CallToolAsync("file_read", new Dictionary<string, object?>
         {
@@ -165,20 +196,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.False(session.TryGetProperty("workbook_session_id", out _));
             Assert.True(session.GetProperty("canClose").GetBoolean());
         }
-        await CallSuccessfulToolAsync("worksheet", new()
-        {
-            ["action"] = "create",
-            ["workbook_session_id"] = sessionId,
-            ["sheet_name"] = "Data"
-        });
-        await CallSuccessfulToolAsync("range", new()
-        {
-            ["action"] = "set-values",
-            ["workbook_session_id"] = sessionId,
-            ["sheet_name"] = "Data",
-            ["range_address"] = "A1",
-            ["values"] = new List<List<string>> { new() { "persisted-smoke-value" } }
-        });
         var selected = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
@@ -196,11 +213,121 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal(JsonValueKind.Null, root.GetProperty("values")[1][1].ValueKind);
             Assert.False(root.TryGetProperty("filePath", out _));
         }
-        await SaveAndVerifyAsync(sessionId, "persisted-smoke-value");
+        await VerifyBatchFailuresAsync(sessionId);
+        await VerifyBatchSessionOverrideAsync(sessionId);
+        await SaveAndVerifyAsync(sessionId,
+        [
+            ["persisted-smoke-value", "before-failure", "after-failure", "default-session"],
+            [null, "before-stop", null, null]
+        ]);
     }
 
+    private async Task VerifyBatchFailuresAsync(string sessionId)
+    {
+        foreach (var stopOnError in new[] { false, true })
+        {
+            var row = stopOnError ? 2 : 1;
+            var before = stopOnError ? "before-stop" : "before-failure";
+            var arguments = new Dictionary<string, object?>
+            {
+                ["action"] = "run",
+                ["workbook_session_id"] = sessionId,
+                ["commands"] = new object[]
+                {
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new { sheetName = "Data", rangeAddress = $"B{row}", values = new[] { new[] { before } } }
+                    },
+                    new { command = "range.get-values", args = new { sheetName = "MissingBatchSheet", rangeAddress = "A1" } },
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new { sheetName = "Data", rangeAddress = $"C{row}", values = new[] { new[] { "after-failure" } } }
+                    }
+                }
+            };
+            if (stopOnError)
+                arguments["stop_on_error"] = true;
+            var json = await CallToolAsync("batch", arguments, expectedError: true);
+            using var batch = JsonDocument.Parse(json);
+            var root = batch.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            AssertBatchCounts(root, total: 3, processed: stopOnError ? 2 : 3);
+            var results = root.GetProperty("results");
+            Assert.True(results[0].GetProperty("success").GetBoolean());
+            Assert.False(results[1].GetProperty("success").GetBoolean());
+            Assert.Contains("MissingBatchSheet", results[1].GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+            if (!stopOnError)
+                Assert.True(results[2].GetProperty("success").GetBoolean());
 
-    private async Task SaveAndVerifyAsync(string sessionId, string expectedValue)
+            var read = await CallSuccessfulToolAsync("range_read", new()
+            {
+                ["action"] = "get-values",
+                ["workbook_session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["range_address"] = $"B{row}:C{row}"
+            });
+            using var cells = JsonDocument.Parse(read);
+            AssertValues(cells.RootElement, [[before, stopOnError ? null : "after-failure"]]);
+        }
+    }
+
+    private async Task VerifyBatchSessionOverrideAsync(string sessionId)
+    {
+        var other = await CallSuccessfulToolAsync("file", new()
+        {
+            ["action"] = "create",
+            ["file_path"] = Path.Join(_tempDir, "OtherWorkbook.xlsx")
+        });
+        var otherSessionId = GetJsonProperty(other, "workbook_session_id");
+        Assert.NotNull(otherSessionId);
+        await VerifyAndCloseAsync(otherSessionId, async () =>
+        {
+            await CallSuccessfulToolAsync("worksheet", new()
+            {
+                ["action"] = "create",
+                ["workbook_session_id"] = otherSessionId,
+                ["sheet_name"] = "Data"
+            });
+            var json = await CallSuccessfulToolAsync("batch", new()
+            {
+                ["action"] = "run",
+                ["workbook_session_id"] = sessionId,
+                ["commands"] = new object[]
+                {
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new { sheetName = "Data", rangeAddress = "D1", values = DefaultSessionValues }
+                    },
+                    new
+                    {
+                        command = "range.set-values",
+                        sessionId = otherSessionId,
+                        args = new { sheetName = "Data", rangeAddress = "D1", values = OverrideSessionValues }
+                    },
+                    new { command = "range.get-values", args = new { sheetName = "Data", rangeAddress = "D1" } }
+                }
+            });
+            using var batch = JsonDocument.Parse(json);
+            AssertBatchCounts(batch.RootElement, total: 3, processed: 3);
+            Assert.All(batch.RootElement.GetProperty("results").EnumerateArray(),
+                result => Assert.True(result.GetProperty("success").GetBoolean()));
+            AssertValues(batch.RootElement.GetProperty("results")[2], [["default-session"]]);
+            var read = await CallSuccessfulToolAsync("range_read", new()
+            {
+                ["action"] = "get-values",
+                ["workbook_session_id"] = otherSessionId,
+                ["sheet_name"] = "Data",
+                ["range_address"] = "D1"
+            });
+            using var cells = JsonDocument.Parse(read);
+            AssertValues(cells.RootElement, [["override-session"]]);
+        });
+    }
+
+    private async Task SaveAndVerifyAsync(string sessionId, string?[][] expectedValues)
     {
         // =====================================================================
         // STEP 14: CLOSE SESSION (save changes)
@@ -258,10 +385,11 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 ["action"] = "get-values",
                 ["workbook_session_id"] = verifySessionId,
                 ["sheet_name"] = "Data",
-                ["range_address"] = "A1"
+                ["range_address"] = "A1:D2"
             });
-            Assert.Equal(expectedValue, GetFirstCellValue(values));
-            _output.WriteLine("  Saved worksheet value survived reopening.");
+            using var cells = JsonDocument.Parse(values);
+            AssertValues(cells.RootElement, expectedValues);
+            _output.WriteLine("  Exact batch results and untouched cells survived reopening.");
         });
 
     }
@@ -316,6 +444,21 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         bool expectedError = false)
     {
         var result = await _client!.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);
+        using var json = JsonDocument.Parse(Assert.Single(result.Content.OfType<TextContentBlock>()).Text);
+        if (toolName == "batch" && json.RootElement.TryGetProperty("results", out var items))
+        {
+            foreach (var item in items.EnumerateArray().Where(item =>
+                item.GetProperty("command").GetString() is "session.create" or "session.open" or "session.attach" &&
+                item.GetProperty("success").GetBoolean()))
+                _trackedSessionIds.Add(item.GetProperty("workbook_session_id").GetString()!);
+        }
+        if (toolName == "file" && json.RootElement.GetProperty("success").GetBoolean())
+        {
+            if (arguments["action"] is "create" or "open")
+                _trackedSessionIds.Add(json.RootElement.GetProperty("workbook_session_id").GetString()!);
+            if (arguments["action"] is "close" && arguments["workbook_session_id"] is string closedSessionId)
+                _trackedSessionIds.Remove(closedSessionId);
+        }
         return McpResponseAssertions.ReadText(result, expectedError);
     }
 
@@ -325,12 +468,22 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     private static void AssertSuccess(string jsonResult, string operationName) =>
         McpResponseAssertions.AssertSuccess(jsonResult, operationName);
 
-    private static string? GetFirstCellValue(string jsonResult)
+    private static void AssertBatchCounts(JsonElement root, int total, int processed)
     {
-        using var json = JsonDocument.Parse(jsonResult);
-        return json.RootElement
-            .GetProperty("values")[0][0]
-            .GetString();
+        Assert.Equal(total, root.GetProperty("totalCount").GetInt32());
+        Assert.Equal(processed, root.GetProperty("executedCount").GetInt32());
+        Assert.Equal(processed < total, root.GetProperty("stoppedEarly").GetBoolean());
+        var results = root.GetProperty("results").EnumerateArray().ToArray();
+        Assert.Equal(processed, results.Length);
+        Assert.Equal(Enumerable.Range(0, processed), results.Select(result => result.GetProperty("index").GetInt32()));
+    }
+
+    private static void AssertValues(JsonElement root, string?[][] expected)
+    {
+        Assert.Equal(expected.Length, root.GetProperty("rowCount").GetInt32());
+        Assert.Equal(expected[0].Length, root.GetProperty("columnCount").GetInt32());
+        Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(expected), root.GetProperty("values")),
+            $"Expected {JsonSerializer.Serialize(expected)}, got {root.GetProperty("values").GetRawText()}.");
     }
 
     /// <summary>

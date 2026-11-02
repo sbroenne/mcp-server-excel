@@ -44,6 +44,7 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             .Where(pair => pair.Key != "diag")
             .ToDictionary(pair => pair.Key, pair => pair.Value.Count, StringComparer.Ordinal);
         expected.Add("file", Enum.GetValues<FileAction>().Length);
+        expected.Add("batch", Enum.GetValues<BatchAction>().Length);
         var expectedReadTools = typeof(IRangeCommands).Assembly.GetTypes()
             .Where(type => type.GetCustomAttribute<McpReadOnlyActionsAttribute>() is not null &&
                 type.GetCustomAttribute<McpToolAttribute>() is not null)

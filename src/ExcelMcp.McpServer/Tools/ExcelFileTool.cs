@@ -1,7 +1,9 @@
 using System.ComponentModel;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -33,16 +35,16 @@ public static partial class ExcelFileTool
     /// enable-editing and enable-connections require approved:true and allow_remembered_trust:true after the user approves that Excel may remember trust for this file. Editing does not also enable VBA macros or update external links. Connection enabling affects all workbook connections and can contact data sources or start refresh.
     /// Company restrictions remain in force. Approval arguments are explicit opt-ins, not a built-in user confirmation dialog.
     /// </summary>
-    /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="file_path">Full Windows path or URL for open. Excel determines what it can open. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear.</param>
-    /// <param name="workbook_session_id">Session ID returned by open/create/attach or listed by this server. Required for close, save, enable-editing, enable-connections, and enable-macros.</param>
-    /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
-    /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
-    /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
-    /// <param name="open_workbook_id">Identifier returned by file_read discover. Required for attach.</param>
-    /// <param name="approved">Explicit approval of the selected workbook security action. Only valid for enable-editing, enable-connections, enable-macros; default false.</param>
-    /// <param name="allow_remembered_trust">Approval that Excel can remember this file as trusted. Required true for enable-editing and enable-connections; default false.</param>
-    /// <param name="allow_reopen">Separate approval to close and reopen the saved workbook, allowing opening event macros to run. Required true for enable-macros; default false. Never saves or discards unsaved work.</param>
+    /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo. Batch command: session.{action}.</param>
+    /// <param name="file_path">Full Windows path or URL for open. Excel determines what it can open. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear. Batch args key: filePath.</param>
+    /// <param name="workbook_session_id">Session ID returned by open/create/attach or listed by this server. Required for close, save, enable-editing, enable-connections, and enable-macros. Batch entry key: sessionId (outside args).</param>
+    /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close. Batch args key: save.</param>
+    /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication. Batch args key: show.</param>
+    /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout. Batch args key: timeoutSeconds.</param>
+    /// <param name="open_workbook_id">Identifier returned by file_read discover. Required for attach. Batch args key: workbookId.</param>
+    /// <param name="approved">Explicit approval of the selected workbook security action. Only valid for enable-editing, enable-connections, enable-macros; default false. Batch args key: approved.</param>
+    /// <param name="allow_remembered_trust">Approval that Excel can remember this file as trusted. Required true for enable-editing and enable-connections; default false. Batch args key: allowRememberedTrust.</param>
+    /// <param name="allow_reopen">Separate approval to close and reopen the saved workbook, allowing opening event macros to run. Required true for enable-macros; default false. Never saves or discards unsaved work. Batch args key: allowReopen.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -90,10 +92,10 @@ public static partial class ExcelFileTool
     /// Remote existence, size and IRM protection cannot be established by local preflight;
     /// false exists/isIrmProtected values do not prove absence or lack of protection.
     /// </remarks>
-    /// <param name="action">Discover already-open workbooks, list sessions, test whether a workbook can be opened, or inspect a selected session's opening notices.</param>
-    /// <param name="file_path">Full Windows path or URL. Required for test.</param>
-    /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
-    /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled.</param>
+    /// <param name="action">Discover already-open workbooks, list sessions, test whether a workbook can be opened, or inspect a selected session's opening notices. Batch command: session.{action}.</param>
+    /// <param name="file_path">Full Windows path or URL. Required for test. Batch args key: filePath.</param>
+    /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600). Batch args key: timeoutSeconds.</param>
+    /// <param name="workbook_session_id">Session to inspect for notices. Attach a discovered Protected View workbook first. Reports verified restrictions and explicit inspection gaps; complete:false does not mean content is enabled. Batch entry key: sessionId (outside args).</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
         Destructive = false)]
     [McpMeta("category", "session")]
@@ -189,22 +191,22 @@ public static partial class ExcelFileTool
 
             var command = ServiceRegistry.GetMcpCommand(toolName, action.ToActionString());
             var outcome = ExcelToolsBase.ReadServiceResponse(response, command);
-            if (!outcome.Success)
-            {
-                if (file_path is not null)
-                    outcome.Error!["filePath"] = file_path;
-                return outcome.ToToolJson();
-            }
-
-            var result = System.Text.Json.Nodes.JsonNode.Parse(outcome.ToToolJson())!.AsObject();
-            var id = result["sessionId"]?.GetValue<string>();
-            if (action is FileAction.Open or FileAction.Create or FileAction.Attach && string.IsNullOrWhiteSpace(id))
-                throw new InvalidOperationException("Workbook startup returned no session ID.");
-            if (id is not null)
-            {
-                result.Remove("sessionId");
-                result["workbook_session_id"] = id;
-            }
-            return result.ToJsonString(ExcelToolsBase.JsonOptions);
+            return ConvertSessionResult(outcome, action.ToActionString(), file_path).ToJsonString(ExcelToolsBase.JsonOptions);
         }, cancellationToken);
+
+    internal static JsonObject ConvertSessionResult(ResultJson outcome, string action, string? filePath = null)
+    {
+        if (!outcome.Success && filePath is not null)
+            outcome.Error!["filePath"] = filePath;
+        var result = JsonNode.Parse(outcome.ToToolJson())!.AsObject();
+        var id = result["sessionId"]?.GetValue<string>();
+        if (outcome.Success && action is "open" or "create" or "attach" && string.IsNullOrWhiteSpace(id))
+            throw new InvalidOperationException("Workbook startup returned no session ID.");
+        if (id is not null)
+        {
+            result.Remove("sessionId");
+            result["workbook_session_id"] = id;
+        }
+        return result;
+    }
 }

@@ -103,6 +103,27 @@ public sealed class RecordingProgramTransportFixture :
         return result.Content.OfType<TextContentBlock>().First().Text;
     }
 
+    public async Task<(CallToolResult Result, ServiceRequest[] Requests)> CallSequenceAsync(
+        string toolName,
+        Dictionary<string, object?> arguments,
+        params ServiceResponse[] responses)
+    {
+        await _callGate.WaitAsync(_cts.Token);
+        try
+        {
+            _backend.PrepareSequence(responses);
+            var client = _client
+                ?? throw new InvalidOperationException("The recording MCP transport fixture is not initialized.");
+            var result = await client.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);
+            return (result, _backend.TakeRequests());
+        }
+        finally
+        {
+            _backend.Clear();
+            _callGate.Release();
+        }
+    }
+
     public async Task<CallToolResult> CallResultWithoutDispatchAsync(
         string toolName,
         Dictionary<string, object?> arguments)
@@ -219,23 +240,24 @@ public sealed class RecordingProgramTransportFixture :
 
     private sealed class RecordingBackend : IServiceBridgeBackend
     {
-        private ServiceResponse? _response;
-        private ServiceRequest? _request;
+        private readonly Queue<ServiceResponse> _responses = new();
+        private readonly List<ServiceRequest> _requests = [];
 
         public void Prepare(ServiceResponse response)
         {
-            if (_response is not null || _request is not null)
-            {
-                throw new InvalidOperationException(
-                    "The previous recording call was not consumed.");
-            }
+            PrepareSequence([response]);
+        }
 
-            _response = response;
+        public void PrepareSequence(ServiceResponse[] responses)
+        {
+            AssertIdle();
+            foreach (var response in responses)
+                _responses.Enqueue(response);
         }
 
         public void AssertIdle()
         {
-            if (_response is not null || _request is not null)
+            if (_responses.Count != 0 || _requests.Count != 0)
             {
                 throw new InvalidOperationException(
                     "The recording backend unexpectedly received a request.");
@@ -244,33 +266,29 @@ public sealed class RecordingProgramTransportFixture :
 
         public ServiceRequest TakeRequest()
         {
-            var request = _request
-                ?? throw new InvalidOperationException(
-                    "The MCP tool did not dispatch a Service request.");
-            _request = null;
-            _response = null;
-            return request;
+            Assert.Empty(_responses);
+            return Assert.Single(TakeRequests());
+        }
+
+        public ServiceRequest[] TakeRequests()
+        {
+            var requests = _requests.ToArray();
+            _requests.Clear();
+            return requests;
         }
 
         public void Clear()
         {
-            _request = null;
-            _response = null;
+            _requests.Clear();
+            _responses.Clear();
         }
 
         public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {
-            if (_request is not null)
-            {
-                throw new InvalidOperationException(
-                    "The MCP tool dispatched more than one Service request.");
-            }
-
-            _request = request;
-            return Task.FromResult(
-                _response
-                ?? throw new InvalidOperationException(
-                    "No recording response was configured."));
+            _requests.Add(request);
+            if (!_responses.TryDequeue(out var response))
+                throw new InvalidOperationException("No recording response was configured.");
+            return Task.FromResult(response);
         }
 
         public void RevealSession(string sessionId) =>

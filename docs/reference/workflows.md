@@ -16,9 +16,64 @@ guide needed for an unresolved decision.
 
 ## CLI batch jobs
 
-MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
-repeated process startup for a known sequence. It is not a transaction.
+Both entry points can run a known sequence in one call: MCP uses `batch`
+with action `run`; CLI uses `excelcli batch`. Commands run one at a time,
+not all-or-nothing. Batches do not roll back after failure; individual commands
+can save or discard edits.
+Timeouts, cancellation, and reported unknown completion always stop later
+commands, even when continuing after ordinary errors is enabled. Excel work
+may still be running; inspect the affected session before sending more work.
 Use individual commands when the next step needs inspection.
+
+### MCP batch
+
+Call `batch` with the same command entries as the CLI. Top-level MCP inputs
+are `commands`, optional `workbook_session_id`, and `stop_on_error` (default
+false). Nested entries retain CLI batch names: `command`, `sessionId`, and
+`args`, with camelCase argument keys rather than MCP snake_case inputs.
+Only commands exposed by MCP tools are accepted; service lifecycle commands
+and nested batches are rejected.
+Each tool's action description supplies its batch command pattern, for example
+`worksheetstyle.{action}`; replace `{action}` with the selected action.
+Parameter descriptions supply exact `Batch args key` names, including manual
+file actions: `open_workbook_id` becomes `args.workbookId`, not
+`args.openWorkbookId`. A session-binding `workbook_session_id` becomes the
+entry's `sessionId`, outside `args`. The optional `workbook_session_id` in
+`powerquery_trace_read` is a trace filter instead: use `args.workbookSessionId`
+for `powerquerytrace.list` and `powerquerytrace.summarize`. An entry's `sessionId`
+does not filter those operations.
+For example, with an existing session and a Sales sheet:
+
+```json
+{
+  "action": "run",
+  "workbook_session_id": "<session-id>",
+  "stop_on_error": true,
+  "commands": [
+    {"command":"range.get-values","args":{"sheetName":"Sales","rangeAddress":"A1:B2"}},
+    {"command":"sheet.list"}
+  ]
+}
+```
+
+An entry's `sessionId` overrides the default. Without a default, a successful
+`session.open`, `session.create`, or `session.attach` supplies it for later
+commands. Closing the default session clears it. Other returned values are
+not substituted into later inputs.
+
+The reply contains `results`, `totalCount`, `executedCount`, and `stoppedEarly`.
+Each result retains the normal MCP JSON fields plus `index` (zero-based) and
+`command`. File/session results use `workbook_session_id`, including successful
+open/create/attach/save results; session capture happens before that conversion.
+Any failed entry sets the overall `success:false` and MCP error
+flag, even if later commands succeed. Check individual results and the number
+processed. Cancellation stops further commands; inspect session state before
+continuing. A batch never automatically undoes, saves, closes, or changes
+calculation mode. Excel AutoSave can still persist edits.
+Batch screenshots return JSON data, not native image content; use
+`screenshot` separately when an image is needed.
+
+### CLI batch
 
 The executable provides the discovery path without a skill or external guide:
 

@@ -120,14 +120,19 @@ public sealed class DocumentationAnalyzer : DiagnosticAnalyzer
             return;
         }
         var areas = manifest.TotalCommands;
-        var operations = manifest.TotalOperations - diag.Actions.Length + fileOperations;
+        var batchOperations = ownTypes.Where(type => type.Name == "BatchAction" && type.TypeKind == TypeKind.Enum)
+            .SelectMany(type => type.GetMembers().OfType<IFieldSymbol>())
+            .Count(field => field.GetAttributes().Any(attribute =>
+                attribute.AttributeClass?.Name == "JsonStringEnumMemberNameAttribute"));
+        var operations = manifest.TotalOperations - diag.Actions.Length + fileOperations + batchOperations;
         var toolNames = ownTypes.SelectMany(type => type.GetMembers().OfType<IMethodSymbol>())
             .SelectMany(method => method.GetAttributes())
             .Where(attribute => attribute.AttributeClass?.ToDisplayString() == "ModelContextProtocol.Server.McpServerToolAttribute")
             .Select(attribute => attribute.NamedArguments.FirstOrDefault(argument => argument.Key == "Name").Value.Value as string)
             .Where(name => name != null).Select(name => name!).ToArray();
+        // Batch combines existing operations rather than adding a workbook feature area.
         if (!toolNames.Contains("file", StringComparer.Ordinal) || toolNames.Contains("diag", StringComparer.Ordinal) ||
-            toolNames.Select(name => name.EndsWith("_read", StringComparison.Ordinal)
+            toolNames.Where(name => name != "batch").Select(name => name.EndsWith("_read", StringComparison.Ordinal)
                 ? name.Substring(0, name.Length - "_read".Length) : name).Distinct(StringComparer.Ordinal).Count() != areas ||
             toolNames.Distinct(StringComparer.Ordinal).Count() != toolNames.Length)
         {

@@ -132,13 +132,7 @@ public static class ExcelToolsBase
         }
         catch (Exception ex)
         {
-            var failureCategory = OperationFailureClassifier.Classify(ex);
-            invocation = new(
-                ToolInvocationOutcome.Failed,
-                ex is JsonException
-                    ? ToolFailureClass.InternalProductFault
-                    : ClassifyFailure(failureCategory),
-                ClassifyFailureCause(failureCategory));
+            invocation = ClassifyToolException(ex);
             throw; // Let the SDK preserve cancellation and redact unexpected invocation errors.
         }
         finally
@@ -163,7 +157,16 @@ public static class ExcelToolsBase
         };
     }
 
-    private static ToolInvocationResult ClassifyToolResponse(string toolName, string actionName, string response)
+    internal static ToolInvocationResult ClassifyToolException(Exception exception)
+    {
+        var category = OperationFailureClassifier.Classify(exception);
+        return new(
+            ToolInvocationOutcome.Failed,
+            exception is JsonException ? ToolFailureClass.InternalProductFault : ClassifyFailure(category),
+            ClassifyFailureCause(category));
+    }
+
+    internal static ToolInvocationResult ClassifyToolResponse(string toolName, string actionName, string response)
     {
         using var document = JsonDocument.Parse(response);
         var root = document.RootElement;
@@ -172,7 +175,8 @@ public static class ExcelToolsBase
 
         var negative = root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False;
         var error = root.TryGetProperty("isError", out var isError) && isError.ValueKind == JsonValueKind.True;
-        if (negative && !error && toolName == "file_read" && actionName == "test")
+        if (negative && !error && toolName == "file_read" && actionName == "test" &&
+            root.TryGetProperty("canOpen", out var canOpen) && canOpen.ValueKind == JsonValueKind.False)
             return new(ToolInvocationOutcome.ExpectedNegative, null);
 
         if (negative || error)

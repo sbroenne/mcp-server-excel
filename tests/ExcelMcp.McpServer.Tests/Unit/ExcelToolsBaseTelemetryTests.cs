@@ -101,6 +101,27 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Theory]
+    [InlineData("Timeout", "TimeoutCancellation", "Timeout")]
+    [InlineData("InvalidInput", "InputState", null)]
+    [InlineData("ServiceUnavailable", "InternalProductFault", null)]
+    public async Task ExecuteToolAction_FileTestServiceFailure_TracksFailureAndCause(
+        string category, string failureClass, string? cause)
+    {
+        ToolInvocationResult? invocation = null;
+        var result = await ExcelToolsBase.ExecuteToolActionAsync("file_read", "test",
+            () => Task.FromResult(ExcelToolsBase.ReadServiceResponse(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = category,
+                ErrorMessage = "File test failed"
+            }, "session.test")), CancellationToken.None,
+            (_, _, _, value) => invocation = value);
+        Assert.True(result.IsError);
+        Assert.Equal(new ToolInvocationResult(ToolInvocationOutcome.Failed,
+            Enum.Parse<ToolFailureClass>(failureClass), cause is null ? null : Enum.Parse<ToolFailureCause>(cause)), invocation);
+    }
+
+    [Theory]
     [InlineData("InvalidInput", "InputState")]
     [InlineData("SessionNotFound", "InputState")]
     [InlineData("Privacy", "ExternalDependency")]

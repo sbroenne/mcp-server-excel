@@ -160,7 +160,12 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                     ErrorCategory = OperationFailureClassifier.Classify(ex),
                     ExceptionType = ex.GetType().Name,
                     HResult = OperationFailureClassifier.GetComHResult(ex),
-                    InnerError = ex.InnerException?.Message
+                    InnerError = ex.InnerException?.Message,
+                    PartialState = JsonSerializer.Serialize(new
+                    {
+                        outcome = "unknown",
+                        message = "Command completion could not be confirmed after a communication failure. Excel work may still be running."
+                    }, ServiceProtocol.JsonOptions)
                 };
             }
 
@@ -194,7 +199,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             {
                 hasErrors = true;
                 if (settings.StopOnError || cancellationToken.IsCancellationRequested ||
-                    outcome.Error?["category"]?.GetValue<string>() == "Cancelled") break;
+                    outcome.MayStillBeRunning) break;
             }
         }
 
