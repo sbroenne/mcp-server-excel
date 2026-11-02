@@ -820,12 +820,13 @@ public sealed class InProcessCliCommandTests
                      "group.action", "command", "args", "sessionId", "sheetName", "rangeAddress",
                      "case-sensitive", "JSON array", "one command per line", "--input -",
                      "session.open/create/attach", "--stop-on-error", "default: continue",
-                     "earlier changes", "index", "$LASTEXITCODE", "stderr", "expected",
+                     "Individual commands can save or discard edits", "index", "$LASTEXITCODE", "stderr", "expected",
                      "excelcli.exe batch", "range.set-values"
                  })
         {
             Assert.Contains(expected, text, StringComparison.Ordinal);
         }
+        Assert.DoesNotContain("earlier changes remain", text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
