@@ -18,7 +18,8 @@ guide needed for an unresolved decision.
 
 Both entry points can run a known sequence in one call: MCP uses `batch`
 with action `run`; CLI uses `excelcli batch`. Commands run one at a time,
-not all-or-nothing. Earlier edits remain after a failure.
+not all-or-nothing. Batches do not roll back after failure; individual commands
+can save or discard edits.
 Use individual commands when the next step needs inspection.
 
 ### MCP batch
@@ -27,6 +28,8 @@ Call `batch` with the same command entries as the CLI. Top-level MCP inputs
 are `commands`, optional `workbook_session_id`, and `stop_on_error` (default
 false). Nested entries retain CLI batch names: `command`, `sessionId`, and
 `args`, with camelCase argument keys rather than MCP snake_case inputs.
+Only commands exposed by MCP tools are accepted; service lifecycle commands
+and nested batches are rejected.
 For example, with an existing session and a Sales sheet:
 
 ```json

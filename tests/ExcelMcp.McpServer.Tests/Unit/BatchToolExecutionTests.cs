@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Bridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
@@ -14,6 +15,99 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class BatchToolExecutionTests
 {
+    [Fact]
+    public async Task CancelledOpen_DoesNotRevealTheDefaultWorkbook()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var revealed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new Backend(_ =>
+        {
+            started.SetResult();
+            return response.Task;
+        }, () => revealed.TrySetResult());
+        using var bridge = new Bridge(() => backend);
+        using var cancellation = new CancellationTokenSource();
+        var pending = ExcelBatchTool.ExcelBatch(BatchAction.Run, bridge,
+            [new() { Command = "session.open", Args = JsonSerializer.SerializeToElement(new { filePath = @"C:\fixture.xlsx" }) }],
+            "existing-hidden-session", cancellationToken: cancellation.Token);
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+            Assert.Null(Assert.Single(backend.Requests).SessionId);
+            Assert.Empty(backend.Revealed);
+        }
+        finally
+        {
+            response.SetResult(new ServiceResponse { Success = true, Result = """{"success":true,"sessionId":"new-session"}""" });
+            await revealed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Assert.Equal(["new-session"], backend.Revealed);
+    }
+
+    [Fact]
+    public async Task Cancellation_StopsWaitingForValidationWithoutStartingExcel()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var validationCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        var backend = new Backend(_ => throw new InvalidOperationException("Validation must finish before dispatch."));
+        using var bridge = new Bridge(() => backend);
+        var pending = Task.Run(() => ExcelBatchTool.ExecuteBatchAsync(BatchAction.Run, bridge,
+            [new() { Command = "range.get-values" }], "existing-session", false, cancellation.Token,
+            (_, _) =>
+            {
+                entered.Set();
+                release.Wait();
+                validationCompleted.SetResult();
+            },
+            (_, _, _, _) => { }));
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.False(validationCompleted.Task.IsCompleted);
+            Assert.Empty(backend.Requests);
+        }
+        finally
+        {
+            release.Set();
+            await validationCompleted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            try { await pending; }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        }
+    }
+
+    [Fact]
+    public async Task Usage_RecordsEachEntryWithSafeIdentityAndNoExtraBatchOperation()
+    {
+        var backend = new Backend(_ => Task.FromResult(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"sheets":[]}"""
+        }));
+        using var bridge = new Bridge(() => backend);
+        var recorded = new List<(string Tool, string Action, ToolInvocationResult Result)>();
+        await ExcelBatchTool.ExecuteBatchAsync(BatchAction.Run, bridge,
+            [
+                new() { Command = "sheet.list" },
+                new() { Command = "range.get-values", Args = JsonSerializer.SerializeToElement(new { sheet = "private-sheet", rangeAddress = "A1" }) },
+                new() { Command = @"private-workbook.xlsx.secret" }
+            ], "private-session", false, CancellationToken.None,
+            Sbroenne.ExcelMcp.Generated.ServiceRegistry.ValidateCommandArguments,
+            (tool, action, _, result) => recorded.Add((tool, action, result)));
+
+        Assert.Equal(3, recorded.Count);
+        Assert.Equal(("worksheet_read", "list", new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null)), recorded[0]);
+        Assert.Equal(("range_read", "get-values", new ToolInvocationResult(ToolInvocationOutcome.Failed, ToolFailureClass.InputState)), recorded[1]);
+        Assert.Equal(("other", "other", new ToolInvocationResult(ToolInvocationOutcome.Failed, ToolFailureClass.InputState)), recorded[2]);
+        Assert.Single(backend.Requests);
+    }
+
     [Fact]
     public async Task Cancellation_StopsDispatchAndRetainsPendingWork()
     {
@@ -70,7 +164,7 @@ public sealed class BatchToolExecutionTests
         Assert.False(started);
     }
 
-    private sealed class Backend(Func<ServiceRequest, Task<ServiceResponse>> process) : IServiceBridgeBackend
+    private sealed class Backend(Func<ServiceRequest, Task<ServiceResponse>> process, Action? onReveal = null) : IServiceBridgeBackend
     {
         public List<ServiceRequest> Requests { get; } = [];
         public List<string> Revealed { get; } = [];
@@ -82,7 +176,11 @@ public sealed class BatchToolExecutionTests
             return process(request);
         }
 
-        public void RevealSession(string sessionId) => Revealed.Add(sessionId);
+        public void RevealSession(string sessionId)
+        {
+            Revealed.Add(sessionId);
+            onReveal?.Invoke();
+        }
         public void Dispose() => Disposed = true;
     }
 }

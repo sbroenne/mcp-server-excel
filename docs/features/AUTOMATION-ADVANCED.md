@@ -104,11 +104,15 @@ so Excel cannot resolve unexpected external resources.
 
 ## Batch jobs (1 operations)
 
-Run a known sequence in one call with MCP `batch` action `run` or
+- **Run known sequences:** Run commands in order in one call, with numbered results and a choice to continue or stop after errors.
+
+Use MCP `batch` action `run` or
 `excelcli batch`. Both accept the same command entries and continue after
 errors by default, with an option to stop. Each result identifies its input
-position. Earlier edits remain after failure; batches do not automatically
-undo or save changes.
+position.
+
+Batches do not roll back after failure or automatically undo or save changes.
+Individual commands can save or discard edits.
 
 [Batch inputs, results, and session handling](../reference/workflows.md#cli-batch-jobs)
 

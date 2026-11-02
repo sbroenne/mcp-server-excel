@@ -30,6 +30,19 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         Assert.Contains("stop_on_error:true", tool.Description);
     }
 
+    [Theory]
+    [InlineData("sheet.list", "worksheet_read", "list", true)]
+    [InlineData("sheet.copy-to-file", "worksheet", "copy-to-file", false)]
+    [InlineData("session.open", "file", "open", false)]
+    [InlineData("session.save", "file", "save", true)]
+    [InlineData("session.list", "file_read", "list", false)]
+    [InlineData("session.notices", "file_read", "notices", true)]
+    public void CommandIdentity_UsesTheAdvertisedToolAndActionSessionRequirement(
+        string command, string tool, string action, bool requiresSession)
+    {
+        Assert.Equal((tool, action, requiresSession), McpActionContract.GetOperation(command));
+    }
+
     [Fact]
     public async Task Run_ForwardsCommandAndReturnsIndexedResult()
     {
@@ -197,7 +210,7 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         using var output = Parse(call.Result);
         Assert.False(call.Result.IsError == true);
         Assert.Equal(3, call.Requests.Length);
-        RecordingToolTest.AssertRequest(call.Requests[0], "session.create", "recording-session",
+        RecordingToolTest.AssertRequest(call.Requests[0], "session.create", null,
             """{"filePath":"C:\\fixture.xlsx"}""");
         RecordingToolTest.AssertRequest(call.Requests[1], "session.close", "another-session", null);
         RecordingToolTest.AssertRequest(call.Requests[2], "sheet.list", "recording-session", null);
@@ -207,6 +220,10 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
     [InlineData("""[{"command":"sheet.list","args":"wrong"}]""", "args")]
     [InlineData("""[{"command":"sheet.list","sessionId":" "}]""", "sessionId")]
     [InlineData("""[{"command":"batch.run"}]""", "batch")]
+    [InlineData("""[{"command":"service.shutdown"}]""", "service.shutdown")]
+    [InlineData("""[{"command":"service.status"}]""", "service.status")]
+    [InlineData("""[{"command":"service.ping"}]""", "service.ping")]
+    [InlineData("""[{"command":"diag.echo","args":{"message":"hello"}}]""", "diag.echo")]
     public async Task InvalidEntry_ReportsInputErrorWithoutDispatch(string commands, string expectedMessage)
     {
         var result = await fixture.CallResultWithoutDispatchAsync("batch", Arguments(commands));
@@ -215,6 +232,19 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         var item = Assert.Single(output.RootElement.GetProperty("results").EnumerateArray());
         Assert.Equal("InvalidInput", item.GetProperty("errorCategory").GetString());
         Assert.Contains(expectedMessage, item.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
+    public async Task Failure_ExplainsNoRollbackWithoutPromisingRetainedEdits()
+    {
+        var call = await fixture.CallSequenceAsync("batch", Arguments(
+            """[{"command":"session.close"},{"command":"sheet.list"}]"""),
+            RecordingToolTest.Success("""{"success":true}"""),
+            new ServiceResponse { Success = false, ErrorCategory = "SessionNotFound", ErrorMessage = "No active session" });
+        using var output = Parse(call.Result);
+        var message = output.RootElement.GetProperty("errorMessage").GetString();
+        Assert.Contains("does not roll back", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("earlier changes remain", message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

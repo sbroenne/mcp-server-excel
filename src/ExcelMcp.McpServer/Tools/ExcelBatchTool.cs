@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -6,6 +7,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -43,6 +45,7 @@ public static partial class ExcelBatchTool
     /// Run a known sequence of commands one at a time in one MCP call.
     /// Uses the excelcli batch entry format: command is group.action (range.get-values, sheet.list, session.open),
     /// args uses Service camelCase keys (sheetName, rangeAddress), and each entry may override sessionId.
+    /// Only commands exposed by MCP tools are accepted; service lifecycle commands and nested batches are rejected.
     /// Supply JSON arrays and objects directly, not strings containing JSON.
     /// workbook_session_id supplies the default session. Without one, successful session.open/create/attach
     /// captures sessionId for later entries; closing that default session clears it.
@@ -51,7 +54,8 @@ public static partial class ExcelBatchTool
     /// Results contain each executed or rejected entry's zero-based index, command, success and normal MCP JSON fields.
     /// totalCount, executedCount and stoppedEarly report how much of the list was processed.
     /// Any failed entry sets the batch's success:false and MCP error flag. Cancellation stops further commands.
-    /// Earlier changes remain after failure or cancellation. Does not automatically undo, save, close, or change calculation mode.
+    /// Does not roll back after failure or cancellation. Individual commands can save or discard edits.
+    /// Does not automatically undo, save, close, or change calculation mode.
     /// Excel AutoSave can still persist edits. Inspect results and session state before retrying.
     /// Screenshots in a batch return JSON data; use the screenshot tool for native image content.
     /// </summary>
@@ -62,8 +66,6 @@ public static partial class ExcelBatchTool
     [McpServerTool(Name = "batch", Title = "Batch Operations", Destructive = true, Idempotent = false)]
     [McpMeta("category", "batch")]
     [McpMeta("requiresSession", false)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Batch input validation failures become explicit failed items and set the aggregate MCP error flag. Service execution and cancellation are outside this catch and propagate normally.")]
     public static partial Task<CallToolResult> ExcelBatch(
         BatchAction action,
         ServiceBridge.ServiceBridge bridge,
@@ -71,6 +73,18 @@ public static partial class ExcelBatchTool
         [McpActionParameter("run"), DefaultValue(null)] string? workbook_session_id = null,
         [McpActionParameter("run"), DefaultValue(false)] bool stop_on_error = false,
         CancellationToken cancellationToken = default) =>
+        ExecuteBatchAsync(action, bridge, commands, workbook_session_id, stop_on_error, cancellationToken,
+            ServiceRegistry.ValidateCommandArguments, ExcelMcpTelemetry.TrackToolInvocation);
+
+    internal static Task<CallToolResult> ExecuteBatchAsync(
+        BatchAction action,
+        ServiceBridge.ServiceBridge bridge,
+        BatchCommandEntry[] commands,
+        string? workbook_session_id,
+        bool stop_on_error,
+        CancellationToken cancellationToken,
+        Action<string, string?> validateArguments,
+        Action<string, string, long, ToolInvocationResult> trackInvocation) =>
         ExcelToolsBase.ExecuteToolActionAsync("batch", "run", async () =>
         {
             if (action != BatchAction.Run)
@@ -90,24 +104,10 @@ public static partial class ExcelBatchTool
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = commands[index];
-                var sessionId = entry.SessionId ?? activeSession;
-                ResultJson? validationFailure = null;
-                try
-                {
-                    if (entry.SessionId is not null && string.IsNullOrWhiteSpace(entry.SessionId))
-                        throw new ArgumentException("sessionId must be a non-empty string.");
-                    if (entry.Args is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null) })
-                        throw new ArgumentException("args must be a JSON object or null.");
-                    ServiceRegistry.ValidateCommandArguments(entry.Command, entry.Args?.GetRawText());
-                }
-                catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
-                {
-                    validationFailure = ResultJson.Read(null, entry.Command, delivered: false,
-                        message: ex.Message, category: "InvalidInput", sessionId: sessionId,
-                        exceptionType: ex.GetType().Name, innerError: ex.InnerException?.Message);
-                }
-                var outcome = validationFailure ?? await ExcelToolsBase.ForwardResultToServiceAsync(
-                    bridge, entry.Command, sessionId, entry.Args, cancellationToken);
+                var operation = McpActionContract.GetOperation(entry.Command);
+                var sessionId = operation is { RequiresSession: true } ? entry.SessionId ?? activeSession : null;
+                var outcome = await ExecuteCommandAsync(
+                    bridge, entry, operation, sessionId, cancellationToken, validateArguments, trackInvocation);
 
                 if (outcome.Success && activeSession is null &&
                     (entry.Command.Equals("session.open", StringComparison.OrdinalIgnoreCase) ||
@@ -145,9 +145,69 @@ public static partial class ExcelBatchTool
             };
             if (firstFailure is not null)
             {
-                result["errorMessage"] = "One or more batch commands failed. Inspect results before continuing; earlier changes remain.";
+                result["errorMessage"] = "One or more batch commands failed. The batch does not roll back; individual commands can save or discard edits. Inspect results before continuing.";
                 result["errorCategory"] = firstFailure.Error?["category"]?.DeepClone();
             }
             return result.ToJsonString(ExcelToolsBase.JsonOptions);
-        }, cancellationToken);
+        }, cancellationToken, static (_, _, _, _) => { });
+
+    private static async Task<ResultJson> ExecuteCommandAsync(
+        ServiceBridge.ServiceBridge bridge,
+        BatchCommandEntry entry,
+        (string Tool, string Action, bool RequiresSession)? operation,
+        string? sessionId,
+        CancellationToken cancellationToken,
+        Action<string, string?> validateArguments,
+        Action<string, string, long, ToolInvocationResult> trackInvocation)
+    {
+        var tool = operation?.Tool ?? "other";
+        var action = operation?.Action ?? "other";
+        var stopwatch = Stopwatch.StartNew();
+        var invocation = new ToolInvocationResult(ToolInvocationOutcome.Failed, ToolFailureClass.Unclassified);
+        try
+        {
+            var validationFailure = await Task.Run(() => ValidateCommand(entry, operation, sessionId, validateArguments),
+                cancellationToken).WaitAsync(cancellationToken);
+            var outcome = validationFailure ?? await ExcelToolsBase.ForwardResultToServiceAsync(
+                bridge, entry.Command, sessionId, entry.Args, cancellationToken);
+            invocation = ExcelToolsBase.ClassifyToolResponse(tool, action, outcome.ToToolJson());
+            return outcome;
+        }
+        catch (Exception exception)
+        {
+            invocation = ExcelToolsBase.ClassifyToolException(exception);
+            throw;
+        }
+        finally
+        {
+            trackInvocation(tool, action, stopwatch.ElapsedMilliseconds, invocation);
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Input validation failures become explicit failed items and set the aggregate MCP error flag. Execution and cancellation are outside this boundary.")]
+    private static ResultJson? ValidateCommand(
+        BatchCommandEntry entry,
+        (string Tool, string Action, bool RequiresSession)? operation,
+        string? sessionId,
+        Action<string, string?> validateArguments)
+    {
+        try
+        {
+            if (operation is null)
+                throw new ArgumentException($"Command '{entry.Command}' is not available in MCP batches. Use commands exposed by MCP tools.");
+            if (entry.SessionId is not null && string.IsNullOrWhiteSpace(entry.SessionId))
+                throw new ArgumentException("sessionId must be a non-empty string.");
+            if (entry.Args is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null) })
+                throw new ArgumentException("args must be a JSON object or null.");
+            validateArguments(entry.Command, entry.Args?.GetRawText());
+            return null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            return ResultJson.Read(null, entry.Command, delivered: false,
+                message: ex.Message, category: "InvalidInput", sessionId: sessionId,
+                exceptionType: ex.GetType().Name, innerError: ex.InnerException?.Message);
+        }
+    }
 }
