@@ -1,4 +1,5 @@
 using System.Reflection;
+using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -6,18 +7,17 @@ namespace Sbroenne.ExcelMcp.McpServer;
 
 internal static class McpActionContract
 {
-    private static readonly MethodInfo[] FileMethods = typeof(ExcelFileTool)
-        .GetMethods(BindingFlags.Public | BindingFlags.Static)
-        .Where(method => method.Name is nameof(ExcelFileTool.ExcelFile) or nameof(ExcelFileTool.ExcelFileRead))
+    private static readonly MethodInfo[] ManualMethods = new[] { typeof(ExcelFileTool), typeof(ExcelBatchTool) }
+        .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+        .Where(method => method.GetCustomAttribute<McpServerToolAttribute>() is not null)
         .ToArray();
 
     internal static (string Name, bool Required, bool AllowsEmpty, string? Alternative)[] GetParameters(string tool, string action)
     {
-        if (tool is not ("file" or "file_read"))
+        var method = ManualMethods.SingleOrDefault(method =>
+            method.GetCustomAttribute<McpServerToolAttribute>()!.Name == tool);
+        if (method is null)
             return ServiceRegistry.GetMcpActionParameters(tool, action);
-
-        var methodName = tool == "file" ? nameof(ExcelFileTool.ExcelFile) : nameof(ExcelFileTool.ExcelFileRead);
-        var method = FileMethods.Single(method => method.Name == methodName);
         return method.GetParameters()
             .SelectMany(parameter => parameter.GetCustomAttributes<McpActionParameterAttribute>()
                 .Where(attribute => attribute.Action == action)

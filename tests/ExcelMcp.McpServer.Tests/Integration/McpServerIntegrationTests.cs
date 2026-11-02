@@ -53,6 +53,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     [
         "analysis",
         "analysis_read",
+        "batch",
         "calculation_mode",
         "calculation_mode_read",
         "chart",

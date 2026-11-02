@@ -78,7 +78,6 @@
     },
     "batch": {
       "feature": "other",
-      "cliOnly": true,
       "actions": {
         "run": "light"
       }

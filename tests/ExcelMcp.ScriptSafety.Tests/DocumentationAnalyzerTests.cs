@@ -21,6 +21,25 @@ public sealed class DocumentationAnalyzerTests
     }
 
     [Fact]
+    public async Task BatchTool_AddsEndpointWithoutAddingAWorkbookFeatureArea()
+    {
+        var documents = Documents();
+        foreach (var path in documents.Keys.ToArray())
+        {
+            documents[path] = documents[path].Replace("1 MCP tools", "2 MCP tools", StringComparison.Ordinal)
+                .Replace("with 1 tools", "with 2 tools", StringComparison.Ordinal)
+                .Replace("its 1 tool schemas", "its 2 tool schemas", StringComparison.Ordinal);
+            documents[path] = documents[path].Replace("1 operations", "2 operations", StringComparison.Ordinal)
+                .Replace("\"operations\":1", "\"operations\":2", StringComparison.Ordinal);
+        }
+        Assert.Empty(await AnalyzeAsync(documents, additionalTools:
+            """
+            [ModelContextProtocol.Server.McpServerTool(Name = "batch")] public void Batch() {}
+            enum BatchAction { [JsonStringEnumMemberName("run")] Run }
+            """));
+    }
+
+    [Fact]
     public async Task ReadOnlyCategory_AcceptsCompiledCountsWithoutWriteEndpoint()
     {
         var documents = Documents().ToDictionary(pair => pair.Key,
