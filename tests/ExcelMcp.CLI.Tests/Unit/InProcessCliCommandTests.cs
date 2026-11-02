@@ -602,6 +602,75 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
+    [InlineData("range")]
+    [InlineData("chart")]
+    [InlineData("calculationmode")]
+    public async Task ListActions_EntryPointListsExactGeneratedActionsWithoutConnecting(string command)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["list-actions", command], CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("list-actions", result.RootElement.GetProperty("command").GetString());
+        var data = result.RootElement.GetProperty("data");
+        Assert.Equal(command, data.GetProperty("command").GetString());
+        Assert.Equal(
+            _CliCategoryMetadata.ValidActionsByCommand[command].Order(StringComparer.OrdinalIgnoreCase),
+            data.GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ListActions_EntryPointIncludesEverySessionAction(bool allCommands)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            allCommands ? ["list-actions"] : ["list-actions", "session"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(0, factory.ConnectionCount);
+        Assert.Empty(error.ToString());
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        var data = result.RootElement.GetProperty("data");
+        var actions = allCommands ? data.GetProperty("commands").GetProperty("session") : data.GetProperty("actions");
+        Assert.Equal(
+            ["attach", "close", "create", "discover", "enable-connections", "enable-editing",
+                "enable-macros", "list", "notices", "open", "save", "test"],
+            actions.EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
+    public async Task ListActions_EntryPointRejectsUnknownCategoryWithoutConnecting()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["list-actions", "unknown"], CreateRuntime(factory, output, new StringWriter()));
+
+        Assert.Equal(1, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(0, factory.ConnectionCount);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Unknown command 'unknown'.",
+            result.RootElement.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Theory]
     [InlineData(null, 0)]
     [InlineData("range", 0)]
     [InlineData("session", 0)]
@@ -1436,6 +1505,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         Assert.Contains("USAGE:", output.ToString(), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("session", output.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("list-actions", output.ToString(), StringComparison.Ordinal);
         Assert.Equal(string.Empty, error.ToString());
     }
 

@@ -21,12 +21,18 @@ Run these commands in PowerShell 7.4 or later (`pwsh`), not Windows PowerShell 5
 
 ```powershell
 & "<plugin-root>\bin\start-cli.ps1" --help
-& "<plugin-root>\bin\start-cli.ps1" session --help
 ```
 
 Use the same full launcher path for subsequent commands, especially quoted JSON
-arguments. Discover exact command names, flags, defaults,
-and save/close behavior through native `--help`; do not invent syntax.
+arguments. Use `list-actions <command>` for a compact list of exact action names
+(omit `<command>` to list workbook command categories). Then read
+`<command> <action> --help` only for the actions needed: it shows their inputs,
+defaults, and exact batch argument names. Category-only `<command> --help`
+includes options for every action and can be much larger. Do not guess action
+names or add arguments absent from the selected action's help.
+Reuse help already read in this task; read it again only for an unresolved detail
+or after switching CLI versions. Check `session save --help` and
+`session close --help` when their behavior is needed, not before every call.
 
 ## Reach the right workbook
 

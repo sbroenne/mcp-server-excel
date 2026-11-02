@@ -23,6 +23,9 @@ public sealed class SkillPreparationTests
         Assert.Contains("start-cli.ps1", content, StringComparison.Ordinal);
         Assert.Contains("npx -y @sbroenne/excelcli@latest", content, StringComparison.Ordinal);
         Assert.Contains("--help", content, StringComparison.Ordinal);
+        Assert.Contains("list-actions <command>", content, StringComparison.Ordinal);
+        Assert.Contains("<command> <action> --help", content, StringComparison.Ordinal);
+        Assert.Contains("Reuse help already read", content, StringComparison.Ordinal);
         Assert.Contains("For the plugin-bundled copy", content, StringComparison.Ordinal);
         Assert.DoesNotContain("standalone skill", content, StringComparison.OrdinalIgnoreCase);
         Assert.False(Directory.Exists(Path.Combine(root, "references")));

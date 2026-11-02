@@ -129,7 +129,7 @@ function Read-UsageAnalyticsWeights {
     $splitMap = [ordered]@{}
     foreach ($category in (@($source.cliCategories.Keys) | Sort-Object)) {
         $targets = @($source.cliCategories[$category])
-        if ($category -notmatch '^[a-z0-9_]+$' -or $targets.Count -eq 0) {
+        if ($category -notmatch '^[a-z0-9_]+(?:-[a-z0-9_]+)*$' -or $targets.Count -eq 0) {
             throw "Usage analytics weights CLI category '$category' is invalid."
         }
         foreach ($target in $targets) {

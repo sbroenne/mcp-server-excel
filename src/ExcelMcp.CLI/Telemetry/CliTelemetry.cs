@@ -22,7 +22,8 @@ internal static class CliTelemetry
         ["service"] = ["start", "stop", "status", "shutdown", "ping"],
         ["session"] = ["create", "open", "save", "close", "list", "test", "discover", "attach",
             "notices", "enable-editing", "enable-connections", "enable-macros"],
-        ["batch"] = ["run"]
+        ["batch"] = ["run"],
+        ["list-actions"] = ["run"]
     };
 
     private static readonly string[] HelpFlags = ["--help", "-h"];
@@ -271,6 +272,8 @@ internal static class CliTelemetry
         var category = ServiceRegistry.ValidActionsByCategory.ContainsKey(args[0])
             ? args[0].ToLowerInvariant()
             : args[0];
+        if (string.Equals(category, "list-actions", StringComparison.OrdinalIgnoreCase))
+            return "list-actions.run";
         // Commands without a subcommand (for example "batch") use the "run" action.
         var action = args.Length > 1 && !args[1].StartsWith('-') ? args[1] : "run";
         return $"{category}.{action}";

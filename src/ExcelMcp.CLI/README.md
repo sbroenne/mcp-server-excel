@@ -13,7 +13,7 @@ the same features as the MCP Server and usually uses fewer AI tokens.
 > **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli@latest --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 33 feature command categories with 433 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 33 tool schemas into context.
+The CLI provides 33 feature command categories with 433 operations matching the MCP Server, plus `session`, `service`, `batch`, and `list-actions` commands — the same capabilities without loading 33 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -83,7 +83,7 @@ ExcelMcp.CLI provides **433 operations** across 31 feature command categories in
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 
-📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Use `excelcli --help` for commands, `excelcli <command> --help` for actions, and `excelcli <command> <action> --help` for only that action's inputs.
+📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Use `excelcli --help` for commands, `excelcli list-actions <command>` for compact action lists, and `excelcli <command> <action> --help` for only that action's inputs.
 
 ---
 
