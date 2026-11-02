@@ -157,7 +157,7 @@ public partial class RangeCommands
                         ? Convert.ToString(ReadFormulas(context, cell), CultureInfo.InvariantCulture)
                         : null;
                     object? value = cell.Value2;
-                    if (ExcelErrorMapper.TryGet(value, out _, out var mapped))
+                    if (ExcelErrorMapper.TryGet(value, out _, out var mapped) && IsNativeError(context, cell, 1, 1))
                         value = mapped.Name;
                     string? formulaPreview = LimitTraceText(formula, maxPreviewCharacters);
                     object? valuePreview = value is string text ? LimitTraceText(text, maxPreviewCharacters) : value;

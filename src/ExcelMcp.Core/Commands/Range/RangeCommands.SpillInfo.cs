@@ -31,7 +31,7 @@ public partial class RangeCommands
                     SheetName = sheet.Name,
                     RangeAddress = range.Address
                 };
-                RangeHelpers.VisitCells(range, ct, cell => result.Cells.Add(ReadSpillCell(cell)));
+                RangeHelpers.VisitCells(range, ct, cell => result.Cells.Add(ReadSpillCell(ctx, cell)));
                 result.Cells = result.Cells.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToList();
                 result.CellCount = result.Cells.Count;
                 result.Success = true;
@@ -45,7 +45,7 @@ public partial class RangeCommands
         });
     }
 
-    private static SpillCellInfo ReadSpillCell(Excel.Range cell)
+    private static SpillCellInfo ReadSpillCell(ExcelContext context, Excel.Range cell)
     {
         string address = cell.Address;
         int row = cell.Row;
@@ -59,7 +59,8 @@ public partial class RangeCommands
         {
             bool hasFormula = Convert.ToBoolean((object)cell.HasFormula, CultureInfo.InvariantCulture);
             object? value = cell.Value2;
-            if (hasFormula && ExcelErrorMapper.TryGet(value, out _, out var error) && error.Name == "#SPILL!")
+            if (hasFormula && ExcelErrorMapper.TryGet(value, out _, out var error) && error.Name == "#SPILL!" &&
+                IsNativeError(context, cell, 1, 1))
             {
                 return new SpillCellInfo(address, row, column, SpillCellState.Blocked,
                     address, Convert.ToString((object)cell.Formula2, CultureInfo.InvariantCulture));
