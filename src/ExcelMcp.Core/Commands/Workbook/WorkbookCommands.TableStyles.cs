@@ -96,6 +96,29 @@ public partial class WorkbookCommands
     public TableStyleResult UpdateTableStyle(IExcelBatch batch, string styleName, TableStyleOptions tableStyleOptions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(styleName);
+        ValidateTableStyleOptions(tableStyleOptions);
+        return batch.Execute((ctx, ct) =>
+        {
+            Excel.TableStyles? styles = null;
+            Excel.TableStyle? style = null;
+            try
+            {
+                styles = ctx.Book.TableStyles;
+                style = FindTableStyle(styles, styleName, ct);
+                RejectBuiltInTableStyle(style);
+                ApplyTableStyleOptions(style, tableStyleOptions, ct);
+                return ReadTableStyleResult(style, batch.WorkbookPath, ct);
+            }
+            finally
+            {
+                ComUtilities.Release(ref style);
+                ComUtilities.Release(ref styles);
+            }
+        });
+    }
+
+    internal static void ValidateTableStyleOptions(TableStyleOptions tableStyleOptions)
+    {
         ArgumentNullException.ThrowIfNull(tableStyleOptions);
         HashSet<Excel.XlTableStyleElementType> types = [];
         foreach (var setting in tableStyleOptions.Elements ?? [])
@@ -111,85 +134,78 @@ public partial class WorkbookCommands
             if ((setting.Borders ?? []).Any(border => border.Position is CellBorderPosition.DiagonalDown or CellBorderPosition.DiagonalUp))
                 throw new ArgumentException("Native table-style elements do not support diagonal borders.");
         }
-        return batch.Execute((ctx, ct) =>
+    }
+
+    internal static void ApplyTableStyleOptions(Excel.TableStyle style, TableStyleOptions tableStyleOptions, CancellationToken ct)
+    {
+        Excel.TableStyleElements? elements = null;
+        try
         {
-            Excel.TableStyles? styles = null;
-            Excel.TableStyle? style = null;
-            Excel.TableStyleElements? elements = null;
-            try
+            elements = style.TableStyleElements;
+            foreach (var setting in tableStyleOptions.Elements ?? [])
             {
-                styles = ctx.Book.TableStyles;
-                style = FindTableStyle(styles, styleName, ct);
-                RejectBuiltInTableStyle(style);
-                elements = style.TableStyleElements;
-                foreach (var setting in tableStyleOptions.Elements ?? [])
+                ct.ThrowIfCancellationRequested();
+                if (setting.StripeSize is null || setting.HasFormatting) continue;
+                Excel.TableStyleElement? stripeElement = null;
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-                    if (setting.StripeSize is null || setting.HasFormatting) continue;
-                    Excel.TableStyleElement? stripeElement = null;
-                    try
-                    {
-                        stripeElement = elements.Item(ParseTableStyleElement(setting.ElementType));
-                        if (!stripeElement.HasFormat)
-                            throw new OperationFailureException(OperationFailureCategory.InvalidInput,
-                                $"Element '{setting.ElementType}' has no native format. Supply formatting with stripeSize to create the stripe definition.");
-                    }
-                    finally { ComUtilities.Release(ref stripeElement); }
+                    stripeElement = elements.Item(ParseTableStyleElement(setting.ElementType));
+                    if (!stripeElement.HasFormat)
+                        throw new OperationFailureException(OperationFailureCategory.InvalidInput,
+                            $"Element '{setting.ElementType}' has no native format. Supply formatting with stripeSize to create the stripe definition.");
                 }
-                foreach (var setting in tableStyleOptions.Elements ?? [])
+                finally { ComUtilities.Release(ref stripeElement); }
+            }
+            foreach (var setting in tableStyleOptions.Elements ?? [])
+            {
+                ct.ThrowIfCancellationRequested();
+                Excel.TableStyleElement? element = null;
+                Excel.Font? font = null;
+                Excel.Interior? fill = null;
+                Excel.Borders? borders = null;
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-                    Excel.TableStyleElement? element = null;
-                    Excel.Font? font = null;
-                    Excel.Interior? fill = null;
-                    Excel.Borders? borders = null;
-                    try
+                    element = elements.Item(ParseTableStyleElement(setting.ElementType));
+                    if (setting.Clear == true) element.Clear();
+                    else
                     {
-                        element = elements.Item(ParseTableStyleElement(setting.ElementType));
-                        if (setting.Clear == true) element.Clear();
-                        else
+                        var format = setting.ToFormatOptions();
+                        // An unset element creates differential components lazily; acquire each immediately before writing.
+                        if (setting.HasFillFormatting)
                         {
-                            var format = setting.ToFormatOptions();
-                            // An unset element creates differential components lazily; acquire each immediately before writing.
-                            if (setting.HasFillFormatting)
-                            {
-                                fill = element.Interior;
-                                CellFormatWriter.ApplyFill(fill, format);
-                            }
-                            if (setting.HasFontFormatting)
-                            {
-                                font = element.Font;
-                                CellFormatWriter.ApplyFont(font, format);
-                            }
-                            if (setting.Borders?.Count > 0)
-                            {
-                                borders = element.Borders;
-                                CellFormatWriter.ApplyBorders(borders, format, ct);
-                            }
-                            if (setting.StripeSize is { } stripe) element.StripeSize = stripe;
+                            fill = element.Interior;
+                            CellFormatWriter.ApplyFill(fill, format);
                         }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref borders);
-                        ComUtilities.Release(ref font);
-                        ComUtilities.Release(ref fill);
-                        ComUtilities.Release(ref element);
+                        if (setting.HasFontFormatting)
+                        {
+                            font = element.Font;
+                            CellFormatWriter.ApplyFont(font, format);
+                        }
+                        if (setting.Borders?.Count > 0)
+                        {
+                            borders = element.Borders;
+                            CellFormatWriter.ApplyBorders(borders, format, ct);
+                        }
+                        if (setting.StripeSize is { } stripe) element.StripeSize = stripe;
                     }
                 }
-                if (tableStyleOptions.ShowAsAvailableTableStyle is { } table) style.ShowAsAvailableTableStyle = table;
-                if (tableStyleOptions.ShowAsAvailablePivotTableStyle is { } pivot) style.ShowAsAvailablePivotTableStyle = pivot;
-                if (tableStyleOptions.ShowAsAvailableSlicerStyle is { } slicer) style.ShowAsAvailableSlicerStyle = slicer;
-                if (tableStyleOptions.ShowAsAvailableTimelineStyle is { } timeline) style.ShowAsAvailableTimelineStyle = timeline;
-                return ReadTableStyleResult(style, batch.WorkbookPath, ct);
+                finally
+                {
+                    ComUtilities.Release(ref borders);
+                    ComUtilities.Release(ref font);
+                    ComUtilities.Release(ref fill);
+                    ComUtilities.Release(ref element);
+                }
             }
-            finally
-            {
-                ComUtilities.Release(ref elements);
-                ComUtilities.Release(ref style);
-                ComUtilities.Release(ref styles);
-            }
-        });
+            if (tableStyleOptions.ShowAsAvailableTableStyle is { } table) style.ShowAsAvailableTableStyle = table;
+            if (tableStyleOptions.ShowAsAvailablePivotTableStyle is { } pivot) style.ShowAsAvailablePivotTableStyle = pivot;
+            if (tableStyleOptions.ShowAsAvailableSlicerStyle is { } slicer) style.ShowAsAvailableSlicerStyle = slicer;
+            if (tableStyleOptions.ShowAsAvailableTimelineStyle is { } timeline) style.ShowAsAvailableTimelineStyle = timeline;
+        }
+        finally
+        {
+            ComUtilities.Release(ref elements);
+        }
     }
 
     /// <inheritdoc/>
@@ -235,11 +251,11 @@ public partial class WorkbookCommands
         type is Excel.XlTableStyleElementType.xlRowStripe1 or Excel.XlTableStyleElementType.xlRowStripe2 or
             Excel.XlTableStyleElementType.xlColumnStripe1 or Excel.XlTableStyleElementType.xlColumnStripe2;
 
-    private static Excel.TableStyle FindTableStyle(Excel.TableStyles styles, string name, CancellationToken ct) =>
+    internal static Excel.TableStyle FindTableStyle(Excel.TableStyles styles, string name, CancellationToken ct) =>
         TryFindTableStyle(styles, name, ct) ??
         throw new OperationFailureException(OperationFailureCategory.NotFound, $"Table style '{name}' was not found.");
 
-    private static Excel.TableStyle? TryFindTableStyle(Excel.TableStyles styles, string name, CancellationToken ct)
+    internal static Excel.TableStyle? TryFindTableStyle(Excel.TableStyles styles, string name, CancellationToken ct)
     {
         for (int index = 1; index <= styles.Count; index++)
         {
@@ -265,7 +281,7 @@ public partial class WorkbookCommands
         new(style.Name, style.NameLocal, style.BuiltIn, style.ShowAsAvailableTableStyle,
             style.ShowAsAvailablePivotTableStyle, style.ShowAsAvailableSlicerStyle, style.ShowAsAvailableTimelineStyle);
 
-    private static TableStyleResult ReadTableStyleResult(Excel.TableStyle style, string filePath, CancellationToken ct)
+    internal static TableStyleResult ReadTableStyleResult(Excel.TableStyle style, string filePath, CancellationToken ct)
     {
         Excel.TableStyleElements? elements = null;
         try

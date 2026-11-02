@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 
@@ -21,10 +22,32 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
     Description = "Create, configure, and delete slicers and timelines that filter PivotTables and Tables. Creation requires a unique slicer_name, an existing destination_sheet, and a position. " +
         "PIVOTTABLE SLICERS: create-slicer, set-slicer-selection, delete-slicer; they filter only connected PivotTables. TABLE SLICERS: create-table-slicer, set-table-slicer-selection, delete-table-slicer. TIMELINES: create-timeline, set-timeline-selection, clear-timeline-selection, using calendar dates. " +
         "SELECTION: selected_items is JSON-array text; '[]' clears the filter. Selection replaces by default; clear_first=false adds. Data Model/OLAP selection accepts captions or MDX unique names and rejects unknown or ambiguous items before changing the filter. " +
-        "connect-pivottable links compatible PivotTables without rebuilding caches: regular PivotTables must share the PivotCache; Data Model PivotTables must use the same workbook Data Model connection. disconnect-pivottable removes one link. update-slicer changes appearance settings in points.")]
-[McpReadOnlyActions("get-slicer", "list-slicers", "list-table-slicers")]
+        "connect-pivottable links compatible PivotTables without rebuilding caches: regular PivotTables must share the PivotCache; Data Model PivotTables must use the same workbook Data Model connection. disconnect-pivottable removes one link. update-slicer changes appearance settings in points. " +
+        "STYLES: create-style copies source_style_name into a new style_name, overriding supplied slicer_style_options without applying it. apply-style changes only the named slicer's style, not layout or filters. Timeline styles use workbook style commands and update-slicer.")]
+[McpReadOnlyActions("get-slicer", "list-slicers", "list-table-slicers", "list-styles")]
 public interface ISlicerCommands
 {
+    /// <summary>Lists all built-in and custom styles available for ordinary PivotTable, Data Model, and Table slicers in this workbook. Excludes styles not available for ordinary slicers.</summary>
+    [ServiceAction("list-styles")]
+    TableStyleListResult ListStyles(IExcelBatch batch);
+
+    /// <summary>Copies an existing ordinary slicer style into a new workbook-owned custom style and applies only supplied element overrides. Does not apply it to any slicer. Existing destination names are rejected. Failures after copying leave the new style for inspection; no automatic rollback.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">New workbook style name; must not already exist.</param>
+    /// <param name="sourceStyleName">Existing built-in or custom ordinary slicer style from list-styles.</param>
+    /// <param name="slicerStyleOptions">Typed object with optional wholeTable, header, selectedItemWithData, selectedItemWithNoData, unselectedItemWithData, unselectedItemWithNoData and four hovered equivalents. Each accepts fillColor, borderColor, fontColor (#RRGGBB) and bold. borderColor sets four solid thin outer borders. Omitted values inherit the source; an empty object copies unchanged.</param>
+    [ServiceAction("create-style")]
+    TableStyleResult CreateStyle(IExcelBatch batch, [RequiredParameter] string styleName,
+        [RequiredParameter] string sourceStyleName, [RequiredParameter] SlicerStyleOptions slicerStyleOptions);
+
+    /// <summary>Applies an existing built-in or custom ordinary slicer style to one PivotTable, Data Model, or Table slicer. Leaves column count, layout, connections, and filters unchanged. Timelines are not supported by this action.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="slicerName">Existing ordinary slicer name.</param>
+    /// <param name="styleName">Existing ordinary slicer style from list-styles.</param>
+    [ServiceAction("apply-style")]
+    SlicerStateResult ApplyStyle(IExcelBatch batch, [RequiredParameter] string slicerName,
+        [RequiredParameter] string styleName);
+
     /// <summary>Creates a native date timeline for a PivotTable date field. Does not rebuild the source or alter existing caches. Use get-slicer for native date/layout state and delete-slicer for its lifecycle.</summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Source PivotTable</param>

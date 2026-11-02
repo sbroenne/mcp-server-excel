@@ -60,6 +60,10 @@ public sealed partial class SlicerCommands
 
     /// <inheritdoc />
     public SlicerStateResult UpdateSlicer(IExcelBatch batch, string slicerName, SlicerUpdateOptions slicerOptions)
+        => UpdateSlicerCore(batch, slicerName, slicerOptions, ordinaryOnly: false);
+
+    private static SlicerStateResult UpdateSlicerCore(IExcelBatch batch, string slicerName,
+        SlicerUpdateOptions slicerOptions, bool ordinaryOnly)
     {
         ArgumentNullException.ThrowIfNull(slicerOptions);
         foreach (var number in new[] { slicerOptions.Left, slicerOptions.Top, slicerOptions.Width, slicerOptions.Height })
@@ -72,6 +76,8 @@ public sealed partial class SlicerCommands
         return WithSlicer(batch, slicerName, (book, slicer, cache, ct) =>
         {
             bool timeline = cache.SlicerCacheType == Excel.XlSlicerCacheType.xlTimeline;
+            if (ordinaryOnly && timeline)
+                throw new ArgumentException("apply-style requires an ordinary slicer. Use update-slicer for timeline styles.");
             if (timeline && (slicerOptions.ColumnCount.HasValue || slicerOptions.DisplayHeader.HasValue))
                 throw new ArgumentException("Timeline controls use timeline view settings, not ordinary column/header layout.");
             if (!timeline && (slicerOptions.Granularity.HasValue || slicerOptions.ShowHeader.HasValue ||

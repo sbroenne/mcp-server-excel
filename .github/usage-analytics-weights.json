@@ -516,9 +516,11 @@
     "slicer": {
       "feature": "pivottables-charts",
       "actions": {
+        "apply-style": "medium",
         "clear-timeline-selection": "medium",
         "connect-pivottable": "medium",
         "create-slicer": "medium",
+        "create-style": "medium",
         "create-table-slicer": "medium",
         "create-timeline": "medium",
         "delete-slicer": "medium",
@@ -526,6 +528,7 @@
         "disconnect-pivottable": "medium",
         "get-slicer": "light",
         "list-slicers": "light",
+        "list-styles": "light",
         "list-table-slicers": "light",
         "set-slicer-selection": "medium",
         "set-table-slicer-selection": "medium",
