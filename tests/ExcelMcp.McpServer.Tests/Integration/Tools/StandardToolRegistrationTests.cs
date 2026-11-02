@@ -25,6 +25,10 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.Equal(McpToolSurface.ToolCount, tools.Count);
         Assert.False(string.IsNullOrWhiteSpace(Client.ServerInstructions));
+        Assert.Contains("Use batch run when the commands and their arguments are known in advance", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("use individual tools when the next step depends on inspecting a result", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("continue after errors by default; set stop_on_error:true for dependent steps", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("Outside a batch, await each dependent call", Client.ServerInstructions, StringComparison.Ordinal);
         Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
         Assert.Null(Client.ServerCapabilities.Prompts);
         Assert.Null(Client.ServerCapabilities.Resources);
