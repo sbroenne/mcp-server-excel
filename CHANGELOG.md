@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.8] - 2026-11-02
+
+### Patch Changes
+
+- [#1287](https://github.com/sbroenne/mcp-server-excel/pull/1287) [`442b480`](https://github.com/sbroenne/mcp-server-excel/commit/442b480940e4b040768491ef3dc853a1d146c358) Thanks [@sbroenne](https://github.com/sbroenne)! - Restore `excelcli list-actions` so agents can discover exact workbook actions as compact JSON without connecting to Excel. Include all session actions and document action-specific help. Remove the CLI discovery and both report-formatting skills from product packages; keep native help, plugin launchers, MCP configuration, and the optional report-formatting reference.
+
 ## [2.6.7] - 2026-11-01
 
 ### Minor Changes
