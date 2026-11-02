@@ -33,12 +33,13 @@ totals or nonoverlapping placement.
 
 ---
 
-## Slicers (15 operations)
+## Slicers (18 operations)
 
 - **Filter interactively:** Create and manage visual filters for PivotTables or worksheet Tables, including model-backed PivotTables.
 - **Filter dates:** Add native PivotTable timelines and select calendar-date ranges.
 - **Share compatible filters:** Inspect and change connections between a PivotTable control and compatible shared-cache PivotTables.
 - **Arrange controls:** Inspect and update control position, dimensions, appearance, and supported layout settings.
+- **Match a brand:** Copy a slicer style, set colours and button-state formatting, list available styles, and apply one without changing layout or filters.
 
 A Table slicer filters its Table, not a separate PivotTable cache. PivotTable
 slicers and timelines affect only connected PivotTables; matching field names
