@@ -123,8 +123,11 @@ public static partial class ExcelBatchTool
                     string.Equals(sessionId, activeSession, StringComparison.OrdinalIgnoreCase))
                     activeSession = null;
 
+                var filePath = entry.Args is { ValueKind: JsonValueKind.Object } args &&
+                    args.TryGetProperty("filePath", out var path) && path.ValueKind == JsonValueKind.String
+                    ? path.GetString() : null;
                 var item = operation is { Tool: "file" or "file_read" } fileOperation
-                    ? ExcelFileTool.ConvertSessionResult(outcome, fileOperation.Action)
+                    ? ExcelFileTool.ConvertSessionResult(outcome, fileOperation.Action, filePath)
                     : JsonNode.Parse(outcome.ToToolJson())!.AsObject();
                 item["index"] = index;
                 item["command"] = entry.Command;

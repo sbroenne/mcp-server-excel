@@ -37,8 +37,11 @@ Each tool's action description supplies its batch command pattern, for example
 `worksheetstyle.{action}`; replace `{action}` with the selected action.
 Parameter descriptions supply exact `Batch args key` names, including manual
 file actions: `open_workbook_id` becomes `args.workbookId`, not
-`args.openWorkbookId`. `workbook_session_id` becomes the entry's `sessionId`,
-outside `args`.
+`args.openWorkbookId`. A session-binding `workbook_session_id` becomes the
+entry's `sessionId`, outside `args`. The optional `workbook_session_id` in
+`powerquery_trace_read` is a trace filter instead: use `args.workbookSessionId`
+for `powerquerytrace.list` and `powerquerytrace.summarize`. An entry's `sessionId`
+does not filter those operations.
 For example, with an existing session and a Sales sheet:
 
 ```json

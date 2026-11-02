@@ -109,6 +109,48 @@ public sealed class BatchToolExecutionTests
     }
 
     [Fact]
+    public async Task Usage_FileTestNegativeWithCanOpen_RecordsExpectedNegative()
+    {
+        var backend = new Backend(_ => Task.FromResult(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"canOpen":false,"exists":false,"message":"Missing fixture"}"""
+        }));
+        using var bridge = new Bridge(() => backend);
+        ToolInvocationResult? recorded = null;
+        await ExcelBatchTool.ExecuteBatchAsync(BatchAction.Run, bridge,
+            [new() { Command = "session.test", Args = JsonSerializer.SerializeToElement(new { filePath = @"C:\fixture.xlsx" }) }],
+            null, false, CancellationToken.None,
+            Sbroenne.ExcelMcp.Generated.ServiceRegistry.ValidateCommandArguments,
+            (_, _, _, result) => recorded = result);
+        Assert.Equal(new ToolInvocationResult(ToolInvocationOutcome.ExpectedNegative, null), recorded);
+    }
+
+    [Theory]
+    [InlineData("Timeout", "TimeoutCancellation", "Timeout")]
+    [InlineData("InvalidInput", "InputState", null)]
+    [InlineData("ServiceUnavailable", "InternalProductFault", null)]
+    public async Task Usage_FileTestFailureRetainsItsClassAndCause(
+        string category, string failureClass, string? cause)
+    {
+        var backend = new Backend(_ => Task.FromResult(new ServiceResponse
+        {
+            Success = false,
+            ErrorCategory = category,
+            ErrorMessage = "File test failed"
+        }));
+        using var bridge = new Bridge(() => backend);
+        ToolInvocationResult? recorded = null;
+        await ExcelBatchTool.ExecuteBatchAsync(BatchAction.Run, bridge,
+            [new() { Command = "session.test", Args = JsonSerializer.SerializeToElement(new { filePath = @"C:\fixture.xlsx" }) }],
+            null, false, CancellationToken.None,
+            Sbroenne.ExcelMcp.Generated.ServiceRegistry.ValidateCommandArguments,
+            (_, _, _, result) => recorded = result);
+        Assert.Equal(new ToolInvocationResult(ToolInvocationOutcome.Failed,
+            Enum.Parse<ToolFailureClass>(failureClass), cause is null ? null : Enum.Parse<ToolFailureCause>(cause)), recorded);
+    }
+
+    [Fact]
     public async Task Cancellation_StopsDispatchAndRetainsPendingWork()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

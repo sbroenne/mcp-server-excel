@@ -191,18 +191,13 @@ public static partial class ExcelFileTool
 
             var command = ServiceRegistry.GetMcpCommand(toolName, action.ToActionString());
             var outcome = ExcelToolsBase.ReadServiceResponse(response, command);
-            if (!outcome.Success)
-            {
-                if (file_path is not null)
-                    outcome.Error!["filePath"] = file_path;
-                return outcome.ToToolJson();
-            }
-
-            return ConvertSessionResult(outcome, action.ToActionString()).ToJsonString(ExcelToolsBase.JsonOptions);
+            return ConvertSessionResult(outcome, action.ToActionString(), file_path).ToJsonString(ExcelToolsBase.JsonOptions);
         }, cancellationToken);
 
-    internal static JsonObject ConvertSessionResult(ResultJson outcome, string action)
+    internal static JsonObject ConvertSessionResult(ResultJson outcome, string action, string? filePath = null)
     {
+        if (!outcome.Success && filePath is not null)
+            outcome.Error!["filePath"] = filePath;
         var result = JsonNode.Parse(outcome.ToToolJson())!.AsObject();
         var id = result["sessionId"]?.GetValue<string>();
         if (outcome.Success && action is "open" or "create" or "attach" && string.IsNullOrWhiteSpace(id))

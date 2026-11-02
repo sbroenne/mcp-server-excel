@@ -245,6 +245,50 @@ public sealed class ServiceClientDeadlineTests
     }
 
     [Fact]
+    public async Task SendAsync_DisconnectedPendingRequest_ReturnsUnknownCompletionWithoutCancellingWork()
+    {
+        var pipeName = $"excelmcp-client-disconnect-{Guid.NewGuid():N}";
+        var transportCreated = new TaskCompletionSource<System.IO.Pipes.NamedPipeServerStream>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingResponse = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = new DaemonHost(_ =>
+        {
+            requestStarted.TrySetResult();
+            return pendingResponse.Task;
+        }, serverFactory: name =>
+        {
+            var pipe = ServiceSecurity.CreateSecureServer(name);
+            transportCreated.TrySetResult(pipe);
+            return pipe;
+        });
+        var hostTask = host.RunAsync(pipeName);
+        using var client = new ServiceClient(pipeName, requestTimeout: Timeout.InfiniteTimeSpan);
+        var request = new ServiceRequest { Command = "range.set-values", SessionId = "affected-session" };
+        try
+        {
+            var send = client.SendAsync(request);
+            await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            (await transportCreated.Task.WaitAsync(TimeSpan.FromSeconds(5))).Dispose();
+            var response = await send.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(response.Success);
+            Assert.Equal(request.Command, response.Command);
+            Assert.Equal(request.SessionId, response.SessionId);
+            Assert.Equal("ServiceUnavailable", response.ErrorCategory);
+            Assert.Equal("ConnectionLostException", response.ExceptionType);
+            using var state = System.Text.Json.JsonDocument.Parse(Assert.IsType<string>(response.PartialState));
+            Assert.Equal("unknown", state.RootElement.GetProperty("outcome").GetString());
+            Assert.Contains("may still be running", state.RootElement.GetProperty("message").GetString(), StringComparison.Ordinal);
+            Assert.False(pendingResponse.Task.IsCompleted);
+        }
+        finally
+        {
+            pendingResponse.TrySetResult(new ServiceResponse { Success = true });
+            host.RequestShutdown();
+            await hostTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
     public async Task SendAsync_CallerCancellationWinsTransportLossBeforeLinkedCancellationRuns()
     {
         var pipeName = $"excelmcp-client-cancel-disconnect-{Guid.NewGuid():N}";

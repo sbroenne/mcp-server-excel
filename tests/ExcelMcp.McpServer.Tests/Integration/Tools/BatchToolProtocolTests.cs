@@ -37,6 +37,7 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
     [InlineData("file", "session", "open_workbook_id", "workbookId")]
     [InlineData("file", "session", "allow_remembered_trust", "allowRememberedTrust")]
     [InlineData("file_read", "session", "file_path", "filePath")]
+    [InlineData("powerquery_trace_read", "powerquerytrace", "workbook_session_id", "workbookSessionId")]
     public async Task Discovery_ExposesExactBatchCommandAndArgumentNames(
         string toolName, string category, string parameter, string batchKey)
     {
@@ -250,6 +251,57 @@ public sealed class BatchToolProtocolTests(RecordingProgramTransportFixture fixt
         var startup = output.RootElement.GetProperty("results")[0];
         Assert.Equal("new-session", startup.GetProperty("workbook_session_id").GetString());
         Assert.False(startup.TryGetProperty("sessionId", out _));
+    }
+
+    [Theory]
+    [InlineData("open", "file")]
+    [InlineData("create", "file")]
+    [InlineData("test", "file_read")]
+    public async Task FileFailure_RetainsTheSameSuppliedPathAsTheIndividualTool(string action, string tool)
+    {
+        const string path = @"C:\fixture\requested.invalid";
+        var response = new ServiceResponse
+        {
+            Success = false,
+            ErrorCategory = "InvalidInput",
+            ErrorMessage = "Requested file operation failed.",
+            ExceptionType = nameof(ArgumentException),
+            InnerError = "Original file error"
+        };
+        var single = await fixture.CallSequenceAsync(tool, new()
+        {
+            ["action"] = action,
+            ["file_path"] = path
+        }, response);
+        var batch = await fixture.CallSequenceAsync("batch", Arguments(JsonSerializer.Serialize(new[]
+        {
+            new { command = $"session.{action}", args = new { filePath = path } }
+        })), response);
+        using var normal = Parse(single.Result);
+        using var output = Parse(batch.Result);
+        var item = output.RootElement.GetProperty("results")[0];
+        Assert.Equal(path, item.GetProperty("filePath").GetString());
+        var expected = System.Text.Json.Nodes.JsonNode.Parse(normal.RootElement.GetRawText())!.AsObject();
+        expected["index"] = 0;
+        expected["command"] = $"session.{action}";
+        Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(expected), item));
+        Assert.True(batch.Result.IsError);
+        Assert.Single(batch.Requests);
+    }
+
+    [Theory]
+    [InlineData("list")]
+    [InlineData("summarize")]
+    public async Task TraceFilter_RemainsAnArgumentRatherThanASessionBinding(string action)
+    {
+        var call = await fixture.CallSequenceAsync("batch", Arguments(JsonSerializer.Serialize(new[]
+        {
+            new { command = $"powerquerytrace.{action}", sessionId = "ignored-entry-binding",
+                args = new { workbookSessionId = "selected-trace-session" } }
+        })), RecordingToolTest.Success("""{"success":true,"traces":[]}"""));
+        Assert.False(call.Result.IsError == true);
+        RecordingToolTest.AssertRequest(Assert.Single(call.Requests), $"powerquerytrace.{action}",
+            null, """{"workbookSessionId":"selected-trace-session"}""");
     }
 
     [Theory]
