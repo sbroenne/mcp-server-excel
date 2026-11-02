@@ -130,15 +130,17 @@ jobs:
             }
             Expand-Archive -LiteralPath $payload -DestinationPath built-plugins
           } else {
-            # Older releases predate the prepared payload. Build their exact tag.
+            # Rebuild the exact tag when no prepared payload is available.
             .\automation\scripts\Install-AdoBuildTools.ps1
             Set-Location source
             dotnet build Sbroenne.ExcelMcp.sln -c Release "-p:Version=$env:VERSION"
-            $generator = Get-Command .\scripts\Build-AgentSkills.ps1
-            if ($generator.Parameters.ContainsKey('GenerateOnly')) {
-              & $generator -GenerateOnly -Version $env:VERSION
-            } else {
-              & $generator -PopulateReferences
+            if (Test-Path -LiteralPath .\scripts\Build-AgentSkills.ps1 -PathType Leaf) {
+              $generator = Get-Command .\scripts\Build-AgentSkills.ps1
+              if ($generator.Parameters.ContainsKey('GenerateOnly')) {
+                & $generator -GenerateOnly -Version $env:VERSION
+              } else {
+                & $generator -PopulateReferences
+              }
             }
             .\scripts\Build-Plugins.ps1 -Version $env:VERSION -OutputDir ..\built-plugins
           }
