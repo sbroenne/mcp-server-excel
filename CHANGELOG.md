@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.10] - 2026-11-02
+
+### Minor Changes
+
+- [#1298](https://github.com/sbroenne/mcp-server-excel/pull/1298) [`4a4885b`](https://github.com/sbroenne/mcp-server-excel/commit/4a4885b7a32fcd13708c99d0f63307261de3c614) Thanks [@sbroenne](https://github.com/sbroenne)! - Create custom slicer styles by copying an existing style and choosing colours, borders, and bold text for each button state. List available styles and apply one to a PivotTable, Data Model, or Table slicer without changing its layout or filters, through either excelcli or MCP.
+
 ## [2.6.9] - 2026-11-02
 
 ### Minor Changes
