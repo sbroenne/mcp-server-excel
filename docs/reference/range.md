@@ -259,10 +259,22 @@ Threaded comments require a supporting desktop Excel version. Local text and
 replies are not Microsoft 365 mentions, assignments, reactions, sharing, or
 coauthoring state.
 
-Named ranges refer to cells. Define the reference before writing its value.
+Named ranges can refer to cells, constants, or formulas. Create/update references
+use English formula syntax, including decimal points, regardless of regional
+settings. Define a cell reference before writing through the name.
 Discovery omits internal/hidden names and can omit large value previews; read
 the intended name when values are needed. Changing a query parameter does not
 itself refresh its load.
+
+Creation first adds the requested name with reference `=0`, then assigns the
+requested reference. Invalid names are rejected before that first step completes.
+Existing names are rejected before mutation, including surrounding spaces,
+optional quotes around a sheet scope, and unqualified names that resolve to a
+local name on the workbook's active sheet. Names in different explicit scopes
+remain distinct.
+If assigning the reference fails, the error reports the remaining name and its
+reference when readable. The name is not deleted automatically; inspect it before
+retrying, and remove it only if that is intended.
 
 ## Dates and reference spelling
 

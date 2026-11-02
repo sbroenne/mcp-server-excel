@@ -26,15 +26,107 @@ public sealed partial class PersistentServiceNamedRangeTests
             item.Name.StartsWith("ExcelMcpTemp_", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("Invalid Name")]
+    [InlineData("A1")]
+    [InlineData("1Invalid")]
+    public async Task Create_InvalidFinalName_PreservesNamesAndSavedState(string invalidName)
+    {
+        var batch = _fixture.BatchToken;
+        var existingName = CreateUniqueNamedRangeName();
+        var sheetName = _fixture.CreateTestSheet(batch);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [[7]]).Success);
+        Assert.True(_parameterCommands.Create(batch, existingName, $"='{sheetName}'!$A$1").Success);
+        _fixture.RegisterNamedRangeForCleanup(existingName);
+        var before = _parameterCommands.List(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+        _fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Save());
+        Assert.True(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved));
+        var executionCulture = _fixture.ExecuteRawVerification((_, _) =>
+            (CultureInfo.CurrentCulture.Name, CultureInfo.CurrentUICulture.Name));
+
+        var failed = await _fixture.SendForFailureAsync("namedrange.create", new
+        {
+            name = invalidName,
+            reference = "=0.19"
+        });
+
+        var after = _parameterCommands.List(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.False(failed.Success, "Invalid final name unexpectedly succeeded; observed names: " +
+            string.Join(", ", after.NamedRanges.Select(item => item.Name)));
+        Assert.False(string.IsNullOrWhiteSpace(failed.ErrorMessage));
+        Assert.Equal(before.NamedRanges.Select(item => (item.Name, item.RefersTo)),
+            after.NamedRanges.Select(item => (item.Name, item.RefersTo)));
+        Assert.Equal(7d, Convert.ToDouble(_parameterCommands.Read(batch, existingName).Value,
+            CultureInfo.InvariantCulture));
+        Assert.True(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved),
+            "A rejected final name must not dirty the workbook through temporary-name mutations.");
+        Assert.Equal(executionCulture, _fixture.ExecuteRawVerification((_, _) =>
+            (CultureInfo.CurrentCulture.Name, CultureInfo.CurrentUICulture.Name)));
+    }
+
     [Fact]
-    public void CreateAndUpdate_FormulaReferences_UseInvariantSyntaxUnderGermanCulture()
+    public async Task Create_RejectedFormula_ReportsRetainedRequestedNameWithoutDeletingIt()
+    {
+        var batch = _fixture.BatchToken;
+        var name = CreateUniqueNamedRangeName();
+        var existingName = CreateUniqueNamedRangeName();
+        var sheetName = _fixture.CreateTestSheet(batch);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [[7]]).Success);
+        Assert.True(_parameterCommands.Create(batch, existingName, $"='{sheetName}'!$A$1").Success);
+        _fixture.RegisterNamedRangeForCleanup(existingName);
+        var before = _parameterCommands.List(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+        _fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Save());
+        Assert.True(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved));
+
+        var failed = await _fixture.SendForFailureAsync("namedrange.create", new
+        {
+            name,
+            reference = $"=SUM(MissingTable_{Guid.NewGuid():N}[Total])"
+        });
+
+        var after = _parameterCommands.List(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        var retained = after.NamedRanges.SingleOrDefault(item => item.Name == name);
+        if (retained is not null)
+            _fixture.RegisterNamedRangeForCleanup(name);
+        Assert.False(failed.Success);
+        Assert.NotNull(retained);
+        Assert.Equal("=0", retained.RefersTo);
+        Assert.Contains(name, failed.ErrorMessage);
+        Assert.Contains("=0", failed.ErrorMessage);
+        Assert.Contains("not deleted", failed.ErrorMessage);
+        Assert.Equal("0x800A03EC", failed.HResult);
+        Assert.False(string.IsNullOrWhiteSpace(failed.InnerError));
+        Assert.Equal(before.NamedRanges.Select(item => (item.Name, item.RefersTo)),
+            after.NamedRanges.Where(item => item.Name != name).Select(item => (item.Name, item.RefersTo)));
+        Assert.Equal(7d, Convert.ToDouble(_parameterCommands.Read(batch, existingName).Value,
+            CultureInfo.InvariantCulture));
+        Assert.False(_fixture.ExecuteRawVerification((ctx, _) => ctx.Book.Saved));
+    }
+
+    [Theory]
+    [InlineData("en-US")]
+    [InlineData("de-DE")]
+    public void CreateAndUpdate_FormulaReferences_UseInvariantSyntaxAcrossCallerCultures(string cultureName)
     {
         var originalCulture = CultureInfo.CurrentCulture;
         var originalUiCulture = CultureInfo.CurrentUICulture;
         try
         {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("de-DE");
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
+            var executionCulture = _fixture.ExecuteRawVerification((ctx, _) =>
+            {
+                _output.WriteLine(
+                    $"Caller culture: {cultureName}; Excel thread culture: {CultureInfo.CurrentCulture.Name}; " +
+                    $"Excel country setting: {ctx.App.International[Microsoft.Office.Interop.Excel.XlApplicationInternational.xlCountrySetting]}; " +
+                    $"decimal separator: {ctx.App.International[Microsoft.Office.Interop.Excel.XlApplicationInternational.xlDecimalSeparator]}; " +
+                    $"list separator: {ctx.App.International[Microsoft.Office.Interop.Excel.XlApplicationInternational.xlListSeparator]}.");
+                return (CultureInfo.CurrentCulture.Name, CultureInfo.CurrentUICulture.Name);
+            });
 
             var batch = _fixture.BatchToken;
             var sheetName = _fixture.CreateNamedTestSheet(batch, $"Formula names {Guid.NewGuid():N}"[..27]);
@@ -60,22 +152,24 @@ public sealed partial class PersistentServiceNamedRangeTests
             Assert.True(rateValue.Success, rateValue.ErrorMessage);
             Assert.Equal(0.19, Convert.ToDouble(rateValue.Values[0][0], CultureInfo.InvariantCulture));
 
-            Assert.True(_parameterCommands.Create(batch, totalName, $"=SUM({tableName}[Total])").Success);
+            Assert.True(_parameterCommands.Create(batch, totalName, $"=SUM({tableName}[Total],0.25)").Success);
             _fixture.RegisterNamedRangeForCleanup(totalName);
             Assert.True(_commands.SetFormulas(batch, sheetName, "D2", [[$"={totalName}"]]).Success);
             var totalValue = _commands.GetValues(batch, sheetName, "D2");
             Assert.True(totalValue.Success, totalValue.ErrorMessage);
-            Assert.Equal(9.75, Convert.ToDouble(totalValue.Values[0][0], CultureInfo.InvariantCulture));
+            Assert.Equal(10d, Convert.ToDouble(totalValue.Values[0][0], CultureInfo.InvariantCulture));
 
             Assert.True(_parameterCommands.Update(batch, rateName, "=1.25").Success);
             var updatedValue = _commands.GetValues(batch, sheetName, "D1");
             Assert.True(updatedValue.Success, updatedValue.ErrorMessage);
             Assert.Equal(1.25, Convert.ToDouble(updatedValue.Values[0][0], CultureInfo.InvariantCulture));
 
-            Assert.True(_parameterCommands.Update(batch, rateName, $"=\"[\"&'{sheetName}'!$B$2").Success);
+            Assert.True(_parameterCommands.Update(batch, rateName, $"=\"a,b.c[\"&'{sheetName}'!$B$2").Success);
             var textValue = _commands.GetValues(batch, sheetName, "D1");
             Assert.True(textValue.Success, textValue.ErrorMessage);
-            Assert.Equal("[3", textValue.Values[0][0]);
+            Assert.Equal("a,b.c[3", textValue.Values[0][0]);
+            Assert.Equal(executionCulture, _fixture.ExecuteRawVerification((_, _) =>
+                (CultureInfo.CurrentCulture.Name, CultureInfo.CurrentUICulture.Name)));
         }
         finally
         {

@@ -366,12 +366,10 @@ public partial class NamedRangeCommands
             Excel.Name? existing = null;
             Excel.Name? created = null;
             Excel.Names? namesCollection = null;
-            Exception? operationFailure = null;
-            bool temporaryNameRenamed = false;
             try
             {
                 // Check if parameter already exists
-                existing = FindNameByKey(ctx.Book, name);
+                existing = FindExistingNameForCreation(ctx.Book, name);
                 if (existing != null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' already exists");
@@ -380,34 +378,65 @@ public partial class NamedRangeCommands
                 namesCollection = ctx.Book.Names;
                 string formula = $"={reference.TrimStart('=')}";
                 string r1c1Formula = ToR1C1Formula(ctx.App, formula);
-                string temporaryName = $"ExcelMcpTemp_{Guid.NewGuid():N}";
-                created = namesCollection.Add(temporaryName, "=0");
+                // Names.Add parses decimal separators locally; the property setter accepts invariant formulas.
+                created = namesCollection.Add(Name: name, RefersTo: "=0");
+                if (created is null)
+                    throw new InvalidOperationException(
+                        $"Excel did not confirm creating named range '{name}'. Inspect workbook names before retrying.");
                 created.RefersToR1C1 = r1c1Formula;
-                created.Name = name;
-                temporaryNameRenamed = true;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
-            catch (Exception ex)
+            catch (Exception ex) when (created is not null && CreatedObjectFailure.CanReport(ex))
             {
-                operationFailure = ex;
-                throw;
+                throw DescribeCreatedNameFailure(name, ex, () =>
+                    (object)created.RefersToR1C1 is string retainedReference
+                        ? retainedReference
+                        : throw new InvalidOperationException("Excel did not return the retained name's reference."));
             }
             finally
             {
-                try
-                {
-                    if (created is not null && !temporaryNameRenamed)
-                        OperationCleanup.Run(() => created.Delete(), operationFailure);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref created);
-                    ComUtilities.Release(ref namesCollection);
-                    ComUtilities.Release(ref existing);
-                }
+                ComUtilities.Release(ref created);
+                ComUtilities.Release(ref namesCollection);
+                ComUtilities.Release(ref existing);
             }
         });
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A failed retained-name inspection is combined with the original creation failure and rethrown; neither failure is suppressed.")]
+    internal static InvalidOperationException DescribeCreatedNameFailure(
+        string name, Exception cause, Func<string> readReference)
+    {
+        string remainingState;
+        try
+        {
+            remainingState = $"Named range '{name}' remains with R1C1 reference '{readReference()}'.";
+        }
+        catch (Exception inspectionFailure) when (inspectionFailure is not OperationCanceledException)
+        {
+            remainingState = $"The current reference of named range '{name}' could not be inspected.";
+            cause = cause is COMException assignmentFailure
+                ? new NamedRangeAssignmentFailure(assignmentFailure, inspectionFailure)
+                : new AggregateException(cause, inspectionFailure);
+        }
+        return CreatedObjectFailure.CreateDescribed(
+            "Assigning the requested reference",
+            $"named range '{name}'",
+            $"{remainingState} It was not deleted automatically; inspect workbook names before retrying.",
+            cause);
+    }
+
+    private sealed class NamedRangeAssignmentFailure : COMException
+    {
+        public NamedRangeAssignmentFailure(COMException assignmentFailure, Exception inspectionFailure)
+            : base($"{assignmentFailure.Message} Retained-reference inspection also failed: {inspectionFailure.Message}" +
+                (inspectionFailure is COMException com ? $" [COM: 0x{com.HResult:X8}]" : string.Empty),
+                new AggregateException(assignmentFailure, inspectionFailure))
+        {
+            // Keep the primary native code discoverable while retaining both exception objects.
+            HResult = assignmentFailure.HResult;
+        }
     }
 
     /// <inheritdoc />

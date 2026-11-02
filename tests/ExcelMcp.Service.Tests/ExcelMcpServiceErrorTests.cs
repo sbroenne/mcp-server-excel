@@ -27,6 +27,47 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "false")]
 public sealed class ExcelMcpServiceErrorTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CreateErrorResponse_NamedRangeInspectionFailurePreservesAssignmentError(bool inspectionIsCom)
+    {
+        using var service = new ExcelMcpService();
+#pragma warning disable CA2201 // Synthetic native errors verify failure transport without Excel.
+        var assignment = new COMException("Formula assignment rejected.", unchecked((int)0x800A03EC));
+        Exception inspection = inspectionIsCom
+            ? new COMException("Retained reference inspection rejected.", unchecked((int)0x80070005))
+            : new InvalidOperationException("Retained reference inspection rejected.");
+#pragma warning restore CA2201
+        var error = NamedRangeCommands.DescribeCreatedNameFailure("InputRate", assignment, () => throw inspection);
+        var primary = Assert.IsAssignableFrom<COMException>(error.InnerException);
+        var failures = Assert.IsType<AggregateException>(primary.InnerException);
+        Assert.Equal([assignment, inspection], failures.InnerExceptions);
+        var create = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(create);
+        var response = Assert.IsType<ServiceResponse>(create.Invoke(service,
+            [error, "namedrange.create", null, null, null]));
+        var shared = JsonSerializer.Deserialize<Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceResponse>(
+            JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions), ServiceProtocol.JsonOptions);
+        Assert.NotNull(shared);
+        var roundTrip = ServiceResponse.FromShared(shared);
+
+        Assert.False(roundTrip.Success);
+        Assert.Equal("namedrange.create", roundTrip.Command);
+        Assert.Equal("0x800A03EC", roundTrip.HResult);
+        Assert.Equal("ComInterop", roundTrip.ErrorCategory);
+        Assert.Contains(assignment.Message, roundTrip.ErrorMessage);
+        Assert.Contains(inspection.Message, roundTrip.ErrorMessage);
+        Assert.Contains("InputRate", roundTrip.ErrorMessage);
+        Assert.Contains("could not be inspected", roundTrip.ErrorMessage);
+        Assert.Contains("not deleted", roundTrip.ErrorMessage);
+        if (inspectionIsCom)
+            Assert.Contains("0x80070005", roundTrip.ErrorMessage);
+        Assert.Equal(response.HResult, roundTrip.HResult);
+        Assert.Equal(response.InnerError, roundTrip.InnerError);
+    }
+
     [Fact]
     public void SessionRetention_DefersLateSaveAsPathReconciliationDuringShutdown()
     {

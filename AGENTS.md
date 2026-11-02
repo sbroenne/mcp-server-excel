@@ -191,6 +191,16 @@ Expand coverage when the change affects a shared contract or lifetime,
 focused tests reveal wider failures, or a specific risk is not covered.
 Run the full suite only when that wider scope is justified or explicitly requested.
 
+Changes that may depend on language or regional settings, including formula
+parsing, numbers, dates, formatting, and localized text, must be tested with
+`en-US` and at least one contrasting setting, normally `de-DE`. Where behavior
+depends on Excel or Windows settings, verify it on desktop Excel configured for
+those settings; changing only the test's `CultureInfo` is insufficient. Verify
+the relevant Excel/Windows settings rather than inferring them from the test's
+culture. Record the settings tested, results, and any missing coverage in the PR;
+an unavailable configuration is missing coverage, not a passing check. Do not
+change the host's language or regional settings without explicit user approval.
+
 Use `scripts\Get-ValidationPlan.ps1` to identify candidate checks, then review
 the selection against the actual change. If it selects unrelated features,
 run narrower existing test filters or runner groups and record the commands,

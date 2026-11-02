@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -9,10 +10,12 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Feature", "Parameters")]
 [Trait("RequiresExcel", "true")]
 public sealed partial class PersistentServiceNamedRangeTests(
-    PersistentServiceWorkbookFixture fixture) :
+    PersistentServiceWorkbookFixture fixture,
+    ITestOutputHelper output) :
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceWorkbookFixture>
 {
+    private readonly ITestOutputHelper _output = output;
     private readonly INamedRangeCommands _parameterCommands =
         ServiceCommandProxy.Create<INamedRangeCommands>(fixture);
 
