@@ -148,10 +148,11 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 ```
 
 The workflow downloads that release's `excel-plugins-v1.2.3.zip` and verifies its
-exact `SHA256SUMS` entry before extracting it. For older
-releases without the prepared payload, it builds the exact tagged source using
-that source's generator. Missing or unsupported legacy inputs fail; there is no
-fallback to current source.
+exact `SHA256SUMS` entry before extracting it. When that payload is absent, it
+builds the exact tagged source. If that source has `Build-AgentSkills.ps1`, the
+workflow uses its `GenerateOnly` or legacy `PopulateReferences` interface before
+building the plugins. Source tags without that script build the plugins directly.
+Build and generator failures stop the repair; there is no fallback to current source.
 
 The workflow serializes publication, blocks downgrades and mismatched tags,
 validates plugin identities and wrapper-only contents, and validates any skills
