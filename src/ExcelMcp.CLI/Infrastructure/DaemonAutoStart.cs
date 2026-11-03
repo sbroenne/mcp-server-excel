@@ -322,7 +322,7 @@ internal static class DaemonAutoStart
             cancellationToken);
     }
 
-    private static Task<StartOutcome> TryStartDaemonWithStartupLockAsync(
+    internal static Task<StartOutcome> TryStartDaemonWithStartupLockAsync(
         string pipeName,
         OperationDeadline startupDeadline,
         CancellationToken cancellationToken)
@@ -335,16 +335,10 @@ internal static class DaemonAutoStart
             var startingMarkerAcquired = false;
             try
             {
-                try
-                {
-                    var lockTimeout = startupDeadline.Cap(StartupLockTimeout);
-                    startupLockAcquired = lockTimeout > TimeSpan.Zero
-                        && startupMutex.WaitOne(lockTimeout);
-                }
-                catch (AbandonedMutexException)
-                {
-                    startupLockAcquired = true;
-                }
+                var lockTimeout = startupDeadline.Cap(StartupLockTimeout);
+                startupLockAcquired = DaemonStartupLock.TryAcquire(
+                    startupMutex, lockTimeout, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (!startupLockAcquired)
                     return StartOutcome.LockUnavailable;
