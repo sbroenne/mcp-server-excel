@@ -24,6 +24,29 @@ internal static class DaemonStartupLock
     internal static string GetStartingMarkerName(string pipeName) =>
         $"ExcelMcpCli_Starting_{DaemonPipeIdentity.GetHash(pipeName)}";
 
+    internal static bool TryAcquire(
+        Mutex mutex,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (timeout <= TimeSpan.Zero)
+            return false;
+
+        try
+        {
+            var signalled = WaitHandle.WaitAny([mutex, cancellationToken.WaitHandle], timeout);
+            if (signalled == 1)
+                throw new OperationCanceledException(cancellationToken);
+
+            return signalled == 0;
+        }
+        catch (AbandonedMutexException)
+        {
+            return true;
+        }
+    }
+
     internal static Task<T> WithLockAsync<T>(
         string pipeName,
         Func<Task<T>> action,
@@ -38,14 +61,9 @@ internal static class DaemonStartupLock
             var startupLockAcquired = false;
             try
             {
-                try
-                {
-                    startupLockAcquired = startupMutex.WaitOne(Timeout);
-                }
-                catch (AbandonedMutexException)
-                {
-                    startupLockAcquired = true;
-                }
+                startupLockAcquired = TryAcquire(startupMutex, Timeout, cancellationToken);
+                // Record ownership before cancellation can throw so finally releases the mutex.
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (!startupLockAcquired)
                 {
