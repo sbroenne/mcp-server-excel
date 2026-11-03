@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.11] - 2026-11-03
+
+### Patch Changes
+
+- [#1299](https://github.com/sbroenne/mcp-server-excel/pull/1299) [`4a6c58d`](https://github.com/sbroenne/mcp-server-excel/commit/4a6c58d838bbad74a26f4d9d4802ff46088a5092) Thanks [@sbroenne](https://github.com/sbroenne)! - Cancelling CLI startup or `service stop` now promptly stops waiting for another startup or stop request. Existing wait limits and protection against duplicate services are unchanged.
+
 ## [2.6.10] - 2026-11-02
 
 ### Minor Changes
