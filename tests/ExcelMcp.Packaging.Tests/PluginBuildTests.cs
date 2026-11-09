@@ -37,8 +37,14 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
             Assert.Empty(Directory.GetFiles(outputDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
             Assert.False(Directory.Exists(Path.Combine(mcpRoot, "skills")));
-            Assert.False(Directory.Exists(Path.Combine(cliRoot, "skills")));
-            Assert.Empty(Directory.GetFiles(outputDirectory, "SKILL.md", SearchOption.AllDirectories));
+            var cliSkill = Path.Combine(cliRoot, "skills", "excel-cli");
+            Assert.Equal(
+                ["SKILL.md", "VERSION"],
+                Directory.GetFiles(Path.Combine(cliRoot, "skills"), "*", SearchOption.AllDirectories)
+                    .Select(file => Path.GetRelativePath(cliSkill, file)).Order(StringComparer.Ordinal));
+            Assert.Equal(version, File.ReadAllText(Path.Combine(cliSkill, "VERSION")));
+            Assert.StartsWith("---\nname: excel-cli\n", File.ReadAllText(Path.Combine(cliSkill, "SKILL.md")).ReplaceLineEndings("\n"), StringComparison.Ordinal);
+            Assert.Single(Directory.GetFiles(outputDirectory, "SKILL.md", SearchOption.AllDirectories));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -64,7 +70,8 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
             Assert.True(sync.ExitCode == 0, sync.CombinedOutput);
             Assert.True(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-mcp", "mcp.json")));
             Assert.True(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "start-cli.ps1")));
-            Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-mcp", "bin", "download.ps1")));
+            Assert.Equal(version, File.ReadAllText(Path.Combine(publishedDirectory, "plugins", "excel-cli", "skills", "excel-cli", "VERSION")));
+            Assert.False(Directory.Exists(Path.Combine(publishedDirectory, "plugins", "excel-mcp", "skills")));
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "download.ps1")));
             Assert.Empty(Directory.GetFiles(publishedDirectory, "install-global.ps1", SearchOption.AllDirectories));
 

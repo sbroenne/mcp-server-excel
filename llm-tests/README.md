@@ -60,7 +60,8 @@ Set-Location llm-tests
 uv sync
 ```
 
-Current product packages do not ship skills or provide a skill-generation step.
+Only the CLI plugin ships the short `excel-cli` quick-start skill. There is no
+skill-generation step.
 Historical skill-value experiments require explicitly staged, frozen skill inputs;
 do not treat leftover generated files as current product guidance. The
 published-plugin experiment below deliberately uses an installed published package.

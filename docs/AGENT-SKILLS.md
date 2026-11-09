@@ -1,8 +1,10 @@
 # Agent guidance
 
-ExcelMcp does not ship agent skills. The CLI plugin contains its argument-safe
-launcher; the MCP plugin contains its server connection configuration. The VS Code
-extension bundles the MCP runtime without a chat-skill contribution.
+The CLI plugin ships one short skill, `excel-cli`, beside its argument-safe
+launcher. It teaches the session, batch and verification pattern and leaves
+action details to native help. The MCP plugin contains only its server connection
+configuration, and the VS Code extension bundles the MCP runtime without a
+chat-skill contribution.
 
 ## Discover supported operations
 
@@ -31,6 +33,7 @@ packaged as a skill. Match the user's instructions and existing template first.
 | Minimal MCP instructions | MCP Server `Program.cs` |
 | Workflows and formatting advice | `docs/reference/` |
 | Plugin launchers and configuration | `.github/plugins/` |
+| CLI quick-start skill | `.github/plugins/excel-cli/skills/excel-cli/SKILL.md` |
 
 Keep product-specific warnings beside the affected action. Do not copy generic
 Excel tutorials or action catalogs into automatically loaded instructions.
@@ -38,5 +41,6 @@ Follow [product guidance rules](agents/product-guidance.md) when changing metada
 
 Build plugins with `scripts\Build-Plugins.ps1 -Version <version>`.
 `scripts\Build-ReleasePackages.ps1` owns complete distributable preparation.
-Neither command prepares or installs skills. Packaging does not uninstall older
+The plugin build copies the CLI quick-start skill and stamps its `VERSION`;
+it rejects any other bundled skill content. Neither command installs skills. Packaging does not uninstall older
 product copies from user machines, and source changes do not publish plugins.

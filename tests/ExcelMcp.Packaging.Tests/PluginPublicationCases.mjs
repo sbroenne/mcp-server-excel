@@ -112,6 +112,30 @@ export function registerPolicyTests() {
         validatePublication(scopedPayload('2.3.0'));
     });
 
+    test('a reference-free CLI quick-start skill publishes beside a skill-free MCP plugin', () => {
+        const files = new Map([...payload('2.6.12')].filter(([name]) =>
+            !name.includes('/skills/') || name.startsWith('plugins/excel-cli/skills/excel-cli/') && !name.includes('/references/')));
+        validatePublication(files);
+        const stale = new Map(files);
+        edit(stale, 'plugins/excel-cli/skills/excel-cli/VERSION', '2.6.11');
+        assert.throws(() => validatePublication(stale), /Missing or mismatched/);
+        const partialReferences = new Map(files);
+        edit(partialReferences, 'plugins/excel-cli/skills/excel-cli/references/table.md', 'Partial legacy references');
+        assert.throws(() => validatePublication(partialReferences), /Missing required skill file/);
+    });
+
+    test('a legacy MCP skill requires range references even during stamp repair', () => {
+        const files = payload();
+        files.delete('plugins/excel-mcp/skills/excel-mcp/references/range.md');
+        for (const repairStamps of [false, true]) {
+            assert.throws(() => validatePublication(files, { repairStamps }),
+                /Missing required skill file: excel-mcp\/references\/range\.md/);
+        }
+        edit(files, 'plugins/excel-mcp/skills/excel-mcp/references/table.md', 'Partial legacy references');
+        assert.throws(() => validatePublication(files),
+            /Missing required skill file: excel-mcp\/references\/range\.md/);
+    });
+
     test('publication workflow validates every recognized skill and rejects stale discovery stamps', () => {
         const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'publish-plugins.yml'), 'utf8');
         const section = workflow.split('      - name: Validate prepared skills')[1]

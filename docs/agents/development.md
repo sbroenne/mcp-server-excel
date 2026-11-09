@@ -195,8 +195,8 @@ Actions are separate.
 The repository's `.vscode/mcp.json` configures VS Code, not the CLI/app/cloud.
 Do not enable ExcelMcp on a hosted runner without Excel or automatically
 install it into its own development sessions.
-Product packages do not bundle skills. Native help, schemas, and optional
-reference pages supply [agent guidance](../AGENT-SKILLS.md). Installed product
+Only the CLI plugin bundles the short `excel-cli` quick-start skill. Native help,
+schemas, and optional reference pages supply [agent guidance](../AGENT-SKILLS.md). Installed product
 copies are outputs, not contributor instruction sources.
 
 ## App configuration and trust

@@ -40,11 +40,13 @@ plugins/excel-mcp/
 plugins/excel-cli/
 ├── plugin.json         # Agent Plugins 1.0 manifest
 ├── version.txt         # Published version
-└── bin/                # Argument-safe PowerShell launcher for npx
+├── bin/                # Argument-safe PowerShell launcher for npx
+└── skills/excel-cli/   # Quick-start SKILL.md and release VERSION stamp
 ```
 
 Agent Plugins discovers MCP servers from root `mcp.json`. The manifests contain
-only Agent Plugins 1.0 fields. Neither plugin bundles agent skills.
+only Agent Plugins 1.0 fields. Only the CLI plugin bundles a skill: the short
+`excel-cli` quick start.
 
 Both plugins use the public npm packages through `npx`; no runtime binaries are
 bundled in the plugin package. The MCP plugin's `mcp.json` launches
@@ -92,7 +94,8 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 
 ### Excel CLI Plugin
 
-Provides the argument-safe npx wrapper without bundled skills for coding agents:
+Provides the argument-safe npx wrapper and a short `excel-cli` quick-start skill
+for coding agents:
 
 ```powershell
 copilot plugin install excel-cli@awesome-copilot
