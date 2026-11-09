@@ -20,6 +20,116 @@ public sealed class ExcelDialogProbeWindowTests
 {
     private static readonly WindowProcedure Procedure = DefWindowProc;
 
+    [Theory]
+    [InlineData("Connection test message")]
+    [InlineData("Verbindung fehlgeschlagen")]
+    public async Task UnresponsiveExternalDialog_PreservesCaptionWithoutReadingInputs(string title)
+    {
+        const string script = """
+            Add-Type -TypeDefinition @'
+            using System;
+            using System.ComponentModel;
+            using System.Runtime.InteropServices;
+            public static class DialogHost {
+                delegate IntPtr Proc(IntPtr w, uint m, IntPtr a, IntPtr b);
+                static readonly Proc Procedure = DefWindowProcW;
+                [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+                struct WindowClass {
+                    public uint Style;
+                    public IntPtr Procedure;
+                    public int ClassExtra, WindowExtra;
+                    public IntPtr Instance, Icon, Cursor, Background;
+                    public string MenuName, ClassName;
+                }
+                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+                static extern ushort RegisterClassW(ref WindowClass c);
+                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+                static extern IntPtr CreateWindowExW(uint e, string c, string t, uint s,
+                    int x, int y, int w, int h, IntPtr p, IntPtr m, IntPtr i, IntPtr a);
+                [DllImport("user32.dll")]
+                static extern bool EnableWindow(IntPtr w, bool enabled);
+                [DllImport("user32.dll")]
+                static extern bool DestroyWindow(IntPtr w);
+                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+                static extern bool UnregisterClassW(string c, IntPtr i);
+                [DllImport("user32.dll")]
+                static extern IntPtr DefWindowProcW(IntPtr w, uint m, IntPtr a, IntPtr b);
+                public static void Run(string title) {
+                    var c = new WindowClass { Procedure = Marshal.GetFunctionPointerForDelegate(Procedure), ClassName = "XLMAIN" };
+                    if (RegisterClassW(ref c) == 0) throw new Win32Exception();
+                    IntPtr root = IntPtr.Zero, dialog = IntPtr.Zero;
+                    try {
+                        root = CreateWindowExW(0x08000000, "XLMAIN", "", 0, 0, 0, 1, 1,
+                            IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                        dialog = CreateWindowExW(0x08000000, "STATIC", title, 0x90000000, -10000, -10000, 1, 1,
+                            root, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                        if (root == IntPtr.Zero || dialog == IntPtr.Zero) throw new Win32Exception();
+                        if (CreateWindowExW(0, "STATIC", "Unreadable message", 0x50000000, 0, 0, 1, 1,
+                            dialog, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero) == IntPtr.Zero) throw new Win32Exception();
+                        if (CreateWindowExW(0, "EDIT", "test-entered-password", 0x50000000, 0, 0, 1, 1,
+                            dialog, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero) == IntPtr.Zero) throw new Win32Exception();
+                        EnableWindow(root, false);
+                        Console.WriteLine("ready");
+                        Console.ReadLine();
+                    } finally {
+                        if (dialog != IntPtr.Zero && !DestroyWindow(dialog)) throw new Win32Exception();
+                        if (root != IntPtr.Zero && !DestroyWindow(root)) throw new Win32Exception();
+                        if (!UnregisterClassW("XLMAIN", IntPtr.Zero)) throw new Win32Exception();
+                    }
+                }
+            }
+            '@
+            [DialogHost]::Run($env:EXCELMCP_TEST_DIALOG_TITLE)
+            """;
+        using var host = Process.Start(new ProcessStartInfo("pwsh")
+        {
+            ArgumentList = { "-NoProfile", "-NonInteractive", "-Command", script },
+            Environment = { ["EXCELMCP_TEST_DIALOG_TITLE"] = title },
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        })!;
+        var failures = new List<Exception>();
+        try
+        {
+            Assert.Equal("ready", await host.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20)));
+            var identity = new ExcelProcessIdentity(host.Id, host.StartTime.ToUniversalTime().ToFileTimeUtc());
+            var started = Stopwatch.GetTimestamp();
+            var details = ExcelDialogProbe.ReadDetails(identity, NullLogger.Instance);
+            Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(2));
+            Assert.Contains(title, details, StringComparison.Ordinal);
+            Assert.Contains("could not be read", details, StringComparison.Ordinal);
+            Assert.DoesNotContain("test-entered-password", details, StringComparison.Ordinal);
+            Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Read(identity, NullLogger.Instance));
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            try
+            {
+                if (!host.HasExited)
+                {
+                    await host.StandardInput.WriteLineAsync();
+                    await host.StandardInput.FlushAsync();
+                }
+                await host.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                if (host.ExitCode != 0)
+                    failures.Add(new InvalidOperationException(await host.StandardError.ReadToEndAsync()));
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+        if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        if (failures.Count > 1) throw new AggregateException("External dialog test or cleanup failed.", failures);
+    }
+
     [Fact]
     public async Task Show_FromHiddenWindow_ConfirmsRequestedVisibility()
     {

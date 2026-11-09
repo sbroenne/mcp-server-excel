@@ -14,6 +14,46 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class McpResultContractTests(RecordingProgramTransportFixture fixture)
 {
     [Theory]
+    [InlineData("Busy")]
+    [InlineData("Timeout")]
+    [InlineData("SessionUnavailable")]
+    public async Task Close_PreservesDialogDetailsAndOriginalFailure(string category)
+    {
+        const string message = "Original operation failed. Dialog text: Connection test message\nThe database is unavailable.";
+        const string partialState = """{"operation":{"state":"running","waitExpired":true,"executionPending":true}}""";
+        var call = await fixture.CallToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["workbook_session_id"] = "dialog-session",
+            ["save"] = false
+        }, new ServiceResponse
+        {
+            Success = false,
+            Command = "session.close",
+            SessionId = "dialog-session",
+            ErrorCategory = category,
+            ErrorMessage = message,
+            ExceptionType = "InvalidOperationException",
+            HResult = "0x800AC472",
+            InnerError = "Original COM cause",
+            PartialState = partialState
+        }, "session.close", """{"save":false}""");
+        Assert.True(call.Result.IsError);
+        using var output = JsonDocument.Parse(call.JsonResult);
+        var root = output.RootElement;
+        Assert.True(JsonElement.DeepEquals(root, call.Result.StructuredContent!.Value));
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal(category, root.GetProperty("errorCategory").GetString());
+        Assert.Equal(message, root.GetProperty("errorMessage").GetString());
+        Assert.Equal("InvalidOperationException", root.GetProperty("exceptionType").GetString());
+        Assert.Equal("0x800AC472", root.GetProperty("hresult").GetString());
+        Assert.Equal("Original COM cause", root.GetProperty("innerError").GetString());
+        Assert.Equal("dialog-session", root.GetProperty("workbook_session_id").GetString());
+        using var expected = JsonDocument.Parse(partialState);
+        Assert.True(JsonElement.DeepEquals(expected.RootElement, root.GetProperty("partialState")));
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Close_PreservesTimingsAndMatchingErrorContent(bool success)

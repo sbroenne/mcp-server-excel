@@ -1467,14 +1467,19 @@ public sealed class SessionManager : IDisposable
                 return false;
             }
 
-            if (!allowTimedOutOperation && batch.HasTimedOutOperation &&
-                GetRefreshState(batch) != WorkbookRefreshState.Ready)
+            if (!allowTimedOutOperation && batch.HasTimedOutOperation)
             {
-                errorMessage = $"A previous wait on session '{sessionId}' expired. " +
-                               "The workbook remains open; execution or readiness verification is still pending.";
-                batch = null;
-                error = SessionOperationError.TimedOutOrCancelled;
-                return false;
+                var refreshState = GetRefreshState(batch);
+                if (refreshState != WorkbookRefreshState.Ready)
+                {
+                    errorMessage = $"A previous wait on session '{sessionId}' expired. " +
+                                   "The workbook remains open; execution or readiness verification is still pending.";
+                    if (refreshState == WorkbookRefreshState.DialogOpen)
+                        errorMessage += " " + ExcelBusyException.GetDialogGuidance(batch as IExcelBatchWindowControl);
+                    batch = null;
+                    error = SessionOperationError.TimedOutOrCancelled;
+                    return false;
+                }
             }
 
             if (!batch.IsExcelProcessAlive())

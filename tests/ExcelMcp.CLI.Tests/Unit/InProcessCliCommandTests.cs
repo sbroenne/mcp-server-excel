@@ -478,6 +478,50 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
+    [InlineData("Busy")]
+    [InlineData("Timeout")]
+    [InlineData("SessionUnavailable")]
+    public async Task SessionClose_PreservesDialogDetailsAndOriginalFailure(string category)
+    {
+        const string message = "Original operation failed. Dialog text: Connection test message\nThe database is unavailable.";
+        const string partialState = """{"operation":{"state":"running","waitExpired":true,"executionPending":true}}""";
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = false,
+            Command = "session.close",
+            SessionId = "dialog-session",
+            ErrorCategory = category,
+            ErrorMessage = message,
+            ExceptionType = "InvalidOperationException",
+            HResult = "0x800AC472",
+            InnerError = "Original COM cause",
+            PartialState = partialState
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        Assert.Equal(1, await Program.RunAsync(
+            ["--quiet", "session", "close", "--session", "dialog-session"],
+            CreateRuntime(factory, output, error)));
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("session.close", request.Command);
+        Assert.Equal("dialog-session", request.SessionId);
+        using var result = JsonDocument.Parse(output.ToString());
+        var root = result.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        var failure = root.GetProperty("error");
+        Assert.Equal(category, failure.GetProperty("category").GetString());
+        Assert.Equal(message, failure.GetProperty("message").GetString());
+        Assert.Equal("InvalidOperationException", failure.GetProperty("exceptionType").GetString());
+        Assert.Equal("0x800AC472", failure.GetProperty("hresult").GetString());
+        Assert.Equal("Original COM cause", failure.GetProperty("innerError").GetString());
+        Assert.Equal("dialog-session", failure.GetProperty("sessionId").GetString());
+        Assert.Equal("session.close", root.GetProperty("command").GetString());
+        using var expected = JsonDocument.Parse(partialState);
+        Assert.True(JsonElement.DeepEquals(expected.RootElement, root.GetProperty("partialState")));
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
     [InlineData("busy")]
     [InlineData("dialogOpen")]
     public async Task SessionList_NativeRefreshWithoutTrackedWork_PreservesCannotClose(string excelState)

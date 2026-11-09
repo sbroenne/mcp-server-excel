@@ -12,6 +12,82 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BusyFailureAfterPreflight_IncludesOwnedDialogAndPreservesOriginalError(bool attached)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownerSession = await CreateSessionAsync(service, Path.Join(directory, "busy-dialog.xlsx"));
+            sessions[ownerSession] = 0;
+            await WriteMarkerAsync(service, ownerSession, "Unchanged owner marker");
+            var ownerBatch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownerSession));
+            var session = ownerSession;
+            if (attached)
+            {
+                var name = ownerBatch.Execute((context, _) => AddReviewWorkbook(context.App, "Unchanged attached marker"));
+                session = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, name));
+                sessions[session] = 0;
+            }
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            var window = batch.Execute((context, _) => new nint(context.App.Hwnd));
+            Assert.Equal(WorkbookRefreshState.Ready, ownerBatch.GetExecutionPreflightState());
+#pragma warning disable CA2201 // Synthetic busy failure exercises the transport boundary with real Excel ownership.
+            var cause = new COMException("Excel rejected the operation after preflight.", unchecked((int)0x800AC472));
+            var unspecified = new COMException("Unspecified Excel error", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+            var failure = new InvalidOperationException("The selected operation failed.", cause);
+            var create = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(create);
+            using (var dialog = new OwnedTestDialog(window))
+            {
+                var response = Assert.IsType<ServiceResponse>(
+                    create.Invoke(service, [failure, "sheet.list", session, null, null]));
+                Assert.False(response.Success);
+                Assert.Equal("Busy", response.ErrorCategory);
+                Assert.Equal(nameof(InvalidOperationException), response.ExceptionType);
+                Assert.Equal("0x800AC472", response.HResult);
+                Assert.Equal(cause.Message + " [COM: 0x800AC472]", response.InnerError);
+                Assert.Equal("sheet.list", response.Command);
+                Assert.Equal(session, response.SessionId);
+                Assert.StartsWith(nameof(InvalidOperationException) + ": " + failure.Message, response.ErrorMessage);
+                Assert.Contains("Connection test message", response.ErrorMessage, StringComparison.Ordinal);
+                Assert.Contains("The database is unavailable.", response.ErrorMessage, StringComparison.Ordinal);
+                Assert.DoesNotContain("test-entered-password", response.ErrorMessage, StringComparison.Ordinal);
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.False(batch.HasTimedOutOperation);
+
+                foreach (var otherFailure in new Exception[]
+                {
+                    new TimeoutException("Original deadline", cause),
+                    new OperationCanceledException("Original cancellation", cause),
+                    unspecified
+                })
+                {
+                    var other = Assert.IsType<ServiceResponse>(
+                        create.Invoke(service, [otherFailure, "sheet.list", session, null, null]));
+                    Assert.Equal($"{otherFailure.GetType().Name}: {otherFailure.Message}", other.ErrorMessage);
+                }
+                var preflight = Assert.Throws<ExcelBusyException>(() =>
+                    ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.DialogOpen, "list sheets",
+                        batch as IExcelBatchWindowControl));
+                var alreadyDescribed = Assert.IsType<ServiceResponse>(
+                    create.Invoke(service, [preflight, "sheet.list", session, null, null]));
+                Assert.Equal($"{nameof(ExcelBusyException)}: {preflight.Message}", alreadyDescribed.ErrorMessage);
+            }
+            var noDialog = Assert.IsType<ServiceResponse>(
+                create.Invoke(service, [failure, "sheet.list", session, null, null]));
+            Assert.Equal($"{nameof(InvalidOperationException)}: {failure.Message}", noDialog.ErrorMessage);
+            Assert.Equal(attached ? "Unchanged attached marker" : "Unchanged owner marker",
+                await ReadMarkerAsync(service, session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            Assert.Equal("Unchanged owner marker", await ReadMarkerAsync(service, ownerSession));
+            Assert.False(ownerBatch.Execute((context, _) => context.Book.Saved));
+        });
+    }
+
+    [Theory]
     [InlineData("connection.discover-olap-schema")]
     [InlineData("connection.search-olap-members")]
     public async Task UnavailableOlapSession_ReturnsAutomaticDialogCheckWithoutChangingWorkbook(string command)
@@ -339,6 +415,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Path.Join(directory, "timed-out-dialog.xlsx"),
                 operationTimeout: TimeSpan.FromSeconds(15));
             sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Retained timeout marker");
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
             var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
             using var dialog = new OwnedTestDialog(owner);
@@ -386,6 +463,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
             });
             Assert.False(rejectedWorkbookCommand.Success);
             Assert.Equal("SessionUnavailable", rejectedWorkbookCommand.ErrorCategory);
+            Assert.Contains("Connection test message", rejectedWorkbookCommand.ErrorMessage, StringComparison.Ordinal);
+            Assert.Contains("The database is unavailable.", rejectedWorkbookCommand.ErrorMessage, StringComparison.Ordinal);
+            Assert.DoesNotContain("test-entered-password", rejectedWorkbookCommand.ErrorMessage, StringComparison.Ordinal);
 
             foreach (var action in DialogVisibilityActions)
             {
@@ -400,6 +480,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.Equal(expectedVisible, json.RootElement.GetProperty("isVisible").GetBoolean());
                 Assert.Equal(expectedVisible, IsWindowVisible(owner));
             }
+            dialog.Dispose();
+            Assert.Equal("Retained timeout marker", await ReadMarkerAsync(service, session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
         });
     }
 

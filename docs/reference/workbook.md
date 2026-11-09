@@ -343,6 +343,10 @@ If an executing operation reaches the session's operation timeout while a dialog
 is detected, its error reports that a dialog was open instead of only suggesting
 a longer timeout. Readable dialog text is included automatically. Timeout recovery retains the
 session and unsaved workbook and requests visibility for its owned Excel window.
+Busy errors during execution and commands refused after an expired wait also
+include the title and readable message when a blocking dialog is confirmed.
+The original error and existing timeout remain unchanged; an unreadable message
+is reported explicitly, and Windows' stored title is used when available.
 It does not save, close, terminate, or roll back the operation. Session listing
 checks window ownership and reads available dialog labels without queuing Excel COM work.
 The operation may still be running. CLI `session list` and MCP `file_read`
