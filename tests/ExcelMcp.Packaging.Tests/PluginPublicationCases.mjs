@@ -124,6 +124,18 @@ export function registerPolicyTests() {
         assert.throws(() => validatePublication(partialReferences), /Missing required skill file/);
     });
 
+    test('a legacy MCP skill requires range references even during stamp repair', () => {
+        const files = payload();
+        files.delete('plugins/excel-mcp/skills/excel-mcp/references/range.md');
+        for (const repairStamps of [false, true]) {
+            assert.throws(() => validatePublication(files, { repairStamps }),
+                /Missing required skill file: excel-mcp\/references\/range\.md/);
+        }
+        edit(files, 'plugins/excel-mcp/skills/excel-mcp/references/table.md', 'Partial legacy references');
+        assert.throws(() => validatePublication(files),
+            /Missing required skill file: excel-mcp\/references\/range\.md/);
+    });
+
     test('publication workflow validates every recognized skill and rejects stale discovery stamps', () => {
         const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'publish-plugins.yml'), 'utf8');
         const section = workflow.split('      - name: Validate prepared skills')[1]

@@ -17,16 +17,18 @@ path with the same arguments.
 1. **Open and look** in one batch. Start the batch with `session.open`; later
    entries in the same batch use that workbook automatically. Read what you
    need to plan, such as `sheet.list`, `table.list` and `range.get-used-range`.
-   The result of `session.open` gives the `sessionId`.
+   The result of `session.open` gives the `sessionId`. Before editing, check
+   its `autoSaveOn` and `warning`: Excel may save edits automatically.
 2. **Change and check** in one batch with `--session <sessionId>
    --stop-on-error`. Put the writes first, then reads of the cells you changed,
    so one result shows that the change worked.
 3. **Save and close**: `session close --session <sessionId> --save`, only after
-   step 2's reads look right. To leave the file unchanged, close without
-   `--save`.
+   step 2's reads look right. Closing without `--save` discards only unsaved
+   edits; it cannot undo changes already saved by AutoSave.
 
-Pass the batch as a JSON array on standard input (`batch` with no `--input`),
-or in a file with `--input <file>`. Each entry is
+Pass the batch as a JSON array in a file with `--input <file>`. Direct
+`excelcli` calls also accept standard input (`batch` with no `--input`), but
+the PowerShell launcher requires `--input <file>`. Each entry is
 `{"command":"group.action","args":{...}}`. Argument names are case-sensitive
 camelCase. Put arrays and objects in as JSON, not as strings of JSON. Check
 every entry's `success` in the output; one failed entry does not undo the

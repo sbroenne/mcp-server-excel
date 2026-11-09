@@ -146,6 +146,7 @@ function requireFile(tree, name) {
 function skillReference(skill, skills, files) {
     if (skill.endsWith('-report-formatting')) return 'report-formatting.md';
     if (skills.length !== 1) return null;
+    if (skill !== 'excel-cli') return 'range.md';
     return files.some(file => file.startsWith(`${skill}/references/`)) ? 'range.md' : null;
 }
 

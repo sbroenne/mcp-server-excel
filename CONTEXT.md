@@ -68,7 +68,8 @@ private workers launched from that entry point, not in the controller or tray.
 - `docs/features/` documents user-facing behavior.
 - `docs/reference/` owns general workflows, limitations, and recovery documentation.
 - Native CLI help and MCP schemas provide product discovery. Optional formatting
-  advice lives in `docs/reference/report-formatting.md`; no agent skills are bundled.
+  advice lives in `docs/reference/report-formatting.md`. Only the CLI plugin
+  bundles the short `excel-cli` quick-start skill.
 
 When these sources disagree, confirm the current implementation and update the stale source instead of creating another competing definition.
 
