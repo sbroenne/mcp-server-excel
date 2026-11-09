@@ -5,7 +5,7 @@ generation, validation, and publication. `sbroenne/mcp-server-excel-plugins` is
 output-only: never fix generated files there by hand.
 
 The two plugins contain launch configuration, an argument-safe CLI wrapper, and
-no agent skills or bundled runtimes. They use the public npm packages through
+no bundled runtimes. Only the CLI plugin bundles a skill: the short `excel-cli` quick start. They use the public npm packages through
 `npx` and require Node.js 18 or later.
 
 ## Required secret
@@ -28,7 +28,7 @@ attempting publication. Never print the credential.
 `release.yml` builds and verifies every package through
 `scripts\Build-ReleasePackages.ps1`. Each standalone runtime is published once;
 the extension reuses the MCP executable, while the Claude bundle contains a
-direct npx configuration rather than a runtime. Product packages do not bundle skills.
+direct npx configuration rather than a runtime. Only the CLI plugin bundles a skill.
 
 After GitHub Release assets and npm packages exist, the release calls
 `publish-plugins.yml` as a reusable workflow with the exact tag, final release
@@ -155,9 +155,9 @@ building the plugins. Source tags without that script build the plugins directly
 Build and generator failures stop the repair; there is no fallback to current source.
 
 The workflow serializes publication, blocks downgrades and mismatched tags,
-validates plugin identities and wrapper-only contents, and validates any skills
-in historical payloads with the pinned official Agent Skills validator.
-Current payloads have no skills to validate. Automatic duplicates are
+validates plugin identities and wrapper-only contents, and validates every bundled skill,
+current or historical, with the pinned official Agent Skills validator.
+Current payloads contain only the CLI quick-start skill. Automatic duplicates are
 skipped. Manual repair compares generated output before committing; identical
 output does not create an empty commit. The explicit manual path uses raw output
 differences too, so it can restore missing/mismatched known version stamps and
@@ -257,7 +257,7 @@ Merging a source PR does not publish plugins. A release or authorized manual
 repair must run the publication path.
 
 Historical skill validation shares the deterministic layout rules used by the publication
-guard. Current packages have no skills; legacy repair accepts the CLI discovery-plus-formatting pair, formatting-only
+guard. Current packages contain only the reference-free `excel-cli` quick-start skill in the CLI plugin; legacy repair accepts the CLI discovery-plus-formatting pair, formatting-only
 packages, and immutable legacy packages with their general skill and references.
 Both CLI skills must carry the exact release version. Mixed old reference
 collections with the new discovery skill, unknown skill directories, and mixed

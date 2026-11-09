@@ -32,7 +32,17 @@ function Assert-PreparedPlugin {
     if (Get-ChildItem -LiteralPath $Directory -Recurse -File -Filter 'install-global.ps1') { throw 'Global installation helpers are retired; use npx instead.' }
     if ([IO.File]::Exists((Join-Path $Directory '.mcp.json'))) { throw "Legacy MCP configuration is not permitted in Agent Plugins 1.0 packages: $Directory" }
     $skills = Join-Path $Directory 'skills'
-    if ([IO.Directory]::Exists($skills)) { throw "Plugins must not bundle skills: $Directory" }
+    if ([IO.Directory]::Exists($skills)) {
+        $files = @(Get-ChildItem -LiteralPath $skills -Recurse -File | ForEach-Object {
+            [IO.Path]::GetRelativePath($skills, $_.FullName).Replace('\', '/')
+        } | Sort-Object)
+        if ($Name -cne 'excel-cli' -or ($files -join '|') -cne 'excel-cli/SKILL.md|excel-cli/VERSION') {
+            throw "Only the excel-cli plugin may bundle its single excel-cli skill: $Directory"
+        }
+        if ([IO.File]::ReadAllText((Join-Path $skills 'excel-cli/VERSION')).Trim() -cne $Version) {
+            throw "Skill version stamp does not match the plugin version: $Directory"
+        }
+    }
     $mcpPath = Join-Path $Directory 'mcp.json'
     if (-not [IO.File]::Exists($mcpPath)) { return }
     $mcp = Read-PackageJson $mcpPath
@@ -69,6 +79,8 @@ Invoke-PackageStage 'plugins' {
         $manifest.version = $Version
         Write-PackageJson $manifestPath $manifest
         [IO.File]::WriteAllText((Join-Path $destination 'version.txt'), $Version)
+        $skill = Join-Path $destination 'skills\excel-cli'
+        if ([IO.Directory]::Exists($skill)) { [IO.File]::WriteAllText((Join-Path $skill 'VERSION'), $Version) }
         Assert-PreparedPlugin $component $destination
     }
     [IO.Directory]::CreateDirectory($output) | Out-Null

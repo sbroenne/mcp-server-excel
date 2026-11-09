@@ -142,6 +142,13 @@ function requireFile(tree, name) {
     return file.bytes;
 }
 
+// Legacy single skills shipped references/range.md; the current quick-start skill has no references.
+function skillReference(skill, skills, files) {
+    if (skill.endsWith('-report-formatting')) return 'report-formatting.md';
+    if (skills.length !== 1) return null;
+    return files.some(file => file.startsWith(`${skill}/references/`)) ? 'range.md' : null;
+}
+
 export function pluginSkillNames(name, files) {
     if (!pluginNames.includes(name) || !Array.isArray(files) || files.some(file => typeof file !== 'string')) {
         throw new Error('Invalid plugin skill layout input.');
@@ -156,7 +163,7 @@ export function pluginSkillNames(name, files) {
         throw new Error('Mixed or unexpected skill layout.');
     }
     for (const skill of skills) {
-        const reference = skill === formatting ? 'report-formatting.md' : skills.length === 1 ? 'range.md' : null;
+        const reference = skillReference(skill, skills, files);
         for (const file of [`${skill}/SKILL.md`, ...(reference ? [`${skill}/references/${reference}`] : [])]) {
             if (!files.includes(file)) throw new Error(`Missing required skill file: ${file}`);
         }
@@ -183,13 +190,14 @@ export function validatePlugin(tree, name, { expectedVersion, repairStamps = fal
         !Array.isArray(manifest.keywords) || manifest.keywords.some(value => typeof value !== 'string')) {
         throw new Error(`Invalid ${name} manifest metadata.`);
     }
-    const skills = pluginSkillNames(name, [...tree.keys()].filter(file => file.startsWith(`${prefix}skills/`))
-        .map(file => file.slice(`${prefix}skills/`.length)));
+    const skillFiles = [...tree.keys()].filter(file => file.startsWith(`${prefix}skills/`))
+        .map(file => file.slice(`${prefix}skills/`.length));
+    const skills = pluginSkillNames(name, skillFiles);
     for (const file of ['README.md',
         name === 'excel-cli' ? 'bin/start-cli.ps1' : 'mcp.json']) requireFile(tree, prefix + file);
     for (const skill of skills) {
         requireFile(tree, `${prefix}skills/${skill}/SKILL.md`);
-        const reference = skill.endsWith('-report-formatting') ? 'report-formatting.md' : skills.length === 1 ? 'range.md' : null;
+        const reference = skillReference(skill, skills, skillFiles);
         if (reference) requireFile(tree, `${prefix}skills/${skill}/references/${reference}`);
     }
     for (const stamp of ['version.txt', ...skills.map(skill => `skills/${skill}/VERSION`)]) {

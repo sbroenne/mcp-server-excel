@@ -79,7 +79,9 @@ claude plugin install excel-cli@mcp-server-excel-plugins
 
 The plugin includes `bin\start-cli.ps1`, an argument-safe launcher for
 `npx -y @sbroenne/excelcli@latest`. Use its full installed path; the plugin does
-not add `excelcli` to PATH or bundle an agent skill. Discover actions with
-`list-actions <command>`, then read `<command> <action> --help`.
+not add `excelcli` to PATH. It bundles one short `excel-cli` skill with the
+usual open, change, check and save routine and exact batch names for common
+actions. For other actions, use `list-actions <command>`, then read
+`<command> <action> --help`.
 To use the CLI without this plugin, follow the
 [CLI installation guide](https://excelmcpserver.dev/installation-cli/).
