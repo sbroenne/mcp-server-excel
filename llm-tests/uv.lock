@@ -249,7 +249,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4" },
-    { name = "pytest-skill-engineering", specifier = "==1.0.6" },
+    { name = "pytest-skill-engineering", specifier = "==1.0.8" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
 ]
 
@@ -768,7 +768,7 @@ wheels = [
 
 [[package]]
 name = "pytest-skill-engineering"
-version = "1.0.6"
+version = "1.0.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "github-copilot-sdk" },
@@ -782,9 +782,9 @@ dependencies = [
     { name = "trio" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/78/4169a6713d9407cc7673880e793f14ececccd463460f9f7d7d0c697a875a/pytest_skill_engineering-1.0.6.tar.gz", hash = "sha256:102a4b336cc9b1a1dcc6a0d2a2cc8bdfab08d0d850975a8bab05a0913f42598e", size = 90526, upload-time = "2026-10-30T09:37:25.744Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/65/88aa62939555a6eeab74208173b91e4793857eecdbbe35219980b491bb11/pytest_skill_engineering-1.0.8.tar.gz", hash = "sha256:65890f0ac4fc68b18d062f18985d61e9f586a64667142138b2f943b050519ced", size = 94802, upload-time = "2026-11-03T08:28:28.709Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/e6/c0a0cd7210d0725adbf9019e28417dc314751a9b9263f65d44bf1f321f64/pytest_skill_engineering-1.0.6-py3-none-any.whl", hash = "sha256:b1344c30f6802f0b8b0ddd5d75732d8e43663d58cd7a53d7a324c84d7693c461", size = 114831, upload-time = "2026-10-30T09:37:24.014Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/f2/8f789975ebdae29479c05971e5901f04f1891b32d963de9c98603da5a0e1/pytest_skill_engineering-1.0.8-py3-none-any.whl", hash = "sha256:7051bb3d497348c2155de2d69e0c211686cc8a7551c6b33c674db968250e7d93", size = 120126, upload-time = "2026-11-03T08:28:27.281Z" },
 ]
 
 [[package]]
