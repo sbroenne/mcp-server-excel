@@ -479,7 +479,6 @@ public partial class PowerQueryCommands
             return;
         }
 
-        var cacheOutcomes = new Dictionary<int, PowerQueryPivotRefreshFailure?>();
         Excel.Sheets? worksheets = null;
         try
         {
@@ -505,7 +504,6 @@ public partial class PowerQueryCommands
                             pivotCache = pivotTable.PivotCache();
                             bool isOlap = pivotCache.OLAP;
                             string pivotName = $"{sheetName}!{pivotTable.Name}";
-                            int cacheIndex = pivotCache.Index;
                             bool isDependent;
                             try
                             {
@@ -521,7 +519,6 @@ public partial class PowerQueryCommands
                             catch (Exception ex) when (IsRecordableQueryFailure(ex, cancellationToken))
                             {
                                 var classificationFailure = CreatePivotRefreshFailure(pivotName, ex);
-                                cacheOutcomes.TryAdd(cacheIndex, classificationFailure);
                                 result.FailedPivotTables.Add(classificationFailure);
                                 continue;
                             }
@@ -531,46 +528,26 @@ public partial class PowerQueryCommands
                                 continue;
                             }
 
-                            if (!cacheOutcomes.TryGetValue(cacheIndex, out var failure))
+                            progress?.Report(new ProgressInfo
                             {
-                                progress?.Report(new ProgressInfo
-                                {
-                                    Current = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count,
-                                    Total = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count + 1,
-                                    Message = $"Refreshing dependent PivotTable '{pivotName}'"
-                                });
-                                try
-                                {
-                                    PivotTableRefreshHelper.RefreshSynchronously(
-                                        pivotTable,
-                                        pivotCache,
-                                        cancellationToken,
-                                        $"PivotTable '{pivotName}'");
-                                    cancellationToken.ThrowIfCancellationRequested();
-
-                                    cacheOutcomes.Add(cacheIndex, null);
-                                    failure = null;
-                                }
-                                catch (Exception ex) when (IsRecordableQueryFailure(ex, cancellationToken))
-                                {
-                                    failure = CreatePivotRefreshFailure(pivotName, ex);
-                                    cacheOutcomes.Add(cacheIndex, failure);
-                                }
-                            }
-
-                            if (failure == null)
+                                Current = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count,
+                                Total = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count + 1,
+                                Message = $"Refreshing dependent PivotTable '{pivotName}'"
+                            });
+                            try
                             {
+                                PivotTableRefreshHelper.RefreshSynchronously(
+                                    pivotTable,
+                                    pivotCache,
+                                    cancellationToken,
+                                    $"PivotTable '{pivotName}'");
+                                cancellationToken.ThrowIfCancellationRequested();
+
                                 result.RefreshedPivotTables.Add(pivotName);
                             }
-                            else
+                            catch (Exception ex) when (IsRecordableQueryFailure(ex, cancellationToken))
                             {
-                                result.FailedPivotTables.Add(new PowerQueryPivotRefreshFailure
-                                {
-                                    PivotTableName = pivotName,
-                                    ErrorMessage = failure.ErrorMessage,
-                                    ExceptionType = failure.ExceptionType,
-                                    HResult = failure.HResult
-                                });
+                                result.FailedPivotTables.Add(CreatePivotRefreshFailure(pivotName, ex));
                             }
                         }
                         finally

@@ -1782,13 +1782,13 @@ public class PowerQueryRefreshAllResult : OperationResult
     public List<PowerQueryRefreshFailure> FailedQueries { get; set; } = [];
 
     /// <summary>
-    /// PivotTables whose caches were refreshed because they depend on refreshed query loads.
+    /// PivotTables refreshed because they depend on refreshed query loads.
     /// Names are qualified with the worksheet name.
     /// </summary>
     public List<string> RefreshedPivotTables { get; set; } = [];
 
     /// <summary>
-    /// PivotTables whose refresh failed. The operation continued with other caches.
+    /// PivotTables whose refresh failed. The operation continued with other PivotTables.
     /// </summary>
     public List<PowerQueryPivotRefreshFailure> FailedPivotTables { get; set; } = [];
 
@@ -1816,7 +1816,7 @@ public class PowerQueryRefreshAllResult : OperationResult
 }
 
 /// <summary>
-/// A PivotTable whose cache refresh failed during Power Query refresh-all.
+/// A PivotTable whose refresh failed during Power Query refresh-all.
 /// </summary>
 public class PowerQueryPivotRefreshFailure
 {
@@ -1859,7 +1859,7 @@ public class WorkbookRefreshAllResult : OperationResult
     /// <summary>PivotTables refreshed; each name is qualified with its worksheet.</summary>
     public List<string> RefreshedPivotTables { get; set; } = [];
 
-    /// <summary>PivotTables whose shared cache failed to refresh.</summary>
+    /// <summary>PivotTables that failed to refresh.</summary>
     public List<WorkbookPivotRefreshFailure> FailedPivotTables { get; set; } = [];
 }
 

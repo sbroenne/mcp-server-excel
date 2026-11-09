@@ -107,14 +107,13 @@ public partial class WorkbookCommands
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Reports each cache refresh failure on its affected pivots with the original message, exception type and HRESULT; cancellation and disconnection propagate.")]
+        Justification = "Reports each PivotTable refresh failure with the original message, exception type and HRESULT; cancellation and disconnection propagate.")]
     private static void RefreshAllPivotTables(
         Excel.Workbook workbook,
         WorkbookRefreshAllResult result,
         CancellationToken cancellationToken,
         IProgress<ProgressInfo>? progress)
     {
-        var cacheOutcomes = new Dictionary<int, WorkbookPivotRefreshFailure?>();
         Excel.Sheets? worksheets = null;
         try
         {
@@ -139,57 +138,34 @@ public partial class WorkbookCommands
                             pivotTable = pivotTables.Item(j);
                             pivotCache = pivotTable.PivotCache();
                             string pivotName = pivotTable.Name;
-                            int cacheIndex = pivotCache.Index;
-                            if (!cacheOutcomes.TryGetValue(cacheIndex, out var failure))
+                            progress?.Report(new ProgressInfo
                             {
-                                progress?.Report(new ProgressInfo
-                                {
-                                    Current = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count,
-                                    Total = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count + 1,
-                                    Message = $"Refreshing PivotTable '{sheetName}!{pivotName}'"
-                                });
-
-                                try
-                                {
-                                    PivotTableRefreshHelper.RefreshSynchronously(
-                                        pivotTable,
-                                        pivotCache,
-                                        cancellationToken,
-                                        $"PivotTable '{sheetName}!{pivotName}'");
-                                    cancellationToken.ThrowIfCancellationRequested();
-
-                                    cacheOutcomes.Add(cacheIndex, null);
-                                    failure = null;
-                                }
-                                catch (Exception ex) when (
-                                    global::Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands
-                                        .IsRecordableQueryFailure(ex, cancellationToken))
-                                {
-                                    failure = new WorkbookPivotRefreshFailure
-                                    {
-                                        SheetName = sheetName,
-                                        PivotTableName = pivotName,
-                                        ErrorMessage = ex.Message,
-                                        ExceptionType = ex.GetType().Name,
-                                        HResult = $"0x{ex.HResult:X8}"
-                                    };
-                                    cacheOutcomes.Add(cacheIndex, failure);
-                                }
-                            }
-
-                            if (failure == null)
+                                Current = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count,
+                                Total = result.RefreshedPivotTables.Count + result.FailedPivotTables.Count + 1,
+                                Message = $"Refreshing PivotTable '{sheetName}!{pivotName}'"
+                            });
+                            try
                             {
+                                PivotTableRefreshHelper.RefreshSynchronously(
+                                    pivotTable,
+                                    pivotCache,
+                                    cancellationToken,
+                                    $"PivotTable '{sheetName}!{pivotName}'");
+                                cancellationToken.ThrowIfCancellationRequested();
+
                                 result.RefreshedPivotTables.Add($"{sheetName}!{pivotName}");
                             }
-                            else
+                            catch (Exception ex) when (
+                                global::Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands
+                                    .IsRecordableQueryFailure(ex, cancellationToken))
                             {
                                 result.FailedPivotTables.Add(new WorkbookPivotRefreshFailure
                                 {
                                     SheetName = sheetName,
                                     PivotTableName = pivotName,
-                                    ErrorMessage = failure.ErrorMessage,
-                                    ExceptionType = failure.ExceptionType,
-                                    HResult = failure.HResult
+                                    ErrorMessage = ex.Message,
+                                    ExceptionType = ex.GetType().Name,
+                                    HResult = $"0x{ex.HResult:X8}"
                                 });
                             }
                         }
