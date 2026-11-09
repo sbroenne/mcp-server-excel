@@ -228,8 +228,9 @@ named connections as a shortcut.
 ### Staging queries and batch refresh
 
 `refresh-all` refreshes every loaded query in the workbook, then refreshes the
-PivotTables that depend on those query loads. Shared PivotTable caches are
-refreshed once. Set `refresh_pivot_tables=false` (CLI:
+PivotTables that depend on those query loads. Each dependent PivotTable is
+refreshed individually, including reports that share a cache. A report is listed
+in `refreshedPivotTables` only after its own refresh succeeds. Set `refresh_pivot_tables=false` (CLI:
 `--refresh-pivot-tables false`) to refresh query loads only. Parameter queries
 and definition-only staging queries have no connection or table of their own,
 so they are skipped and listed in `skippedQueries`; Excel evaluates them when

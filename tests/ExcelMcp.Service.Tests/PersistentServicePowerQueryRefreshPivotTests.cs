@@ -1,6 +1,7 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -9,6 +10,188 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServicePowerQueryRefreshTests
 {
+    private const string MultiPivotInitialCode = """
+        let
+            Source = #table(
+                type table [Group = text, Amount = Int64.Type, Units = Int64.Type],
+                {{"A", 10, 1}, {"B", 20, 2}, {"A", 30, 3}, {"B", 40, 4}})
+        in
+            Source
+        """;
+    private const string MultiPivotUpdatedCode = """
+        let
+            Source = #table(
+                type table [Group = text, Amount = Int64.Type, Units = Int64.Type],
+                {{"A", 100, 11}, {"B", 200, 22}, {"A", 300, 33}, {"B", 400, 44}})
+        in
+            Source
+        """;
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RefreshAll_RefreshesEachPivotTable(bool workbookRefresh, bool sharedCache)
+    {
+        var (queryName, reportSheet, amountPivot, unitsPivot) = CreateRefreshPivotPair(sharedCache);
+        await _fixture.SaveAndReopenAsync();
+        AssertPivotGroupTotals(amountPivot, 40, 60);
+        AssertPivotGroupTotals(unitsPivot, 4, 6);
+        RequireSuccess(_queries.Update(
+            _fixture.BatchToken, queryName, MultiPivotUpdatedCode, refresh: false));
+        AssertPivotGroupTotals(amountPivot, 40, 60);
+        AssertPivotGroupTotals(unitsPivot, 4, 6);
+
+        string[] expectedPivots = [$"{reportSheet}!{amountPivot}", $"{reportSheet}!{unitsPivot}"];
+        if (workbookRefresh)
+        {
+            var result = RequireSuccess(_workbooks.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
+            Assert.Equal([queryName], result.RefreshedQueries);
+            Assert.Equal(expectedPivots.Order(), result.RefreshedPivotTables.Order());
+            Assert.Empty(result.FailedQueries);
+            Assert.Empty(result.FailedConnections);
+            Assert.Empty(result.FailedPivotTables);
+        }
+        else
+        {
+            var result = RequireSuccess(_queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
+            Assert.Equal([queryName], result.RefreshedQueries);
+            Assert.Equal(expectedPivots.Order(), result.RefreshedPivotTables.Order());
+            Assert.Empty(result.FailedQueries);
+            Assert.Empty(result.FailedPivotTables);
+        }
+
+        PowerQueryStateAssertions.AssertStored(
+            _fixture, queryName, MultiPivotUpdatedCode, PowerQueryLoadMode.LoadToTable, queryName,
+            ["Group", "Amount", "Units"],
+            [["A", 100, 11], ["B", 200, 22], ["A", 300, 33], ["B", 400, 44]]);
+        AssertPivotGroupTotals(amountPivot, 400, 600);
+        AssertPivotGroupTotals(unitsPivot, 44, 66);
+    }
+
+    private (string QueryName, string ReportSheet, string AmountPivot, string UnitsPivot)
+        CreateRefreshPivotPair(bool sharedCache)
+    {
+        string queryName = UniqueName("MultiPivotQuery");
+        string reportSheet = UniqueName("MultiPivotReport");
+        string amountPivot = UniqueName("AmountPivot");
+        string unitsPivot = UniqueName("UnitsPivot");
+        RequireSuccess(_queries.Create(
+            _fixture.BatchToken, queryName, MultiPivotInitialCode, PowerQueryLoadMode.LoadToTable, queryName));
+        _fixture.RegisterPowerQueryForCleanup(queryName);
+        _fixture.RegisterSheetForCleanup(queryName);
+        RequireSuccess(_sheets.Create(_fixture.BatchToken, reportSheet));
+        _fixture.RegisterSheetForCleanup(reportSheet);
+
+        RequireSuccess(_pivotTables.CreateFromTable(
+            _fixture.BatchToken, queryName, reportSheet, "A3", amountPivot));
+        RequireSuccess(_pivotFields.AddRowField(_fixture.BatchToken, amountPivot, "Group"));
+        RequireSuccess(_pivotFields.AddValueField(
+            _fixture.BatchToken, amountPivot, "Amount", AggregationFunction.Sum));
+        RequireSuccess(_pivotTables.CreateFromTable(
+            _fixture.BatchToken, queryName, reportSheet, "E3", unitsPivot,
+            shareCacheWith: sharedCache ? amountPivot : null,
+            shareCacheWithSheet: sharedCache ? reportSheet : null));
+        RequireSuccess(_pivotFields.AddRowField(_fixture.BatchToken, unitsPivot, "Group"));
+        RequireSuccess(_pivotFields.AddValueField(
+            _fixture.BatchToken, unitsPivot, "Units", AggregationFunction.Sum));
+
+        int amountCache = ReadPivotCacheIndex(reportSheet, amountPivot);
+        int unitsCache = ReadPivotCacheIndex(reportSheet, unitsPivot);
+        Assert.Equal(sharedCache, amountCache == unitsCache);
+        return (queryName, reportSheet, amountPivot, unitsPivot);
+    }
+
+    private int ReadPivotCacheIndex(string sheetName, string pivotName) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? worksheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.PivotCache? cache = null;
+            try
+            {
+                worksheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(worksheet);
+                pivots = worksheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cache = pivot.PivotCache();
+                return cache.Index;
+            }
+            finally
+            {
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref worksheet);
+            }
+        });
+
+    private void AssertPivotGroupTotals(string pivotName, double groupA, double groupB)
+    {
+        var calculations = _fixture.CreateCommands<IPivotTableCalcCommands>();
+        var data = RequireSuccess(calculations.GetData(_fixture.BatchToken, pivotName));
+        Assert.Equal(4, data.Values.Count);
+        Assert.All(data.Values, row => Assert.Equal(2, row.Count));
+        Assert.Equal("A", data.Values[1][0]);
+        Assert.Equal(groupA, Convert.ToDouble(data.Values[1][1], CultureInfo.InvariantCulture));
+        Assert.Equal("B", data.Values[2][0]);
+        Assert.Equal(groupB, Convert.ToDouble(data.Values[2][1], CultureInfo.InvariantCulture));
+        Assert.Equal(groupA + groupB, Convert.ToDouble(data.Values[3][1], CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RefreshAll_ReportsFailedPivotWithoutSkippingHealthyPivot(bool workbookRefresh)
+    {
+        var (queryName, reportSheet, amountPivot, unitsPivot) = CreateRefreshPivotPair(false);
+        await _fixture.SaveAndReopenAsync();
+        RequireSuccess(_pivotTables.SetCacheOptions(_fixture.BatchToken, unitsPivot, enableRefresh: false));
+        AssertPivotGroupTotals(amountPivot, 40, 60);
+        AssertPivotGroupTotals(unitsPivot, 4, 6);
+        RequireSuccess(_queries.Update(_fixture.BatchToken, queryName, MultiPivotUpdatedCode, refresh: false));
+
+        if (workbookRefresh)
+        {
+            var result = _workbooks.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1));
+            Assert.False(result.Success);
+            Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+            Assert.Equal([queryName], result.RefreshedQueries);
+            Assert.Equal([$"{reportSheet}!{amountPivot}"], result.RefreshedPivotTables);
+            Assert.Empty(result.FailedQueries);
+            Assert.Empty(result.FailedConnections);
+            var failure = Assert.Single(result.FailedPivotTables);
+            Assert.Equal(reportSheet, failure.SheetName);
+            Assert.Equal(unitsPivot, failure.PivotTableName);
+            Assert.False(string.IsNullOrWhiteSpace(failure.ErrorMessage));
+            Assert.False(string.IsNullOrWhiteSpace(failure.ExceptionType));
+            Assert.Matches("^0x[0-9A-F]{8}$", failure.HResult);
+        }
+        else
+        {
+            var result = _queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1));
+            Assert.False(result.Success);
+            Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+            Assert.Equal([queryName], result.RefreshedQueries);
+            Assert.Equal([$"{reportSheet}!{amountPivot}"], result.RefreshedPivotTables);
+            Assert.Empty(result.FailedQueries);
+            var failure = Assert.Single(result.FailedPivotTables);
+            Assert.Equal($"{reportSheet}!{unitsPivot}", failure.PivotTableName);
+            Assert.False(string.IsNullOrWhiteSpace(failure.ErrorMessage));
+            Assert.False(string.IsNullOrWhiteSpace(failure.ExceptionType));
+            Assert.Matches("^0x[0-9A-F]{8}$", failure.HResult);
+        }
+
+        PowerQueryStateAssertions.AssertStored(
+            _fixture, queryName, MultiPivotUpdatedCode, PowerQueryLoadMode.LoadToTable, queryName,
+            ["Group", "Amount", "Units"],
+            [["A", 100, 11], ["B", 200, 22], ["A", 300, 33], ["B", 400, 44]]);
+        AssertPivotGroupTotals(amountPivot, 400, 600);
+        AssertPivotGroupTotals(unitsPivot, 4, 6);
+    }
+
     [Fact]
     public void RefreshAll_RefreshesPivotTableBuiltOnRefreshedQueryByDefault()
     {

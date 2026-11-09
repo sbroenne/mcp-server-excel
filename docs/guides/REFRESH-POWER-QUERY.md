@@ -67,7 +67,9 @@ excelcli -q powerquery refresh-all --session $session
 ```
 
 By default, Power Query `refresh-all` also refreshes PivotTables that depend on
-successfully refreshed query loads; shared caches are refreshed once. The result
+successfully refreshed query loads. Each report is refreshed individually,
+including reports that share a cache, and is listed as refreshed only after its
+own refresh succeeds. The result
 lists refreshed and failed PivotTables alongside `refreshedQueries`,
 `skippedQueries`, and `failedQueries`. Set `refresh_pivot_tables=false` in MCP or
 `--refresh-pivot-tables false` in the CLI to refresh queries only.
