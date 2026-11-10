@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.12] - 2026-11-10
+
+### Patch Changes
+
+- [#1303](https://github.com/sbroenne/mcp-server-excel/pull/1303) [`c6d9fd8`](https://github.com/sbroenne/mcp-server-excel/commit/c6d9fd8333c77d95e59a3be938dfd1efc16fad0e) Thanks [@sbroenne](https://github.com/sbroenne)! - The Excel CLI plugin now includes a short `excel-cli` quick-start skill. It gives agents the usual open, change, check and save routine in batches and the exact names of common actions, so they need far fewer help lookups. The Excel MCP plugin and the VS Code extension still include no skills.
+
+- [#1308](https://github.com/sbroenne/mcp-server-excel/pull/1308) [`2e2cdee`](https://github.com/sbroenne/mcp-server-excel/commit/2e2cdeefa4d3d380503995a7901e7e2b996a90ad) Thanks [@sbroenne](https://github.com/sbroenne)! - Include a confirmed blocking Excel dialog's title and readable message in busy errors and commands refused after an earlier wait expired, in both excelcli and MCP. Preserve available dialog titles when the dialog is not responding, without changing timeouts, answering prompts, or discarding workbook edits.
+
+- [#1304](https://github.com/sbroenne/mcp-server-excel/pull/1304) [`e2a9f40`](https://github.com/sbroenne/mcp-server-excel/commit/e2a9f401697d5d49bb8be50d15cb654eb22af657) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix Power Query and workbook `refresh-all` reporting PivotTables as refreshed while their totals are still out of date. Each report now refreshes individually, including when several reports use separate caches for the same source. Applies to both the CLI and MCP Server.
+
 ## [2.6.11] - 2026-11-03
 
 ### Patch Changes
