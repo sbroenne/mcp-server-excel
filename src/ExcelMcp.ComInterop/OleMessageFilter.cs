@@ -280,6 +280,9 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// </returns>
     int IOleMessageFilter.RetryRejectedCall(nint htaskCallee, int dwTickCount, int dwRejectType)
     {
+        if (_pendingCancellationToken.IsCancellationRequested)
+            return -1;
+
         // dwRejectType values:
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
         // SERVERCALL_REJECTED (1) = Server rejected the call (may be showing a modal dialog)
