@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAtUtc": "2026-11-09T12:59:30Z",
+  "generatedAtUtc": "2026-11-16T12:53:04Z",
   "windows": {
     "reportingDays": 90,
     "comparisonDays": 14,
@@ -27,35 +27,29 @@
     ]
   },
   "summary": {
-    "users": 3904,
-    "toolInvocations": 1846741,
-    "repeatUserRate": 58.02,
-    "workUnits": 7055693,
-    "unweightedActions": 96568
+    "users": 4199,
+    "toolInvocations": 2074932,
+    "repeatUserRate": 56.7,
+    "workUnits": 7929767,
+    "unweightedActions": 92398
   },
   "comparison": {
-    "currentUsers": 1838,
-    "previousUsers": 1173,
-    "userChangePct": 56.69,
-    "currentInvocations": 749907,
-    "previousInvocations": 300832,
-    "invocationChangePct": 149.28,
-    "currentWorkUnits": 2213702,
-    "previousWorkUnits": 1268902,
-    "workChangePct": 74.46
+    "currentUsers": 1969,
+    "previousUsers": 1623,
+    "userChangePct": 21.32,
+    "currentInvocations": 750133,
+    "previousInvocations": 582793,
+    "invocationChangePct": 28.71,
+    "currentWorkUnits": 2227285,
+    "previousWorkUnits": 1864231,
+    "workChangePct": 19.47
   },
   "heavyWork": {
-    "users": 6532,
-    "heavyUsers": 2982,
-    "heavyUserSharePct": 45.65
+    "users": 6979,
+    "heavyUsers": 3177,
+    "heavyUserSharePct": 45.52
   },
   "weekly": [
-    {
-      "week": "2026-08-16",
-      "users": 830,
-      "actions": 124514,
-      "workUnits": 305637
-    },
     {
       "week": "2026-08-23",
       "users": 818,
@@ -121,15 +115,15 @@
       "users": 1204,
       "actions": 342642,
       "workUnits": 981356
+    },
+    {
+      "week": "2026-11-08",
+      "users": 1241,
+      "actions": 386669,
+      "workUnits": 1164964
     }
   ],
   "versionAdoption": [
-    {
-      "week": "2026-08-23",
-      "version": "Other",
-      "users": 850,
-      "sharePct": 100
-    },
     {
       "week": "2026-08-30",
       "version": "Other",
@@ -307,8 +301,8 @@
     {
       "week": "2026-11-01",
       "version": "Other",
-      "users": 661,
-      "sharePct": 41.97
+      "users": 680,
+      "sharePct": 43.17
     },
     {
       "week": "2026-11-01",
@@ -342,704 +336,746 @@
     },
     {
       "week": "2026-11-01",
-      "version": "2.6.8",
-      "users": 19,
-      "sharePct": 1.21
-    },
-    {
-      "week": "2026-11-01",
       "version": "2.6.9",
       "users": 6,
       "sharePct": 0.38
     },
     {
       "week": "2026-11-08",
-      "version": "2.6.11",
-      "users": 189,
-      "sharePct": 51.36
+      "version": "2.6.12",
+      "users": 572,
+      "sharePct": 35.01
     },
     {
       "week": "2026-11-08",
       "version": "Other",
-      "users": 120,
-      "sharePct": 32.61
+      "users": 443,
+      "sharePct": 27.11
     },
     {
       "week": "2026-11-08",
-      "version": "2.0.8",
-      "users": 22,
-      "sharePct": 5.98
-    },
-    {
-      "week": "2026-11-08",
-      "version": "2.4.1",
-      "users": 16,
-      "sharePct": 4.35
+      "version": "2.6.11",
+      "users": 295,
+      "sharePct": 18.05
     },
     {
       "week": "2026-11-08",
       "version": "2.0.7",
-      "users": 16,
-      "sharePct": 4.35
+      "users": 201,
+      "sharePct": 12.3
+    },
+    {
+      "week": "2026-11-08",
+      "version": "2.0.8",
+      "users": 69,
+      "sharePct": 4.22
+    },
+    {
+      "week": "2026-11-08",
+      "version": "2.4.1",
+      "users": 44,
+      "sharePct": 2.69
     },
     {
       "week": "2026-11-08",
       "version": "2.6.10",
-      "users": 5,
-      "sharePct": 1.36
+      "users": 10,
+      "sharePct": 0.61
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.6.12",
+      "users": 230,
+      "sharePct": 53.36
+    },
+    {
+      "week": "2026-11-15",
+      "version": "Other",
+      "users": 116,
+      "sharePct": 26.91
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.6.11",
+      "users": 27,
+      "sharePct": 6.26
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.0.8",
+      "users": 24,
+      "sharePct": 5.57
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.0.7",
+      "users": 19,
+      "sharePct": 4.41
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.4.1",
+      "users": 13,
+      "sharePct": 3.02
+    },
+    {
+      "week": "2026-11-15",
+      "version": "2.6.10",
+      "users": 2,
+      "sharePct": 0.46
     }
   ],
   "operations": [
     {
-      "name": "range/get-values",
-      "invocations": 354216,
-      "users": 4932
+      "name": "range/set-values",
+      "invocations": 383543,
+      "users": 4321
     },
     {
-      "name": "range/set-values",
-      "invocations": 327336,
-      "users": 4016
+      "name": "range/get-values",
+      "invocations": 381061,
+      "users": 5264
     },
     {
       "name": "range/set-formulas",
-      "invocations": 151663,
-      "users": 2507
+      "invocations": 173275,
+      "users": 2681
     },
     {
       "name": "range/get-formulas",
-      "invocations": 108390,
-      "users": 2640
+      "invocations": 112978,
+      "users": 2809
     },
     {
       "name": "file/list",
-      "invocations": 100554,
-      "users": 4961
-    },
-    {
-      "name": "vba/run",
-      "invocations": 77051,
-      "users": 757
+      "invocations": 108822,
+      "users": 5232
     },
     {
       "name": "range_format/set-column-width",
-      "invocations": 77028,
-      "users": 2072
+      "invocations": 89357,
+      "users": 2289
     },
     {
       "name": "range_format/format",
-      "invocations": 70010,
-      "users": 920
+      "invocations": 87300,
+      "users": 1158
+    },
+    {
+      "name": "vba/run",
+      "invocations": 83133,
+      "users": 766
     },
     {
       "name": "range/get-used-range",
-      "invocations": 61322,
-      "users": 3694
+      "invocations": 61584,
+      "users": 3907
     },
     {
       "name": "range/copy",
-      "invocations": 52534,
-      "users": 933
+      "invocations": 61519,
+      "users": 1037
     },
     {
       "name": "screenshot/capture",
-      "invocations": 50550,
-      "users": 2599
+      "invocations": 55352,
+      "users": 2817
     },
     {
       "name": "range/set-number-format",
-      "invocations": 46713,
-      "users": 1998
-    },
-    {
-      "name": "worksheet/list",
-      "invocations": 46704,
-      "users": 4838
-    },
-    {
-      "name": "range_format/format-range",
-      "invocations": 43644,
-      "users": 1719
+      "invocations": 53019,
+      "users": 2193
     },
     {
       "name": "range_format/merge-cells",
-      "invocations": 42491,
-      "users": 1070
+      "invocations": 51822,
+      "users": 1186
+    },
+    {
+      "name": "worksheet/list",
+      "invocations": 48444,
+      "users": 5137
     },
     {
       "name": "calculation_mode/calculate",
-      "invocations": 37408,
-      "users": 1791
+      "invocations": 41572,
+      "users": 1862
     },
     {
-      "name": "vba/update",
-      "invocations": 30159,
-      "users": 575
+      "name": "range_format/format-range",
+      "invocations": 41416,
+      "users": 1729
     },
     {
       "name": "range_format/set-row-height",
-      "invocations": 28580,
-      "users": 1183
+      "invocations": 34479,
+      "users": 1331
     },
     {
-      "name": "range_edit/find",
-      "invocations": 27017,
-      "users": 1178
-    },
-    {
-      "name": "range/clear-contents",
-      "invocations": 24587,
-      "users": 1673
-    },
-    {
-      "name": "vba/import",
-      "invocations": 23316,
-      "users": 880
-    },
-    {
-      "name": "worksheet/create",
-      "invocations": 21497,
-      "users": 2526
+      "name": "vba/update",
+      "invocations": 32137,
+      "users": 599
     },
     {
       "name": "file/discover",
-      "invocations": 21422,
-      "users": 1085
+      "invocations": 29975,
+      "users": 1504
+    },
+    {
+      "name": "range/clear-contents",
+      "invocations": 27312,
+      "users": 1779
+    },
+    {
+      "name": "range_edit/find",
+      "invocations": 27213,
+      "users": 1199
+    },
+    {
+      "name": "vba/import",
+      "invocations": 24602,
+      "users": 885
     },
     {
       "name": "range_format/auto-fit-columns",
-      "invocations": 19719,
-      "users": 1459
+      "invocations": 22793,
+      "users": 1592
+    },
+    {
+      "name": "worksheet/create",
+      "invocations": 22455,
+      "users": 2726
     },
     {
       "name": "range/get-info",
-      "invocations": 17868,
-      "users": 1345
+      "invocations": 19692,
+      "users": 1382
     }
   ],
   "toolFamilies": [
     {
       "name": "range",
-      "invocations": 1181922,
-      "users": 5478,
-      "sharePct": 44.71,
-      "workUnits": 2397911,
-      "workSharePct": 33.99
+      "invocations": 1314724,
+      "users": 5822,
+      "sharePct": 44.47,
+      "workUnits": 2723038,
+      "workSharePct": 34.34
     },
     {
       "name": "range_format",
-      "invocations": 358243,
-      "users": 3161,
-      "sharePct": 13.55,
-      "workUnits": 823648,
-      "workSharePct": 11.67
+      "invocations": 415324,
+      "users": 3449,
+      "sharePct": 14.05,
+      "workUnits": 984649,
+      "workSharePct": 12.42
     },
     {
       "name": "vba",
-      "invocations": 182525,
-      "users": 1312,
-      "sharePct": 6.91,
-      "workUnits": 1005788,
-      "workSharePct": 14.25
+      "invocations": 199265,
+      "users": 1353,
+      "sharePct": 6.74,
+      "workUnits": 1086118,
+      "workSharePct": 13.7
     },
     {
       "name": "file",
-      "invocations": 164251,
-      "users": 5858,
-      "sharePct": 6.21,
-      "workUnits": 189930,
-      "workSharePct": 2.69
+      "invocations": 189010,
+      "users": 6306,
+      "sharePct": 6.39,
+      "workUnits": 217381,
+      "workSharePct": 2.74
     },
     {
       "name": "worksheet",
-      "invocations": 101779,
-      "users": 5049,
-      "sharePct": 3.85,
-      "workUnits": 211929,
-      "workSharePct": 3.0
+      "invocations": 107999,
+      "users": 5380,
+      "sharePct": 3.65,
+      "workUnits": 227109,
+      "workSharePct": 2.86
     },
     {
       "name": "powerquery",
-      "invocations": 86791,
-      "users": 1327,
-      "sharePct": 3.28,
-      "workUnits": 625732,
-      "workSharePct": 8.87
+      "invocations": 91596,
+      "users": 1477,
+      "sharePct": 3.1,
+      "workUnits": 667263,
+      "workSharePct": 8.41
     },
     {
       "name": "calculation_mode",
-      "invocations": 60431,
-      "users": 2033,
-      "sharePct": 2.29,
-      "workUnits": 385314,
-      "workSharePct": 5.46
+      "invocations": 65097,
+      "users": 2116,
+      "sharePct": 2.2,
+      "workUnits": 430974,
+      "workSharePct": 5.43
     },
     {
       "name": "screenshot",
-      "invocations": 57828,
-      "users": 2858,
-      "sharePct": 2.19,
-      "workUnits": 173484,
-      "workSharePct": 2.46
+      "invocations": 62857,
+      "users": 3075,
+      "sharePct": 2.13,
+      "workUnits": 188571,
+      "workSharePct": 2.38
     },
     {
       "name": "range_edit",
-      "invocations": 54746,
-      "users": 1846,
-      "sharePct": 2.07,
-      "workUnits": 109744,
-      "workSharePct": 1.56
+      "invocations": 58326,
+      "users": 1936,
+      "sharePct": 1.97,
+      "workUnits": 119976,
+      "workSharePct": 1.51
     },
     {
       "name": "table",
-      "invocations": 46944,
-      "users": 2383,
-      "sharePct": 1.78,
-      "workUnits": 98203,
-      "workSharePct": 1.39
+      "invocations": 50428,
+      "users": 2578,
+      "sharePct": 1.71,
+      "workUnits": 105018,
+      "workSharePct": 1.32
     },
     {
       "name": "workbook",
-      "invocations": 36739,
-      "users": 2621,
-      "sharePct": 1.39,
-      "workUnits": 71870,
-      "workSharePct": 1.02
-    },
-    {
-      "name": "datamodel",
-      "invocations": 35589,
-      "users": 675,
-      "sharePct": 1.35,
-      "workUnits": 256348,
-      "workSharePct": 3.63
+      "invocations": 46690,
+      "users": 2952,
+      "sharePct": 1.58,
+      "workUnits": 94201,
+      "workSharePct": 1.19
     },
     {
       "name": "worksheet_style",
-      "invocations": 33999,
-      "users": 1197,
-      "sharePct": 1.29,
-      "workUnits": 74941,
-      "workSharePct": 1.06
+      "invocations": 41859,
+      "users": 1282,
+      "sharePct": 1.42,
+      "workUnits": 91599,
+      "workSharePct": 1.16
     },
     {
-      "name": "chart_config",
-      "invocations": 29979,
-      "users": 725,
-      "sharePct": 1.13,
-      "workUnits": 87545,
-      "workSharePct": 1.24
-    },
-    {
-      "name": "pivottable_field",
-      "invocations": 29516,
-      "users": 782,
-      "sharePct": 1.12,
-      "workUnits": 84886,
-      "workSharePct": 1.2
-    },
-    {
-      "name": "window",
-      "invocations": 27353,
-      "users": 2015,
-      "sharePct": 1.03,
-      "workUnits": 27353,
-      "workSharePct": 0.39
+      "name": "datamodel",
+      "invocations": 37842,
+      "users": 752,
+      "sharePct": 1.28,
+      "workUnits": 275475,
+      "workSharePct": 3.47
     },
     {
       "name": "drawing",
-      "invocations": 22839,
-      "users": 634,
-      "sharePct": 0.86,
-      "workUnits": 51997,
-      "workSharePct": 0.74
+      "invocations": 37024,
+      "users": 705,
+      "sharePct": 1.25,
+      "workUnits": 89624,
+      "workSharePct": 1.13
+    },
+    {
+      "name": "chart_config",
+      "invocations": 35387,
+      "users": 758,
+      "sharePct": 1.2,
+      "workUnits": 102615,
+      "workSharePct": 1.29
+    },
+    {
+      "name": "pivottable_field",
+      "invocations": 31840,
+      "users": 843,
+      "sharePct": 1.08,
+      "workUnits": 91784,
+      "workSharePct": 1.16
+    },
+    {
+      "name": "window",
+      "invocations": 31190,
+      "users": 2218,
+      "sharePct": 1.05,
+      "workUnits": 31190,
+      "workSharePct": 0.39
     },
     {
       "name": "chart",
-      "invocations": 20550,
-      "users": 1074,
-      "sharePct": 0.78,
-      "workUnits": 42780,
-      "workSharePct": 0.61
-    },
-    {
-      "name": "pivottable",
-      "invocations": 18395,
-      "users": 1042,
-      "sharePct": 0.7,
-      "workUnits": 110983,
-      "workSharePct": 1.57
+      "invocations": 22222,
+      "users": 1124,
+      "sharePct": 0.75,
+      "workUnits": 46736,
+      "workSharePct": 0.59
     },
     {
       "name": "conditionalformat",
-      "invocations": 17525,
-      "users": 908,
-      "sharePct": 0.66,
-      "workUnits": 46171,
-      "workSharePct": 0.65
+      "invocations": 19332,
+      "users": 969,
+      "sharePct": 0.65,
+      "workUnits": 51034,
+      "workSharePct": 0.64
+    },
+    {
+      "name": "range_link",
+      "invocations": 19328,
+      "users": 440,
+      "sharePct": 0.65,
+      "workUnits": 44370,
+      "workSharePct": 0.56
     }
   ],
   "heroFeatures": [
     {
       "name": "tables-ranges",
-      "invocations": 1726461,
-      "users": 5542,
-      "sharePct": 65.32,
-      "workUnits": 3873320,
-      "workSharePct": 54.9
+      "invocations": 1930794,
+      "users": 5882,
+      "sharePct": 65.31,
+      "workUnits": 4430009,
+      "workSharePct": 55.87
     },
     {
       "name": "worksheets-connections",
-      "invocations": 357717,
-      "users": 6294,
-      "sharePct": 13.53,
-      "workUnits": 597579,
-      "workSharePct": 8.47
+      "invocations": 407054,
+      "users": 6730,
+      "sharePct": 13.77,
+      "workUnits": 680702,
+      "workSharePct": 8.58
     },
     {
       "name": "pivottables-charts",
-      "invocations": 211540,
-      "users": 3429,
-      "sharePct": 8,
-      "workUnits": 638770,
-      "workSharePct": 9.05
+      "invocations": 242960,
+      "users": 3699,
+      "sharePct": 8.22,
+      "workUnits": 727549,
+      "workSharePct": 9.17
     },
     {
       "name": "vba",
-      "invocations": 182525,
-      "users": 1312,
-      "sharePct": 6.91,
-      "workUnits": 1005788,
-      "workSharePct": 14.25
+      "invocations": 199267,
+      "users": 1353,
+      "sharePct": 6.74,
+      "workUnits": 1086118,
+      "workSharePct": 13.7
     },
     {
       "name": "power-query",
-      "invocations": 86904,
-      "users": 1341,
-      "sharePct": 3.29,
-      "workUnits": 625881,
-      "workSharePct": 8.87
+      "invocations": 91731,
+      "users": 1493,
+      "sharePct": 3.1,
+      "workUnits": 667440,
+      "workSharePct": 8.42
     },
     {
       "name": "power-pivot-dax",
-      "invocations": 39100,
-      "users": 678,
-      "sharePct": 1.48,
-      "workUnits": 281798,
-      "workSharePct": 3.99
+      "invocations": 41379,
+      "users": 754,
+      "sharePct": 1.4,
+      "workUnits": 301319,
+      "workSharePct": 3.8
     },
     {
       "name": "agent-mode",
-      "invocations": 27353,
-      "users": 2015,
-      "sharePct": 1.03,
-      "workUnits": 27353,
+      "invocations": 31190,
+      "users": 2218,
+      "sharePct": 1.05,
+      "workUnits": 31190,
       "workSharePct": 0.39
     },
     {
       "name": "other",
-      "invocations": 11399,
-      "users": 310,
-      "sharePct": 0.43,
-      "workUnits": 3393,
+      "invocations": 11858,
+      "users": 367,
+      "sharePct": 0.4,
+      "workUnits": 3697,
       "workSharePct": 0.05
     },
     {
       "name": "python-in-excel",
-      "invocations": 272,
-      "users": 53,
+      "invocations": 267,
+      "users": 45,
       "sharePct": 0.01,
-      "workUnits": 1811,
-      "workSharePct": 0.03
+      "workUnits": 1743,
+      "workSharePct": 0.02
     }
   ],
   "operationsByWork": [
     {
       "name": "range/set-values",
       "level": "medium",
-      "actions": 327336,
-      "users": 4016,
-      "workUnits": 982008,
-      "workSharePct": 13.92
+      "actions": 383543,
+      "users": 4321,
+      "workUnits": 1150629,
+      "workSharePct": 14.51
     },
     {
       "name": "vba/run",
       "level": "heavy",
-      "actions": 77051,
-      "users": 757,
-      "workUnits": 770510,
-      "workSharePct": 10.92
+      "actions": 83133,
+      "users": 766,
+      "workUnits": 831330,
+      "workSharePct": 10.48
     },
     {
       "name": "range/set-formulas",
       "level": "medium",
-      "actions": 151663,
-      "users": 2507,
-      "workUnits": 454989,
-      "workSharePct": 6.45
+      "actions": 173275,
+      "users": 2681,
+      "workUnits": 519825,
+      "workSharePct": 6.56
     },
     {
       "name": "calculation_mode/calculate",
       "level": "heavy",
-      "actions": 37408,
-      "users": 1791,
-      "workUnits": 374080,
-      "workSharePct": 5.3
+      "actions": 41572,
+      "users": 1862,
+      "workUnits": 415720,
+      "workSharePct": 5.24
     },
     {
       "name": "range/get-values",
       "level": "light",
-      "actions": 354216,
-      "users": 4932,
-      "workUnits": 354216,
-      "workSharePct": 5.02
+      "actions": 381061,
+      "users": 5264,
+      "workUnits": 381061,
+      "workSharePct": 4.81
     },
     {
       "name": "range_format/set-column-width",
       "level": "medium",
-      "actions": 77028,
-      "users": 2072,
-      "workUnits": 231084,
-      "workSharePct": 3.28
+      "actions": 89357,
+      "users": 2289,
+      "workUnits": 268071,
+      "workSharePct": 3.38
     },
     {
       "name": "range_format/format",
       "level": "medium",
-      "actions": 70010,
-      "users": 920,
-      "workUnits": 210030,
-      "workSharePct": 2.98
+      "actions": 87300,
+      "users": 1158,
+      "workUnits": 261900,
+      "workSharePct": 3.3
     },
     {
       "name": "powerquery/evaluate",
       "level": "heavy",
-      "actions": 17730,
-      "users": 940,
-      "workUnits": 177300,
-      "workSharePct": 2.51
+      "actions": 19154,
+      "users": 1077,
+      "workUnits": 191540,
+      "workSharePct": 2.42
     },
     {
       "name": "range/copy",
       "level": "medium",
-      "actions": 52534,
-      "users": 933,
-      "workUnits": 157602,
-      "workSharePct": 2.23
+      "actions": 61519,
+      "users": 1037,
+      "workUnits": 184557,
+      "workSharePct": 2.33
     },
     {
       "name": "screenshot/capture",
       "level": "medium",
-      "actions": 50550,
-      "users": 2599,
-      "workUnits": 151650,
-      "workSharePct": 2.15
+      "actions": 55352,
+      "users": 2817,
+      "workUnits": 166056,
+      "workSharePct": 2.09
     },
     {
       "name": "range/set-number-format",
       "level": "medium",
-      "actions": 46713,
-      "users": 1998,
-      "workUnits": 140139,
-      "workSharePct": 1.99
+      "actions": 53019,
+      "users": 2193,
+      "workUnits": 159057,
+      "workSharePct": 2.01
     },
     {
       "name": "range_format/merge-cells",
       "level": "medium",
-      "actions": 42491,
-      "users": 1070,
-      "workUnits": 127473,
-      "workSharePct": 1.81
-    },
-    {
-      "name": "powerquery/update",
-      "level": "heavy",
-      "actions": 12055,
-      "users": 637,
-      "workUnits": 120550,
-      "workSharePct": 1.71
-    },
-    {
-      "name": "powerquery/refresh",
-      "level": "heavy",
-      "actions": 11826,
-      "users": 678,
-      "workUnits": 118260,
-      "workSharePct": 1.68
+      "actions": 51822,
+      "users": 1186,
+      "workUnits": 155466,
+      "workSharePct": 1.96
     },
     {
       "name": "powerquery/create",
       "level": "heavy",
-      "actions": 11694,
-      "users": 885,
-      "workUnits": 116940,
-      "workSharePct": 1.66
+      "actions": 12886,
+      "users": 1003,
+      "workUnits": 128860,
+      "workSharePct": 1.63
+    },
+    {
+      "name": "powerquery/refresh",
+      "level": "heavy",
+      "actions": 12833,
+      "users": 788,
+      "workUnits": 128330,
+      "workSharePct": 1.62
+    },
+    {
+      "name": "powerquery/update",
+      "level": "heavy",
+      "actions": 12518,
+      "users": 709,
+      "workUnits": 125180,
+      "workSharePct": 1.58
     }
   ],
   "unweightedActions": [
     {
       "name": "range_format/format-range",
-      "actions": 43644
+      "actions": 41416
     },
     {
       "name": "range_format/format-ranges",
-      "actions": 17551
+      "actions": 17371
     },
     {
       "name": "calculation_mode/set-mode",
-      "actions": 15751
+      "actions": 14524
     },
     {
       "name": "range/copy-formulas",
-      "actions": 6003
+      "actions": 5612
     },
     {
       "name": "calculation_mode/get-mode",
-      "actions": 2450
+      "actions": 2397
     },
     {
       "name": "range/copy-values",
-      "actions": 1836
+      "actions": 1723
     },
     {
       "name": "calculation/calculate",
-      "actions": 1286
+      "actions": 1321
     },
     {
       "name": "excel_range/get-values",
-      "actions": 1109
+      "actions": 1110
     },
     {
       "name": "excel_range/set-values",
-      "actions": 1095
+      "actions": 1099
     },
     {
       "name": "range_link/get-cell-lock",
-      "actions": 510
-    },
-    {
-      "name": "file/close-workbook",
-      "actions": 414
-    },
-    {
-      "name": "excel_range/get-used-range",
-      "actions": 404
-    },
-    {
-      "name": "excel_file/open",
-      "actions": 398
+      "actions": 494
     },
     {
       "name": "calculation/set-settings",
-      "actions": 397
+      "actions": 411
+    },
+    {
+      "name": "excel_file/open",
+      "actions": 402
+    },
+    {
+      "name": "excel_range/get-used-range",
+      "actions": 381
     },
     {
       "name": "excel_file/close",
-      "actions": 355
+      "actions": 367
+    },
+    {
+      "name": "file/close-workbook",
+      "actions": 357
     },
     {
       "name": "excel_range/clear-contents",
       "actions": 317
     },
     {
-      "name": "range_link/set-cell-lock",
-      "actions": 300
+      "name": "excel_vba/run",
+      "actions": 259
     },
     {
-      "name": "excel_vba/run",
-      "actions": 235
+      "name": "range_link/set-cell-lock",
+      "actions": 252
+    },
+    {
+      "name": "excel_range/set-formulas",
+      "actions": 210
     },
     {
       "name": "excel_file/list",
       "actions": 193
-    },
-    {
-      "name": "excel_worksheet/list",
-      "actions": 177
     }
   ],
   "entryPoints": [
     {
       "name": "mcp-server",
       "enoughData": true,
-      "users": 4499,
-      "actions": 1145857,
-      "workUnits": 3114049,
-      "actionsPerUser": 254.7,
-      "workUnitsPerUser": 692.2
+      "users": 5132,
+      "actions": 1420738,
+      "workUnits": 3902348,
+      "actionsPerUser": 276.8,
+      "workUnitsPerUser": 760.4
     },
     {
       "name": "cli",
       "enoughData": true,
-      "users": 454,
-      "actions": 605087,
-      "workUnits": 1552322,
-      "actionsPerUser": 1332.8,
-      "workUnitsPerUser": 3419.2
+      "users": 530,
+      "actions": 763987,
+      "workUnits": 1950238,
+      "actionsPerUser": 1441.5,
+      "workUnitsPerUser": 3679.7
     }
   ],
   "entryPointFeatures": [
     {
       "entryPoint": "cli",
       "name": "tables-ranges",
-      "actions": 480516,
-      "actionSharePct": 79.41,
-      "workUnits": 1244566,
-      "workSharePct": 80.17
+      "actions": 593976,
+      "actionSharePct": 77.75,
+      "workUnits": 1538951,
+      "workSharePct": 78.91
     },
     {
       "entryPoint": "cli",
       "name": "worksheets-connections",
-      "actions": 69346,
-      "actionSharePct": 11.46,
-      "workUnits": 109746,
-      "workSharePct": 7.07
+      "actions": 90931,
+      "actionSharePct": 11.9,
+      "workUnits": 144992,
+      "workSharePct": 7.43
     },
     {
       "entryPoint": "cli",
       "name": "pivottables-charts",
-      "actions": 29374,
-      "actionSharePct": 4.85,
-      "workUnits": 83953,
-      "workSharePct": 5.41
+      "actions": 48216,
+      "actionSharePct": 6.31,
+      "workUnits": 135902,
+      "workSharePct": 6.97
     },
     {
       "entryPoint": "cli",
       "name": "power-query",
-      "actions": 8511,
-      "actionSharePct": 1.41,
-      "workUnits": 54980,
-      "workSharePct": 3.54
+      "actions": 9039,
+      "actionSharePct": 1.18,
+      "workUnits": 58247,
+      "workSharePct": 2.99
     },
     {
       "entryPoint": "cli",
       "name": "power-pivot-dax",
-      "actions": 4013,
-      "actionSharePct": 0.66,
-      "workUnits": 28923,
-      "workSharePct": 1.86
+      "actions": 4450,
+      "actionSharePct": 0.58,
+      "workUnits": 32677,
+      "workSharePct": 1.68
     },
     {
       "entryPoint": "cli",
       "name": "vba",
-      "actions": 4153,
-      "actionSharePct": 0.69,
-      "workUnits": 22842,
-      "workSharePct": 1.47
+      "actions": 5882,
+      "actionSharePct": 0.77,
+      "workUnits": 29894,
+      "workSharePct": 1.53
     },
     {
       "entryPoint": "cli",
       "name": "agent-mode",
-      "actions": 3978,
-      "actionSharePct": 0.66,
-      "workUnits": 3978,
-      "workSharePct": 0.26
+      "actions": 6059,
+      "actionSharePct": 0.79,
+      "workUnits": 6059,
+      "workSharePct": 0.31
     },
     {
       "entryPoint": "cli",
       "name": "other",
-      "actions": 5179,
-      "actionSharePct": 0.86,
-      "workUnits": 3272,
-      "workSharePct": 0.21
+      "actions": 5417,
+      "actionSharePct": 0.71,
+      "workUnits": 3454,
+      "workSharePct": 0.18
     },
     {
       "entryPoint": "cli",
@@ -1052,196 +1088,196 @@
     {
       "entryPoint": "mcp-server",
       "name": "tables-ranges",
-      "actions": 687726,
-      "actionSharePct": 60.02,
-      "workUnits": 1503226,
-      "workSharePct": 48.27
+      "actions": 861390,
+      "actionSharePct": 60.63,
+      "workUnits": 1935401,
+      "workSharePct": 49.6
     },
     {
       "entryPoint": "mcp-server",
       "name": "vba",
-      "actions": 101273,
-      "actionSharePct": 8.84,
-      "workUnits": 533465,
-      "workSharePct": 17.13
+      "actions": 123151,
+      "actionSharePct": 8.67,
+      "workUnits": 641912,
+      "workSharePct": 16.45
     },
     {
       "entryPoint": "mcp-server",
       "name": "power-query",
-      "actions": 44400,
-      "actionSharePct": 3.87,
-      "workUnits": 321767,
-      "workSharePct": 10.33
+      "actions": 54465,
+      "actionSharePct": 3.83,
+      "workUnits": 399459,
+      "workSharePct": 10.24
     },
     {
       "entryPoint": "mcp-server",
       "name": "pivottables-charts",
-      "actions": 99806,
-      "actionSharePct": 8.71,
-      "workUnits": 307462,
-      "workSharePct": 9.87
+      "actions": 120544,
+      "actionSharePct": 8.48,
+      "workUnits": 370314,
+      "workSharePct": 9.49
     },
     {
       "entryPoint": "mcp-server",
       "name": "worksheets-connections",
-      "actions": 177270,
-      "actionSharePct": 15.47,
-      "workUnits": 293679,
-      "workSharePct": 9.43
+      "actions": 218308,
+      "actionSharePct": 15.37,
+      "workUnits": 365143,
+      "workSharePct": 9.36
     },
     {
       "entryPoint": "mcp-server",
       "name": "power-pivot-dax",
-      "actions": 18950,
-      "actionSharePct": 1.65,
-      "workUnits": 140763,
-      "workSharePct": 4.52
+      "actions": 23321,
+      "actionSharePct": 1.64,
+      "workUnits": 173463,
+      "workSharePct": 4.45
     },
     {
       "entryPoint": "mcp-server",
       "name": "agent-mode",
-      "actions": 13124,
-      "actionSharePct": 1.15,
-      "workUnits": 13124,
-      "workSharePct": 0.42
+      "actions": 15787,
+      "actionSharePct": 1.11,
+      "workUnits": 15787,
+      "workSharePct": 0.4
     },
     {
       "entryPoint": "mcp-server",
       "name": "python-in-excel",
-      "actions": 73,
+      "actions": 95,
       "actionSharePct": 0.01,
-      "workUnits": 442,
-      "workSharePct": 0.01
+      "workUnits": 626,
+      "workSharePct": 0.02
     },
     {
       "entryPoint": "mcp-server",
       "name": "other",
-      "actions": 3235,
-      "actionSharePct": 0.28,
-      "workUnits": 121,
-      "workSharePct": 0.0
+      "actions": 3677,
+      "actionSharePct": 0.26,
+      "workUnits": 243,
+      "workSharePct": 0.01
     }
   ],
   "entryPointOperations": [
     {
       "entryPoint": "mcp-server",
       "name": "range/get-values",
-      "actions": 164918,
-      "workUnits": 164918
+      "actions": 199748,
+      "workUnits": 199748
     },
     {
       "entryPoint": "mcp-server",
       "name": "range/set-values",
-      "actions": 133537,
-      "workUnits": 400611
+      "actions": 179152,
+      "workUnits": 537456
     },
     {
       "entryPoint": "mcp-server",
       "name": "range/set-formulas",
-      "actions": 49155,
-      "workUnits": 147465
+      "actions": 63291,
+      "workUnits": 189873
     },
     {
       "entryPoint": "mcp-server",
       "name": "file/list",
-      "actions": 48669,
-      "workUnits": 48669
+      "actions": 55646,
+      "workUnits": 55646
     },
     {
       "entryPoint": "mcp-server",
       "name": "vba/run",
-      "actions": 39836,
-      "workUnits": 398360
+      "actions": 47953,
+      "workUnits": 479530
     },
     {
       "entryPoint": "mcp-server",
       "name": "range/get-formulas",
-      "actions": 34281,
-      "workUnits": 34281
+      "actions": 40741,
+      "workUnits": 40741
     },
     {
       "entryPoint": "mcp-server",
       "name": "range_format/format",
-      "actions": 30559,
-      "workUnits": 91677
+      "actions": 39432,
+      "workUnits": 118296
     },
     {
       "entryPoint": "mcp-server",
       "name": "range_format/set-column-width",
-      "actions": 30390,
-      "workUnits": 91170
+      "actions": 37561,
+      "workUnits": 112683
     },
     {
       "entryPoint": "mcp-server",
       "name": "range/get-used-range",
-      "actions": 26060,
-      "workUnits": 26060
+      "actions": 30127,
+      "workUnits": 30127
     },
     {
       "entryPoint": "mcp-server",
       "name": "screenshot/capture",
-      "actions": 24566,
-      "workUnits": 73698
+      "actions": 30090,
+      "workUnits": 90270
     },
     {
       "entryPoint": "cli",
       "name": "range/set-values",
-      "actions": 100190,
-      "workUnits": 300570
+      "actions": 125534,
+      "workUnits": 376602
     },
     {
       "entryPoint": "cli",
       "name": "range/set-formulas",
-      "actions": 59992,
-      "workUnits": 179976
+      "actions": 75134,
+      "workUnits": 225402
     },
     {
       "entryPoint": "cli",
       "name": "range/get-values",
-      "actions": 50673,
-      "workUnits": 50673
-    },
-    {
-      "entryPoint": "cli",
-      "name": "range/get-formulas",
-      "actions": 45438,
-      "workUnits": 45438
+      "actions": 61465,
+      "workUnits": 61465
     },
     {
       "entryPoint": "cli",
       "name": "range_format/format",
-      "actions": 39451,
-      "workUnits": 118353
+      "actions": 47868,
+      "workUnits": 143604
+    },
+    {
+      "entryPoint": "cli",
+      "name": "range/get-formulas",
+      "actions": 47627,
+      "workUnits": 47627
     },
     {
       "entryPoint": "cli",
       "name": "range/copy",
-      "actions": 35375,
-      "workUnits": 106125
+      "actions": 43174,
+      "workUnits": 129522
     },
     {
       "entryPoint": "cli",
       "name": "range_format/set-column-width",
-      "actions": 26834,
-      "workUnits": 80502
+      "actions": 34603,
+      "workUnits": 103809
     },
     {
       "entryPoint": "cli",
       "name": "file/list",
-      "actions": 19180,
-      "workUnits": 19180
+      "actions": 24081,
+      "workUnits": 24081
     },
     {
       "entryPoint": "cli",
       "name": "range_format/merge-cells",
-      "actions": 16489,
-      "workUnits": 49467
+      "actions": 21026,
+      "workUnits": 63078
     },
     {
       "entryPoint": "cli",
       "name": "range/set-number-format",
-      "actions": 14010,
-      "workUnits": 42030
+      "actions": 17963,
+      "workUnits": 53889
     }
   ],
   "habits": {
@@ -1249,50 +1285,50 @@
     "minimumUsers": 10,
     "assistantSessions": {
       "enoughData": true,
-      "sessions": 17393,
-      "medianActions": 12.0,
-      "multiFeatureSessions": 12283,
-      "multiFeatureSharePct": 70.62,
+      "sessions": 19083,
+      "medianActions": 13.0,
+      "multiFeatureSessions": 13671,
+      "multiFeatureSharePct": 71.64,
       "sizes": [
         {
           "size": "1",
           "enoughData": true,
-          "sessions": 2387,
-          "actions": 2387,
-          "sessionSharePct": 13.72,
-          "actionSharePct": 0.29
+          "sessions": 2517,
+          "actions": 2517,
+          "sessionSharePct": 13.19,
+          "actionSharePct": 0.27
         },
         {
           "size": "2-10",
           "enoughData": true,
-          "sessions": 5812,
-          "actions": 29417,
-          "sessionSharePct": 33.42,
-          "actionSharePct": 3.58
+          "sessions": 6299,
+          "actions": 31946,
+          "sessionSharePct": 33.01,
+          "actionSharePct": 3.38
         },
         {
           "size": "11-50",
           "enoughData": true,
-          "sessions": 5470,
-          "actions": 137562,
-          "sessionSharePct": 31.45,
-          "actionSharePct": 16.76
+          "sessions": 6058,
+          "actions": 153398,
+          "sessionSharePct": 31.75,
+          "actionSharePct": 16.24
         },
         {
           "size": "51-200",
           "enoughData": true,
-          "sessions": 2917,
-          "actions": 278294,
-          "sessionSharePct": 16.77,
-          "actionSharePct": 33.91
+          "sessions": 3305,
+          "actions": 314054,
+          "sessionSharePct": 17.32,
+          "actionSharePct": 33.25
         },
         {
           "size": "201+",
           "enoughData": true,
-          "sessions": 807,
-          "actions": 372963,
-          "sessionSharePct": 4.64,
-          "actionSharePct": 45.45
+          "sessions": 904,
+          "actions": 442624,
+          "sessionSharePct": 4.74,
+          "actionSharePct": 46.86
         }
       ]
     },
@@ -1300,221 +1336,215 @@
       {
         "first": "tables-ranges",
         "second": "worksheets-connections",
-        "sessions": 10329,
-        "sharePct": 59.39
+        "sessions": 11466,
+        "sharePct": 60.08
       },
       {
         "first": "pivottables-charts",
         "second": "worksheets-connections",
-        "sessions": 4595,
+        "sessions": 5166,
+        "sharePct": 27.07
+      },
+      {
+        "first": "pivottables-charts",
+        "second": "tables-ranges",
+        "sessions": 5041,
         "sharePct": 26.42
       },
       {
-        "first": "pivottables-charts",
-        "second": "tables-ranges",
-        "sessions": 4522,
-        "sharePct": 26.0
-      },
-      {
         "first": "power-query",
         "second": "worksheets-connections",
-        "sessions": 2495,
-        "sharePct": 14.34
+        "sessions": 3075,
+        "sharePct": 16.11
       },
       {
         "first": "power-query",
         "second": "tables-ranges",
-        "sessions": 2203,
-        "sharePct": 12.67
+        "sessions": 2687,
+        "sharePct": 14.08
       },
       {
         "first": "agent-mode",
         "second": "worksheets-connections",
-        "sessions": 2064,
-        "sharePct": 11.87
+        "sessions": 2356,
+        "sharePct": 12.35
       },
       {
         "first": "agent-mode",
         "second": "tables-ranges",
-        "sessions": 2007,
-        "sharePct": 11.54
+        "sessions": 2280,
+        "sharePct": 11.95
       },
       {
         "first": "vba",
         "second": "worksheets-connections",
-        "sessions": 1931,
-        "sharePct": 11.1
+        "sessions": 2035,
+        "sharePct": 10.66
       }
     ],
     "returningUsers": {
       "enoughData": true,
-      "newUsers": 3095,
-      "returnedAfterWeek": 1483,
-      "returnedAfterWeekPct": 47.92,
-      "returnedAfterThreeWeeks": 1075,
-      "returnedAfterThreeWeeksPct": 34.73
+      "newUsers": 3542,
+      "returnedAfterWeek": 1692,
+      "returnedAfterWeekPct": 47.77,
+      "returnedAfterThreeWeeks": 1212,
+      "returnedAfterThreeWeeksPct": 34.22
     },
     "featureWait": [
       {
         "name": "power-query",
-        "actions": 38001,
-        "typicalSeconds": 1.19,
-        "slowSeconds": 20.4
-      },
-      {
-        "name": "power-pivot-dax",
-        "actions": 17647,
-        "typicalSeconds": 0.46,
-        "slowSeconds": 8.7
+        "actions": 41211,
+        "typicalSeconds": 1.2,
+        "slowSeconds": 19.1
       },
       {
         "name": "pivottables-charts",
-        "actions": 100451,
-        "typicalSeconds": 0.39,
-        "slowSeconds": 3.9
+        "actions": 121370,
+        "typicalSeconds": 0.49,
+        "slowSeconds": 4.1
       },
       {
-        "name": "python-in-excel",
-        "actions": 70,
-        "typicalSeconds": 0.36,
-        "slowSeconds": 0.9
+        "name": "power-pivot-dax",
+        "actions": 19723,
+        "typicalSeconds": 0.44,
+        "slowSeconds": 9.1
       },
       {
         "name": "vba",
-        "actions": 74678,
-        "typicalSeconds": 0.28,
-        "slowSeconds": 3.5
-      },
-      {
-        "name": "other",
-        "actions": 5461,
-        "typicalSeconds": 0.17,
-        "slowSeconds": 5.7
+        "actions": 78813,
+        "typicalSeconds": 0.37,
+        "slowSeconds": 3.3
       },
       {
         "name": "worksheets-connections",
-        "actions": 196601,
-        "typicalSeconds": 0.13,
-        "slowSeconds": 2.6
+        "actions": 230905,
+        "typicalSeconds": 0.15,
+        "slowSeconds": 2.3
       },
       {
         "name": "tables-ranges",
-        "actions": 906192,
-        "typicalSeconds": 0.12,
-        "slowSeconds": 0.5
+        "actions": 1076726,
+        "typicalSeconds": 0.13,
+        "slowSeconds": 0.6
       },
       {
         "name": "agent-mode",
-        "actions": 13551,
-        "typicalSeconds": 0.12,
-        "slowSeconds": 0.5
+        "actions": 16071,
+        "typicalSeconds": 0.13,
+        "slowSeconds": 0.6
+      },
+      {
+        "name": "other",
+        "actions": 5150,
+        "typicalSeconds": 0.09,
+        "slowSeconds": 6.2
       }
     ],
     "weekdays": [
       {
         "day": "Monday",
         "enoughData": true,
-        "actions": 280675,
-        "users": 2007
+        "actions": 315518,
+        "users": 2127
       },
       {
         "day": "Tuesday",
         "enoughData": true,
-        "actions": 283730,
-        "users": 2196
+        "actions": 310271,
+        "users": 2313
       },
       {
         "day": "Wednesday",
         "enoughData": true,
-        "actions": 318485,
-        "users": 2188
+        "actions": 404802,
+        "users": 2270
       },
       {
         "day": "Thursday",
         "enoughData": true,
-        "actions": 353559,
-        "users": 2216
+        "actions": 392356,
+        "users": 2335
       },
       {
         "day": "Friday",
         "enoughData": true,
-        "actions": 421680,
-        "users": 2179
+        "actions": 468370,
+        "users": 2366
       },
       {
         "day": "Saturday",
         "enoughData": true,
-        "actions": 187612,
-        "users": 864
+        "actions": 217013,
+        "users": 915
       },
       {
         "day": "Sunday",
         "enoughData": true,
-        "actions": 134880,
-        "users": 803
+        "actions": 172940,
+        "users": 856
       }
     ],
-    "workdayAverageActions": 41453,
-    "weekendAverageActions": 20156,
+    "workdayAverageActions": 47283,
+    "weekendAverageActions": 24372,
     "weekdayWeeks": 8,
     "firstAdvancedUseWindowDays": 60,
     "firstAdvancedUse": [
       {
         "name": "power-query",
-        "users": 914,
-        "firstDay": 735,
-        "firstWeek": 95,
-        "later": 84,
-        "firstDayPct": 80.42
+        "users": 1053,
+        "firstDay": 853,
+        "firstWeek": 101,
+        "later": 99,
+        "firstDayPct": 81.01
       },
       {
         "name": "power-pivot-dax",
-        "users": 443,
-        "firstDay": 349,
-        "firstWeek": 48,
-        "later": 46,
-        "firstDayPct": 78.78
+        "users": 517,
+        "firstDay": 408,
+        "firstWeek": 46,
+        "later": 63,
+        "firstDayPct": 78.92
       },
       {
         "name": "pivottables-charts",
-        "users": 2133,
-        "firstDay": 1640,
-        "firstWeek": 273,
-        "later": 220,
-        "firstDayPct": 76.89
+        "users": 2298,
+        "firstDay": 1787,
+        "firstWeek": 282,
+        "later": 229,
+        "firstDayPct": 77.76
       },
       {
         "name": "vba",
-        "users": 726,
-        "firstDay": 557,
-        "firstWeek": 77,
-        "later": 92,
-        "firstDayPct": 76.72
+        "users": 730,
+        "firstDay": 541,
+        "firstWeek": 85,
+        "later": 104,
+        "firstDayPct": 74.11
       }
     ]
   },
   "downloads": {
-    "collectedUtc": "2026-11-09T12:59:28Z",
+    "collectedUtc": "2026-11-16T12:53:03Z",
     "channels": [
       {
         "key": "npm-mcp-server",
         "label": "npm: MCP Server",
-        "total": 17505
+        "total": 19611
       },
       {
         "key": "npm-cli",
         "label": "npm: command line",
-        "total": 8303
+        "total": 8746
       },
       {
         "key": "github-releases",
         "label": "GitHub release files",
-        "total": 31910
+        "total": 33380
       },
       {
         "key": "vscode",
         "label": "VS Code extension installs",
-        "total": 10015
+        "total": 10275
       }
     ],
     "npmWeekly": [
@@ -1538,9 +1568,9 @@
       },
       {
         "week": "2026-10-18",
-        "mcpServer": 1585,
-        "cli": 591,
-        "total": 2176
+        "mcpServer": 1770,
+        "cli": 626,
+        "total": 2396
       },
       {
         "week": "2026-10-25",
@@ -1553,38 +1583,49 @@
         "mcpServer": 3773,
         "cli": 1486,
         "total": 5259
+      },
+      {
+        "week": "2026-11-08",
+        "mcpServer": 1925,
+        "cli": 413,
+        "total": 2338
       }
     ],
     "releases": [
       {
+        "version": "2.6.12",
+        "published": "2026-11-10",
+        "downloads": 1206
+      },
+      {
         "version": "2.6.11",
         "published": "2026-11-03",
-        "downloads": 1119
+        "downloads": 1281
       },
       {
         "version": "2.6.9",
         "published": "2026-11-02",
-        "downloads": 63
+        "downloads": 76
       },
       {
         "version": "2.6.8",
         "published": "2026-11-02",
-        "downloads": 96
+        "downloads": 103
       },
       {
         "version": "2.6.10",
         "published": "2026-11-02",
-        "downloads": 126
+        "downloads": 137
       },
       {
         "version": "2.6.7",
         "published": "2026-11-01",
-        "downloads": 192
+        "downloads": 199
       },
       {
         "version": "2.6.6",
         "published": "2026-10-31",
-        "downloads": 77
+        "downloads": 86
       },
       {
         "version": "2.6.5",
@@ -1599,12 +1640,7 @@
       {
         "version": "2.6.3",
         "published": "2026-10-30",
-        "downloads": 71
-      },
-      {
-        "version": "2.6.2",
-        "published": "2026-10-30",
-        "downloads": 44
+        "downloads": 72
       }
     ],
     "snapshotChannels": [
@@ -1653,6 +1689,13 @@
           "github-releases": 31910,
           "vscode": 10015
         }
+      },
+      {
+        "date": "2026-11-16",
+        "totals": {
+          "github-releases": 33380,
+          "vscode": 10275
+        }
       }
     ],
     "weeklyGains": [
@@ -1700,9 +1743,18 @@
           "github-releases": 1524,
           "vscode": 338
         }
+      },
+      {
+        "week": "2026-11-09",
+        "days": 7,
+        "total": 1730,
+        "channels": {
+          "github-releases": 1470,
+          "vscode": 260
+        }
       }
     ]
   },
-  "interpretation": "# Usage interpretation\n\n## What changed\nOver 90 days, 3,904 people took 1,846,741 actions, and 58.02% came back more than once. Weekly users fell from 830 to 323 by late September, then rose to 1,204. In those quiet weeks, estimated work still grew, which suggests fewer people doing heavier tasks.\n\nIn the last 14 days, people rose 56.69% and actions rose 149.28%. Actions grew faster than people, so each person may be doing more. Release 2.6.11 reached 51.36% of users in the latest partial week.\n\n## How people use it\nReading and writing cell values and formulas lead. Tables and ranges hold 65.32% of actions. Share of work is an estimate from fixed effort levels: quick reads count 1, everyday edits 3, heavy data work 10. It is not time or speed. Tables and ranges get 54.9% of it, while macros rise from 6.91% of actions to 14.25% of work, and Power Query data imports from 3.29% to 8.87%.\n\nSince late September, command line users averaged 1,332.8 actions each, versus 254.7 for AI assistant users. These are different people over a shorter window, but command line users may focus more on tables and ranges (79.41% versus 60.02%).\n\nOver 30 days, a typical AI assistant session had 12 actions, and 70.62% used more than one area. Cells and sheets were paired most, in 59.39% of sessions. Of 3,095 new people, 47.92% returned after a week. Workdays averaged 41,453 actions, weekends 20,156. Most people tried advanced areas early: 80.42% of Power Query users started on their first day. Typical waits ranged from 0.12 to 1.19 seconds, depending on workbook size and computer.\n\n## Where people get it\nOver 12 months, npm counted 17,505 AI assistant server downloads and 8,303 command line downloads. Since each channel started, GitHub release files reached 31,910 and VS Code installs 10,015. Weekly npm downloads peaked at 7,459 in the week of October 25, the same week actions peaked.\n\nRelease 2.6.11 was downloaded most, with 1,119. GitHub and VS Code gained 3,285 in the week of October 26 and 1,862 in the latest week. Downloads count downloads, not people. One person can download several times, updates and automated installs add more, and channels overlap, so totals should not be added.\n\n## What we will improve\nThese are plans, not findings. We will make heavy data work, such as macros and Power Query, easier to follow. We will help new people return after their first week. We will make it easier to move between areas used together.",
+  "interpretation": "## What changed\n\nOver 90 days, 4,199 people used the product. Weekly users dipped from 818 to 323 in September, then climbed to 1,241 by the week of November 8. In the latest 14 days, people rose 21.32% and actions rose 28.71%. Actions growing faster than people suggests each person did more. Estimated work grew only 19.47%, so the extra actions may have been lighter tasks.\n\nUpgrades came quickly. Release 2.6.12 reached 53.36% of people in its second week, though 12.3% still used the older 2.0.7 the week before.\n\n## How people use it\n\nReading and writing cell values are the most common actions, followed by formulas. Tables and ranges make up 65.31% of actions. Share of work is an estimate, not time or speed: quick reads count 1, everyday edits count 3, heavy data work counts 10. By that estimate, macros are 6.74% of actions but 13.7% of work, and Power Query data imports are 3.1% versus 8.42%.\n\nSince late September, 530 command line users averaged 1,441.5 actions each, while 5,132 AI assistant users averaged 276.8. These are different people over a shorter window. Command line use may lean toward cell editing (77.75% of actions), while assistant use seems more spread out.\n\nIn the last 30 days, a typical assistant session had 13 actions, and 71.64% used more than one area. Sessions over 200 actions were 4.74% of sessions but 46.86% of actions. Of new people, 47.77% came back after a week and 34.22% after three weeks; 56.7% of all people returned at least once. Weekdays averaged 47,283 actions versus 24,372 on weekends. Many tried advanced areas on day one, such as 81.01% for Power Query. Typical waits were 1.2 seconds for Power Query and 0.13 seconds for tables. Waits depend on workbook size and computer, so they do not score quality.\n\n## Where people get it\n\nGitHub release files lead with 33,380 downloads, then npm MCP Server with 19,611, VS Code installs with 10,275, and npm command line with 8,746. npm totals cover the last 12 months; the others count since each channel started. Downloads are not people: one person can download several times, updates and automated installs add to totals, and channels overlap, so they should not be added together.\n\nWeekly npm downloads peaked at 7,459 in the week of October 25 and were 2,338 in the latest week. Release 2.6.11 had 1,281 downloads and 2.6.12 had 1,206. The biggest weekly gain for GitHub and VS Code was 3,285 from October 26; the latest week added 1,730.\n\n## What we will improve\n\nThese are plans, not findings. We will make heavy data imports and macros easier to follow, since they carry a large share of estimated work. We will help new people find a second reason to return. We will encourage people on older releases to upgrade.",
   "interpretationModel": "GitHub Copilot CLI"
 }
