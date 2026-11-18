@@ -100,6 +100,95 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetRefreshState_CancelledProbe_RemainsUnknownAndAllowsLaterWork()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        var batch = Open();
+        const string marker = "readiness-unsaved-checkpoint";
+        batch.Execute((context, _) => WriteCell(context, marker));
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        batch.BeforeRefreshStateReadHookForTests = () =>
+        {
+            IOleMessageFilter filter = new OleMessageFilter();
+            Assert.True(SpinWait.SpinUntil(
+                () => filter.MessagePending(nint.Zero, 0, 0) == 0, TimeSpan.FromSeconds(10)));
+            cancelled.TrySetResult();
+            const int rpcCallCancelled = unchecked((int)0x80010002);
+            throw Assert.IsType<COMException>(Marshal.GetExceptionForHR(rpcCallCancelled));
+        };
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+            Assert.Throws<ExcelBusyException>(batch.Dispose);
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(12));
+            batch.BeforeRefreshStateReadHookForTests = null;
+            // Read the canceled scan's pending/cached result, without starting a replacement.
+            Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+            batch.Execute((context, _) =>
+            {
+                IOleMessageFilter filter = new OleMessageFilter();
+                Assert.Equal(1, filter.MessagePending(nint.Zero, 0, 0));
+                Assert.Equal(0, filter.HandleInComingCall(1, nint.Zero, 0, nint.Zero));
+                Assert.Equal(marker, ReadCell(context));
+                Assert.False(context.Book.Saved);
+            });
+            await WaitForReadyAsync(batch);
+            Assert.True(batch.IsExcelProcessAlive());
+        });
+        batch.BeforeRefreshStateReadHookForTests = null;
+        await FinishAsync(batch, owned, failure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetRefreshState_UnhandledProbeError_PreservesCauseAndClearsFilter(bool deadlineExpires)
+    {
+        using var owned = new OwnedExcelProcessScope();
+        using var release = new ManualResetEventSlim();
+        var batch = Open();
+        const string marker = "readiness-error-checkpoint";
+        batch.Execute((context, _) => WriteCell(context, marker));
+        const int rpcCallCancelled = unchecked((int)0x80010002);
+        var expected = Assert.IsType<COMException>(Marshal.GetExceptionForHR(
+            deadlineExpires ? ResiliencePipelines.RPC_E_DISCONNECTED : rpcCallCancelled));
+        batch.BeforeRefreshStateReadHookForTests = () =>
+        {
+            Assert.True(release.Wait(TimeSpan.FromSeconds(10)));
+            if (deadlineExpires)
+            {
+                IOleMessageFilter filter = new OleMessageFilter();
+                Assert.True(SpinWait.SpinUntil(
+                    () => filter.MessagePending(nint.Zero, 0, 0) == 0, TimeSpan.FromSeconds(10)));
+            }
+            throw expected;
+        };
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+            Assert.Throws<ExcelBusyException>(batch.Dispose);
+            release.Set();
+            // Queue a barrier behind the failed scan; no successful readiness probe can
+            // overwrite leaked filter state before these assertions run.
+            using var barrierWait = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            batch.Execute((context, _) =>
+            {
+                IOleMessageFilter filter = new OleMessageFilter();
+                Assert.Equal(1, filter.MessagePending(nint.Zero, 0, 0));
+                Assert.Equal(0, filter.HandleInComingCall(1, nint.Zero, 0, nint.Zero));
+                Assert.Equal(marker, ReadCell(context));
+                Assert.False(context.Book.Saved);
+            }, barrierWait.Token);
+            batch.BeforeRefreshStateReadHookForTests = null;
+            Assert.Same(expected, Assert.Throws<COMException>(() => batch.GetRefreshState()));
+            await WaitForReadyAsync(batch);
+        });
+        release.Set();
+        batch.BeforeRefreshStateReadHookForTests = null;
+        await FinishAsync(batch, owned, failure);
+    }
+
+    [Fact]
     public async Task Execute_BusyFailure_PreservesPartialEditWithoutRepeatingCallback()
     {
         using var owned = new OwnedExcelProcessScope();
@@ -172,7 +261,13 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
         using var owned = new OwnedExcelProcessScope();
         using var release = new ManualResetEventSlim();
         var batch = Open();
-        batch.BeforeRefreshStateReadHookForTests = () => Assert.True(release.Wait(TimeSpan.FromSeconds(10)));
+        batch.BeforeRefreshStateReadHookForTests = () =>
+        {
+            IOleMessageFilter filter = new OleMessageFilter();
+            Assert.Equal(2, filter.MessagePending(nint.Zero, 0, 0));
+            Assert.Equal(2, filter.HandleInComingCall(1, nint.Zero, 0, nint.Zero));
+            Assert.True(release.Wait(TimeSpan.FromSeconds(10)));
+        };
         var failure = Record.Exception(() =>
         {
             var timer = Stopwatch.StartNew();
