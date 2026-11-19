@@ -327,7 +327,7 @@ public sealed class SessionCloseRegressionTests
         {
             Assert.True(teardownEntered.Wait(TimeSpan.FromSeconds(10)));
             second = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
-            await Task.WhenAny(second, Task.Delay(250));
+            await Task.Delay(250);
             Assert.False(second.IsCompleted);
         }
         finally

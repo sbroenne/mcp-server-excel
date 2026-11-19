@@ -167,7 +167,16 @@ internal sealed class DaemonHost : BackgroundService
             }
             catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)
             {
-                await Task.WhenAny(rpc.Completion, Task.Delay(ConnectionDrainTimeout));
+                try
+                {
+                    await rpc.Completion.WaitAsync(ConnectionDrainTimeout);
+                }
+                catch (TimeoutException ex) when (!rpc.Completion.IsCompleted)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"RPC connection drain timed out after {ConnectionDrainTimeout}: {ex.Message}");
+                }
+
                 rpc.Dispose();
                 await rpc.Completion;
             }

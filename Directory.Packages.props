@@ -24,10 +24,10 @@
     <PackageVersion Include="OpenTelemetry" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
-    <PackageVersion Include="OpenTelemetry.PersistentStorage.Abstractions" Version="1.1.3" />
-    <PackageVersion Include="OpenTelemetry.PersistentStorage.FileSystem" Version="1.1.3" />
+    <PackageVersion Include="OpenTelemetry.PersistentStorage.Abstractions" Version="1.2.0" />
+    <PackageVersion Include="OpenTelemetry.PersistentStorage.FileSystem" Version="1.2.0" />
     <PackageVersion Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" />
-    <PackageVersion Include="Azure.Core" Version="1.63.0" />
+    <PackageVersion Include="Azure.Core" Version="1.65.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.15" />
@@ -44,37 +44,37 @@
     <PackageVersion Include="System.Drawing.Common" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Identity.Client" Version="4.91.1" />
-    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.91.1" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.92.0" />
+    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.92.0" />
     <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.23.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageVersion Include="Polly.Core" Version="8.8.0" />
-    <PackageVersion Include="Polly.Extensions" Version="8.8.0" />
-    <PackageVersion Include="Polly.RateLimiting" Version="8.8.0" />
+    <PackageVersion Include="Polly.Core" Version="8.9.1" />
+    <PackageVersion Include="Polly.Extensions" Version="8.9.1" />
+    <PackageVersion Include="Polly.RateLimiting" Version="8.9.1" />
     <PackageVersion Include="StreamJsonRpc" Version="2.26.150" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Only" Version="18.12.1" />
-    <PackageVersion Include="Nerdbank.Streams" Version="2.14.408" />
+    <PackageVersion Include="Nerdbank.Streams" Version="2.14.411" />
     <!-- Security override: StreamJsonRpc transitively pins vulnerable Nerdbank.MessagePack versions -->
-    <PackageVersion Include="Nerdbank.MessagePack" Version="1.4.95" />
+    <PackageVersion Include="Nerdbank.MessagePack" Version="1.4.104" />
     <PackageVersion Include="PolyType" Version="1.4.1" />
     <PackageVersion Include="MessagePack" Version="3.1.12" />
     <PackageVersion Include="MessagePack.Annotations" Version="3.1.12" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.11.0" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.12.2" />
     <PackageVersion Include="Microsoft.NETCore.Platforms" Version="7.0.4" />
-    <PackageVersion Include="System.ClientModel" Version="1.16.0" />
+    <PackageVersion Include="System.ClientModel" Version="1.17.0" />
     <PackageVersion Include="System.Buffers" Version="4.6.1" />
-    <PackageVersion Include="System.Collections.Immutable" Version="10.0.13" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.15" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Numerics.Vectors" Version="4.6.1" />
-    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.13" />
+    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.15" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
-    <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.13" />
+    <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.15" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
-    <PackageVersion Include="System.Memory.Data" Version="10.0.13" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.13" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.13" />
-    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.13" />
+    <PackageVersion Include="System.Memory.Data" Version="10.0.15" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.15" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.15" />
+    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.15" />
     <!-- MCP SDK -->
     <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
     <!-- Testing Framework -->
@@ -82,14 +82,14 @@
     <PackageVersion Include="System.Net.Http" Version="4.3.5" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.2" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.analyzers" Version="2.2.0" />
+    <PackageVersion Include="xunit.analyzers" Version="2.3.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
-    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.1" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.1" />
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
   </ItemGroup>
 </Project>

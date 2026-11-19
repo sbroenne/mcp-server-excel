@@ -87,7 +87,8 @@ for (let scene=0;scene<starts.length;scene++) {
   phrases.forEach((p,i)=>{
     const v=voices[i], end=t+v.duration_s;
     const caption=p.text.replaceAll('excel C L I','excelcli').replaceAll('Excel M C P','Excel MCP').replaceAll('Microsoft three sixty five','Microsoft 365').replaceAll('open pie excel','openpyxl');
-    cues.push({id:p.id,text:caption,start:+t.toFixed(3),end:+end.toFixed(3)});
+    const displayEnd=end+(p.id==='04c'?1:0);
+    cues.push({id:p.id,text:caption,start:+t.toFixed(3),end:+displayEnd.toFixed(3)});
     tracks.push(`<audio id="voice-${p.id}" class="clip" src="${v.path}" data-start="${t.toFixed(3)}" data-duration="${v.duration_s}" data-track-index="10"></audio>`);
     t=end+gap;
   });
@@ -100,17 +101,24 @@ fs.writeFileSync('schedule.json',JSON.stringify(schedule,null,2)+'\n');
 fs.writeFileSync('SCRIPT.md',`# Excel MCP introduction\n\n**Voice:** Local Kokoro / af_heart (warm female English)\n\n**Voice direction:** Warm, articulate, confident. No music.\n\n**Duration:** Exactly ${duration} seconds. Captions align to individually synthesized phrases, not guessed word timestamps.\n\n`+schedule.map((s,i)=>`## Line ${i+1} — ${s.title} (Frame ${i+1})\n\n**Time:** ${s.start}–${s.end}s\n\n    ${request.lines.filter(p=>p.id.startsWith(s.voiceKey)).map(p=>p.text).join(' ')}\n`).join('\n'));
 fs.writeFileSync('STORYBOARD.md',`---\nformat: 1920x1080\nduration: ${duration}s\nmessage: "Understand what Excel MCP does, how it differs, and whether you need it."\narc: Introduce → Compare → Choose → Request → Prepare → Model → Visualize → Extend → Calculate → Start\naudience: people who have never heard of Excel MCP Server\nmode: autonomous\n---\n\n`+schedule.map((s,i)=>`## Frame ${i+1} — ${s.title}\n\n- status: animated\n- src: index.html\n- duration: ${s.end-s.start}s\n- poster: ${s.start+2.5}s\n- transition_in: ${[1,4,6,10].includes(i)?'zoom-through':'cut-the-curve left'}\n- scene: ${titles[i]}\n- voiceover: ${request.lines.filter(p=>p.id.startsWith(s.voiceKey)).map(p=>p.text).join(' ')}\n\nThe scene uses live Excel evidence where applicable; VBA is explicitly illustrative and Python is existing repository evidence.\n`).join('\n'));
 const css=fs.readFileSync('style.css','utf8');
+const cssOverrides=fs.readFileSync('style-overrides.css','utf8');
+const intentionalHolds=new Set(['01','02','03','05','07','08','09','10']);
 const captions=cues.map(c=>`<div id="caption-${c.id}" class="caption" data-layout-allow-caption-zone>${esc(c.text)}</div>`).join('\n');
 const revealData=schedule.map(s=>({id:s.id,start:s.start}));
 const html=`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080">
 <title>Excel MCP — Real Excel</title><script src="assets/vendor/gsap.min.js"></script><style>${css}</style></head>
 <body><main id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="${duration}">
-${scenes.map((content,i)=>`<section id="s${String(i+1).padStart(2,'0')}" class="scene ${i===5?'dark':''}" data-layout-allow-overflow>${content}<div class="scene-number">${String(i+1).padStart(2,'0')} / ${scenes.length}</div></section>`).join('\n')}
+${scenes.map((content,i)=>{
+  const id=String(i+1).padStart(2,'0');
+  const hold=intentionalHolds.has(id)?' data-hold':'';
+  const backdrop=id==='06'?'<div id="s06-backdrop" data-layout-ignore aria-hidden="true"></div>\n':'';
+  return `${backdrop}<section id="s${id}" class="scene ${i===5?'dark':''}"${hold} data-layout-allow-overflow>${content}<div class="scene-number" data-layout-ignore>${id} / ${scenes.length}</div></section>`;
+}).join('\n')}
 <div class="caption-overlay">${captions}</div>
 <div id="progress" data-layout-ignore></div>
 ${tracks.join('\n')}
-</main><script>
+</main><style>${cssOverrides}</style><script>
 window.__timelines=window.__timelines||{};
 const tl=gsap.timeline({paused:true});
 window.__timelines["main"]=tl;
@@ -126,6 +134,8 @@ tl.fromTo(".stat",{autoAlpha:0,y:35},{autoAlpha:1,y:0,duration:.65,stagger:.55,e
 tl.fromTo("#before",{autoAlpha:0},{autoAlpha:1,duration:.35},104);
 tl.fromTo("#calc-arrow",{autoAlpha:0,x:20},{autoAlpha:1,x:0,duration:.35},105.2);
 tl.fromTo("#after",{autoAlpha:0,x:40},{autoAlpha:1,x:0,duration:.7,ease:"power3.out"},105.7);
+tl.set("#s06-backdrop",{autoAlpha:1},60);
+tl.set("#s06-backdrop",{autoAlpha:0},60.8);
 ${cues.map(c=>`tl.set("#caption-${c.id}",{autoAlpha:1},${c.start});tl.set("#caption-${c.id}",{autoAlpha:0},${c.end});`).join('\n')}
 // <seams:auto>
 // </seams:auto>

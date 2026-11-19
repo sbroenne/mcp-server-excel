@@ -30,7 +30,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         Output.WriteLine($"Result: {result}");
 
         Assert.NotNull(result);
-        var json = JsonDocument.Parse(result).RootElement;
+        var json = JsonElement.Parse(result);
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
         Assert.Contains("Directory does not exist", errorMsg.GetString());
@@ -47,7 +47,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         Output.WriteLine($"Result: {result}");
 
         Assert.NotNull(result);
-        var json = JsonDocument.Parse(result).RootElement;
+        var json = JsonElement.Parse(result);
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
         Assert.Contains("not an absolute Windows path", errorMsg.GetString());
@@ -64,7 +64,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
 
         // Assert - should return JSON error (ExecuteToolAction wraps exceptions)
         Assert.NotNull(result);
-        var json = JsonDocument.Parse(result).RootElement;
+        var json = JsonElement.Parse(result);
 
         // ExecuteToolAction uses "success" and "errorMessage" for error responses
         Assert.False(json.GetProperty("success").GetBoolean());
@@ -86,7 +86,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
 
         // Assert
         Assert.NotNull(result);
-        var json = JsonDocument.Parse(result).RootElement;
+        var json = JsonElement.Parse(result);
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.False(json.GetProperty("exists").GetBoolean());
     }
@@ -111,7 +111,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
             Output.WriteLine($"Result: {result}");
 
             // Assert
-            var json = JsonDocument.Parse(result).RootElement;
+            var json = JsonElement.Parse(result);
             Assert.False(json.GetProperty("success").GetBoolean());
             Assert.True(json.GetProperty("exists").GetBoolean());
             Assert.False(json.GetProperty("isValid").GetBoolean());

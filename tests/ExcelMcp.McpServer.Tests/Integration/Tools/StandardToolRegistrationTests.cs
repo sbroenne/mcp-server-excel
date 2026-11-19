@@ -473,7 +473,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.True(content.GetProperty("success").GetBoolean());
         Assert.Equal(JsonValueKind.Array, content.GetProperty("sessions").ValueKind);
         var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
-        Assert.True(JsonElement.DeepEquals(content, JsonDocument.Parse(text).RootElement));
+        Assert.True(JsonElement.DeepEquals(content, JsonElement.Parse(text)));
     }
 
     [Fact]

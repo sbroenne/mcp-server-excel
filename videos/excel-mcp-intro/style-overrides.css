@@ -1,0 +1,13 @@
+#s06-backdrop{position:absolute;inset:0;background:#14251c;opacity:0;visibility:hidden;pointer-events:none}
+.kicker{font-size:32px}
+.proof-label{font-size:32px}
+.foot-label{font-size:32px}
+.mono{font-size:32px}
+.vba-code .mono{font-size:32px}
+.fit-alternative .mono{font-size:28px}
+.tag{font-size:32px}
+.python-note .tag{font-size:29px}
+.query-code pre{font-size:32px}
+.engine-features{font-size:32px}
+.code-note{font-size:30px}
+.requirements{font-size:30px}
