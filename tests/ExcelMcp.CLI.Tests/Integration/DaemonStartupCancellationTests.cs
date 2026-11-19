@@ -44,8 +44,11 @@ public sealed class DaemonStartupCancellationTests(ITestOutputHelper output) : C
         {
             cancellation.Cancel();
             // Keep the lock held until the cancelled attempt has actually finished.
-            Assert.Same(startup, await Task.WhenAny(
-                startup, Task.Delay(TimeSpan.FromSeconds(15))));
+            using var timeoutCancellation = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(15), timeoutCancellation.Token);
+            var completedTask = await Task.WhenAny(startup, timeoutTask);
+            timeoutCancellation.Cancel();
+            Assert.Same(startup, completedTask);
         }
     }
 
@@ -115,8 +118,11 @@ public sealed class DaemonStartupCancellationTests(ITestOutputHelper output) : C
         finally
         {
             cancellation.Cancel();
-            Assert.Same(wait, await Task.WhenAny(
-                wait, Task.Delay(TimeSpan.FromSeconds(15))));
+            using var timeoutCancellation = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(15), timeoutCancellation.Token);
+            var completedTask = await Task.WhenAny(wait, timeoutTask);
+            timeoutCancellation.Cancel();
+            Assert.Same(wait, completedTask);
         }
     }
 

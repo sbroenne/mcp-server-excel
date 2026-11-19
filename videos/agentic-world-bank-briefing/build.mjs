@@ -9,6 +9,10 @@ const request = read('audio_request.json');
 const audio = read('audio_meta.json');
 const footage = read('footage.json');
 const ev = read('evidence.json');
+const sourceMode = footage.sourceMode ?? 'recorded';
+if (!['recorded', 'illustrative-substitutes'].includes(sourceMode)) throw new Error(`Unknown footage source mode: ${sourceMode}`);
+const useSubstitutes = sourceMode === 'illustrative-substitutes';
+const footageDir = useSubstitutes ? 'assets/substitutes' : 'assets/footage';
 const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const fix = s => s.replaceAll('M C P', 'MCP').replaceAll('C L I', 'CLI').replaceAll('A I', 'AI');
 
@@ -34,13 +38,15 @@ const scenes = [
 const clipStart = { ask: 13, research: 27, excel: 42, 'ppt-a': 82, 'ppt-b': 103.5 };
 const clips = footage.clips.map(c => ({ ...c, start: clipStart[c.id], speed: (c.srcEnd - c.srcStart) / c.duration }));
 for (const c of clips) {
-  if (!fs.existsSync(`assets/footage/${c.id}.mp4`)) throw new Error(`Missing assets/footage/${c.id}.mp4. Footage clips are not committed (about 41 MB); regenerate them from the original OBS recording with npm run footage -- <recording>. The published video is https://youtu.be/_z-twdXG2fA.`);
+  if (!fs.existsSync(`${footageDir}/${c.id}.mp4`)) throw new Error(`Missing ${footageDir}/${c.id}.mp4. Run npm run ${useSubstitutes ? 'footage:substitutes' : 'footage -- <recording>'}.`);
 }
 const elapsed = (c, t) => Math.max(0, c.srcStart - footage.promptAt + (t - c.start) * c.speed);
 const mmss = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const pptA = clips.find(c => c.id === 'ppt-a'), pptB = clips.find(c => c.id === 'ppt-b');
 const skipFrom = mmss(elapsed(pptA, pptA.start + pptA.duration)), skipTo = mmss(elapsed(pptB, pptB.start));
 if (skipFrom !== ev.skippedInVideo.fromElapsed || skipTo !== ev.skippedInVideo.toElapsed) throw new Error(`Skip marker ${skipFrom}-${skipTo} disagrees with evidence.json`);
+const footageLabel = original => useSubstitutes ? 'Illustrative substitute' : original;
+const skipLabel = useSubstitutes ? `Original run · skip ${skipFrom} → ${skipTo}` : `Skipped ${skipFrom} → ${skipTo} elapsed`;
 
 // Voice line start times (seconds); each line must end before the next starts and inside its scene.
 const voiceAt = {
@@ -72,9 +78,9 @@ const at = t => `data-at="${t}"`;
 const stage = (t, label) => `<li class="stage" data-on="${t}">${label}</li>`;
 const video = (id, extra = '') => {
   const c = clips.find(x => x.id === id);
-  return `<video id="v-${id}" src="assets/footage/${id}.mp4" data-start="${c.start}" data-duration="${c.duration}" data-track-index="1" muted playsinline${extra}></video>`;
+  return `<video id="v-${id}" class="clip" src="${footageDir}/${id}.mp4" data-start="${c.start}" data-duration="${c.duration}" data-track-index="1" muted playsinline${extra}></video>`;
 };
-const badges = (cls, ids) => `<div class="badges ${cls}"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="${ids}">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="${ids}">1x</strong></div></div>`;
+const badges = (cls, ids) => useSubstitutes ? '' : `<div class="badges ${cls}"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="${ids}">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="${ids}">1x</strong></div></div>`;
 const slideImg = (n, size = '') => `assets/slides/${size}Slide${n}.png`;
 
 const fan = [6, 5, 4, 3, 2, 1, 0].map(i => `<div class="fan" id="fan${i + 1}" style="left:${960 + (6 - i) * 24}px;top:${130 + (6 - i) * 44}px;z-index:${7 - i}"><img src="${slideImg(i + 1, 'fan/')}" alt="Slide ${i + 1} of the agent's briefing"></div>`).join('');
@@ -89,7 +95,7 @@ const html_scenes = {
  <div class="copy"><h2>One request,<br><em>in plain English.</em></h2></div>
  <div class="prompt" ${at(13.6)}><span class="prompt-label">The exact prompt</span>${prompt.map(p => `<p>${esc(p)}</p>`).join('')}</div>
  <div class="facts" style="top:850px"><div class="mono" ${at(19.2)} style="font-size:26px;color:#22382b">${words} words · sent once · ${ev.humanInput.interventions} follow-ups</div></div>
- <div class="card card-tall">${video('ask')}</div><div class="card-label">Real footage · GitHub Copilot CLI</div>
+ <div class="card card-tall">${video('ask')}</div><div class="card-label">${footageLabel('Real footage · GitHub Copilot CLI')}</div>
  ${badges('top-badges', 'ask')}`,
   s3: `${kicker('02', 'Research')}
  <div class="copy"><h2>First, find<br><em>the right data.</em></h2></div>
@@ -99,13 +105,13 @@ const html_scenes = {
   <li class="fact" ${at(34.8)}><b>03</b>25 economies × 25 years</li>
   <li class="fact" ${at(37.9)}><b>04</b>Coverage checked for gaps</li>
  </ul>
- <div class="card card-tall">${video('research')}</div><div class="card-label">Real footage · GitHub Copilot CLI</div>
+ <div class="card card-tall">${video('research')}</div><div class="card-label">${footageLabel('Real footage · GitHub Copilot CLI')}</div>
  ${badges('top-badges', 'research')}`,
   s4: `${kicker('03', 'Excel MCP Server')}
  <div class="rail"><h2>Build the<br><em>analysis.</em></h2><ul class="stages">
   ${stage(42.9, 'Power Query')}${stage(47.6, 'Data Model + DAX')}${stage(50.3, 'Analysis + checks')}${stage(56.3, 'Charts')}${stage(62.9, 'PivotTable')}${stage(69.9, 'Refresh all')}
  </ul></div>
- <div class="card card-wide">${video('excel')}</div><div class="card-label">Real footage · Copilot CLI + Excel</div>
+ <div class="card card-wide">${video('excel')}</div><div class="card-label">${footageLabel('Real footage · Copilot CLI + Excel')}</div>
  ${badges('rail-badges', 'excel')}`,
   s5: `${kicker('04', 'Hand-off')}
  <div class="handoff"><h2>Every number on a slide<br><em>comes from Excel.</em></h2>
@@ -120,8 +126,8 @@ const html_scenes = {
  <div class="rail"><h2>Design the<br><em>briefing.</em></h2><ul class="stages">
   ${stage(85.2, 'Template slide')}${stage(94.3, 'Export and look')}${stage(95.8, 'Copy the design')}${stage(101.6, 'Native charts')}${stage(103.5, 'Recover + check')}
  </ul></div>
- <div class="card card-wide">${video('ppt-a')}${video('ppt-b')}</div><div class="card-label">Real footage · Copilot CLI + PowerPoint</div>
- <div class="skip" id="skip"><strong>Skipped ${skipFrom} → ${skipTo} elapsed</strong>The chart data window got stuck (PowerPoint MCP issue #108), then PowerPoint crashed. The agent reopened the deck and rebuilt the lost charts.</div>
+ <div class="card card-wide">${video('ppt-a')}${video('ppt-b')}</div><div class="card-label">${footageLabel('Real footage · Copilot CLI + PowerPoint')}</div>
+ <div class="skip" id="skip"><strong>${skipLabel}</strong>Chart window stuck (issue #108); PowerPoint crashed. Agent reopened the deck and rebuilt charts.</div>
  ${badges('rail-badges', 'ppt-a,ppt-b')}`,
   s7: `${kicker('06', 'The briefing')}
  ${[[1, 110, 113.2, 'Executive summary'], [2, 113.2, 116.8, 'Prosperity'], [3, 116.8, 120.6, 'The income gap'], [6, 120.6, 124.6, 'Connectivity']].map(([n, a, b, name]) =>
@@ -146,7 +152,7 @@ const html_scenes = {
       ['AI model', 'Claude Opus 5.5'],
       ['Tools', `${ev.servers.excel} · ${ev.servers.powerpoint}`],
       ['Human input', `${ev.humanInput.prompts} request, ${words} words, ${ev.humanInput.interventions} follow-ups`],
-      ['Footage', 'One screen recording; speed-ups and the cut are labelled'],
+      ['Footage', useSubstitutes ? 'Illustrative substitutes; original screen recording unavailable' : 'One screen recording; speed-ups and the cut are labelled'],
     ]],
     ['This video', [
       ['Recording, editing, script', 'An AI agent: GitHub Copilot CLI with Claude Opus 5.5'],
@@ -161,7 +167,10 @@ const html_scenes = {
   ].map(([head, rows]) => `<div class="roll-group"><h3>${head}</h3>${rows.map(([k, v]) => `<div class="roll-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`).join('')}</div>`,
 };
 
-const clipData = clips.map(({ id, start, duration: d, speed, srcStart }) => ({ id, start, end: start + d, speed: +speed.toFixed(4), srcStart }));
+const clipData = clips.map(({ id, start, duration: d, speed, srcStart }) => ({
+  id, start, end: start + d,
+  ...(useSubstitutes ? {} : { speed: +speed.toFixed(4), srcStart }),
+}));
 const tracks = cues.map(c => `<audio id="voice-${c.id}" src="${c.path}" data-start="${c.start}" data-duration="${c.duration}" data-track-index="10" data-volume="1"></audio>`);
 const css = fs.readFileSync('style.css', 'utf8');
 const html = `<!DOCTYPE html>
@@ -232,11 +241,11 @@ fs.writeFileSync('SCRIPT.md', `# Agentic workflow: World Bank data to Excel and 
   scenes.map((s, i) => `## ${i + 1}. ${s.title}\n\n**Time:** ${s.start}–${s.end}s\n\n    ${lines(s.id)}\n`).join('\n'));
 const visuals = {
   s1: 'The seven exported slides fan in; "One request to an AI agent." under an Agentic workflow label, with the three steps and the measured effort.',
-  s2: 'The exact prompt, word count, and real footage of it being sent in Copilot CLI.',
-  s3: 'Research steps beside sped-up terminal footage; elapsed clock and speed.',
-  s4: 'Sped-up footage of Copilot CLI and Excel; Excel steps light up as they happen.',
+  s2: `The exact prompt and word count beside ${useSubstitutes ? 'a clearly labeled illustrative substitute' : 'real footage of it being sent in Copilot CLI'}.`,
+  s3: `Research steps beside ${useSubstitutes ? 'a clearly labeled illustrative substitute' : 'sped-up terminal footage with elapsed clock and speed'}.`,
+  s4: `${useSubstitutes ? 'A clearly labeled illustrative substitute' : 'Sped-up footage of Copilot CLI and Excel'}; Excel steps light up as they happen.`,
   s5: 'Headline values from the workbook and the hand-off from workbook to deck.',
-  s6: 'Sped-up footage of Copilot CLI and PowerPoint; labelled skip over the stuck chart window and crash.',
+  s6: `${useSubstitutes ? 'A clearly labeled illustrative substitute' : 'Sped-up footage of Copilot CLI and PowerPoint'}; labelled skip over the stuck chart window and crash.`,
   s7: 'Four exported slides full-screen, then all seven.',
   s8: 'Measured effort from the session record, review reminder, links.',
   s9: 'Dark end-credits roll: how the run and this video were made, and the data source.',

@@ -204,8 +204,8 @@ public sealed class EntryPointTelemetryTests : IDisposable
         try
         {
             Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
-            Assert.Same(command, await Task.WhenAny(command, Task.Delay(500)));
-            Assert.Equal(0, await command);
+            var result = await command.WaitAsync(TimeSpan.FromMilliseconds(500));
+            Assert.Equal(0, result);
         }
         finally { release.Set(); await command; await reporter.Initialization; }
         Assert.False(reporter.IsReady);

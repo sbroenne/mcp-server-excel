@@ -103,9 +103,10 @@ public sealed class DaemonRpcTargetTests
 
         ((IDisposable)clientProxy).Dispose();
 
-        var completedTask = await Task.WhenAny(
-            serverRpc.Completion,
-            Task.Delay(TimeSpan.FromSeconds(5)));
+        using var timeoutCancellation = new CancellationTokenSource();
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5), timeoutCancellation.Token);
+        var completedTask = await Task.WhenAny(serverRpc.Completion, timeoutTask);
+        timeoutCancellation.Cancel();
         Assert.Same(serverRpc.Completion, completedTask);
     }
 

@@ -9,3 +9,9 @@
   `#107C41` and PowerPoint orange `#C43E1C`
 - **Evidence:** one recorded Copilot CLI run (Claude Opus 5.5) with Excel MCP
   Server 2.3.3 and PowerPoint MCP Server 0.3.1; see `evidence.json`
+
+## Notes
+
+- When the original screen recording is unavailable, use abstract, clearly
+  labeled illustrative substitutes. Do not present them as original footage or
+  make them look like real app screens.

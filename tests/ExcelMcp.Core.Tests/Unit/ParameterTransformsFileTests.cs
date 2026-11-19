@@ -405,7 +405,7 @@ public sealed class ParameterTransformsFileTests : IDisposable
     [Fact]
     public void ResolveFormulaCellsOrFile_InlineOutOfRangeJsonNumber_NamesPosition()
     {
-        var cell = JsonDocument.Parse("1e400").RootElement;
+        var cell = JsonElement.Parse("1e400");
 
         var ex = Assert.Throws<ArgumentException>(
             () => ParameterTransforms.ResolveFormulaCellsOrFile([["=1", cell]], null));

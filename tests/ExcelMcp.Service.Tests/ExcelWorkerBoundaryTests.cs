@@ -59,8 +59,8 @@ public sealed class ExcelWorkerBoundaryTests
                 Args = System.Text.Json.JsonSerializer.Serialize(new { message })
             }, CancellationToken.None);
             Assert.True(response.Success, response.ErrorMessage);
-            Assert.Equal(message, System.Text.Json.JsonDocument.Parse(
-                response.Result!).RootElement.GetProperty("message").GetString());
+            Assert.Equal(message, System.Text.Json.JsonElement.Parse(
+                response.Result!).GetProperty("message").GetString());
             Assert.True(worker.Snapshot!.Revision > initialRevision,
                 "The operation reply must update recorded status without another status request.");
             Assert.Null(worker.Snapshot.PendingOperation);

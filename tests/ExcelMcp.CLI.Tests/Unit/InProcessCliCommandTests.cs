@@ -624,12 +624,11 @@ public sealed class InProcessCliCommandTests
             return invocation;
         });
 
-        bool returnedBeforeCompletion;
         try
         {
             await factory.RequestSent.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            returnedBeforeCompletion = await Task.WhenAny(returned.Task, Task.Delay(TimeSpan.FromSeconds(2))) == returned.Task;
-            Assert.False(execution.IsCompleted);
+            await returned.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.False(execution.IsCompleted, "RunAsync completed only after the command completed.");
             Assert.Empty(telemetry);
         }
         finally
@@ -638,7 +637,6 @@ public sealed class InProcessCliCommandTests
         }
 
         Assert.Equal(0, await execution.WaitAsync(TimeSpan.FromSeconds(10)));
-        Assert.True(returnedBeforeCompletion, "RunAsync blocked until the command completed.");
         Assert.Equal([("session.open", true, null)], telemetry);
         using var result = JsonDocument.Parse(output.ToString());
         Assert.Equal("pending", result.RootElement.GetProperty("data").GetProperty("sessionId").GetString());

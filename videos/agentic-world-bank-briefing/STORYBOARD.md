@@ -24,7 +24,7 @@ mode: autonomous
 - duration: 14s
 - poster: 16s
 - transition_in: fade
-- scene: The exact prompt, word count, and real footage of it being sent in Copilot CLI.
+- scene: The exact prompt and word count beside a clearly labeled illustrative substitute.
 - voiceover: It starts with a plain-English request to an AI agent in GitHub Copilot CLI. One hundred and twelve words, sent once, with no follow-ups.
 
 ## Frame 3 — Research
@@ -34,7 +34,7 @@ mode: autonomous
 - duration: 15s
 - poster: 30s
 - transition_in: fade
-- scene: Research steps beside sped-up terminal footage; elapsed clock and speed.
+- scene: Research steps beside a clearly labeled illustrative substitute.
 - voiceover: First, the agent does the research. It finds the World Bank's official indicators, tests the data service, and pulls twenty-five years for twenty-five economies. Then it checks for gaps.
 
 ## Frame 4 — Excel MCP Server
@@ -44,7 +44,7 @@ mode: autonomous
 - duration: 30s
 - poster: 45s
 - transition_in: fade
-- scene: Sped-up footage of Copilot CLI and Excel; Excel steps light up as they happen.
+- scene: A clearly labeled illustrative substitute; Excel steps light up as they happen.
 - voiceover: Next, Excel MCP Server. The agent drives the real Excel app. It loads the data with Power Query, builds a Data Model with DAX measures, and adds analysis sheets, charts, and a PivotTable. A checks sheet tests the key numbers. When a step fails, the agent reads the error and tries another way.
 
 ## Frame 5 — Hand-off
@@ -64,7 +64,7 @@ mode: autonomous
 - duration: 28s
 - poster: 85s
 - transition_in: fade
-- scene: Sped-up footage of Copilot CLI and PowerPoint; labelled skip over the stuck chart window and crash.
+- scene: A clearly labeled illustrative substitute; labelled skip over the stuck chart window and crash.
 - voiceover: Now, PowerPoint MCP Server. The agent designs one slide as a template, exports it as a picture, and looks at it, the way a designer would. Then it builds the other slides, with native, editable charts, headlines that state the insight, sources, and speaker notes. It ran into a chart bug and a PowerPoint crash, and recovered on its own.
 
 ## Frame 7 — The briefing
