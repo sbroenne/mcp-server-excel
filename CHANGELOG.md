@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.6.13] - 2026-11-19
+
+### Patch Changes
+
+- [#1328](https://github.com/sbroenne/mcp-server-excel/pull/1328) [`f7793ba`](https://github.com/sbroenne/mcp-server-excel/commit/f7793ba9eff6c7638aeb8ad8d03977d02100d83a) Thanks [@sbroenne](https://github.com/sbroenne)! - Updated ExcelMcp's dependencies, including its Microsoft identity and Azure libraries.
+
 ## [2.6.12] - 2026-11-10
 
 ### Patch Changes
