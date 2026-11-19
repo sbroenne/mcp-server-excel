@@ -60,37 +60,27 @@
     {
       "id": "ask",
       "start": 13,
-      "end": 27,
-      "speed": 1,
-      "srcStart": 15
+      "end": 27
     },
     {
       "id": "research",
       "start": 27,
-      "end": 42,
-      "speed": 7.4667,
-      "srcStart": 26
+      "end": 42
     },
     {
       "id": "excel",
       "start": 42,
-      "end": 72,
-      "speed": 30.8333,
-      "srcStart": 138
+      "end": 72
     },
     {
       "id": "ppt-a",
       "start": 82,
-      "end": 103.5,
-      "speed": 20.3256,
-      "srcStart": 1063
+      "end": 103.5
     },
     {
       "id": "ppt-b",
       "start": 103.5,
-      "end": 110,
-      "speed": 18.4615,
-      "srcStart": 1840
+      "end": 110
     }
   ],
   "voice": [

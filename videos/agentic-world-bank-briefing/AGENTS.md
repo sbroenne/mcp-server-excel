@@ -6,12 +6,16 @@ media treatments belong to those skills, not copied instructions here.
 
 ## What this video must stay true to
 
-Every screen is real: footage from one recorded, unedited agent run, or a slide
-exported from the deck that run produced. Do not add invented screens, results
-or numbers.
+Slides are exports from the deck produced by the recorded agent run. Screen
+footage comes from that run when available. If it is unavailable, use abstract,
+clearly labeled illustrative substitutes; do not imitate real app screens or
+present substitutes as footage. Do not invent results or numbers.
 
-- Sped-up footage shows its speed; the clock shows real time elapsed since the
-  prompt was sent. Skipped stretches are labelled with what was skipped.
+- Label every substitute in-frame and in its card caption. Hide elapsed-time
+  and speed labels when showing substitutes; those labels describe real
+  recorded footage only.
+- When using recorded footage, show its speed and real time elapsed since the
+  prompt was sent. Label skipped stretches with what was skipped.
 - Effort figures (prompt, words, minutes, tool calls, interventions) come from
   `evidence.json`, which was measured from the Copilot CLI session record.
 - Data claims match the deck and the World Bank WDI source (CC BY 4.0).
@@ -32,11 +36,17 @@ media-use audio script and the local Kokoro `af_heart` voice.
 ## Footage
 
 The raw OBS recording stays outside the repository. `assets/footage/` is
-git-ignored on purpose: the prepared clips are about 41 MB, and committing them
-would add that size to every clone. A clean checkout therefore cannot build or
-render the video; `npm run build` stops with a missing-footage error. The
-published video is https://youtu.be/_z-twdXG2fA. Regenerate the clips from the
-recording:
+git-ignored; the original clips are about 41 MB. The five small, clearly labeled
+illustrative substitutes in `assets/substitutes/` are tracked so a clean
+checkout can build and check the composition. Generate them with
+`npm run footage:substitutes`. To use the original recording instead, run
+`npm run footage -- <path-to-recording.mp4>`; after all clips are prepared,
+that command sets `footage.json` to recorded mode. Keep substitutes abstract
+and clearly labeled; never make them look like captured screens or invent
+results.
+
+The published video is https://youtu.be/_z-twdXG2fA. Regenerate the clips from
+the recording:
 
 ```powershell
 npm run footage -- <path-to-recording.mp4>
@@ -58,15 +68,16 @@ npm run slides
 
 ## Checks and preview
 
-Run `npm run build` and then `npm run check` after every change. Fix all errors
-and review warnings before handoff. For Studio review use the persistent
-preview. PowerShell drops the `--` in `npm run dev -- --background`, so call
-the pinned CLI directly:
+After composition or source edits, run `npm run build` and then `npm run check`.
+For a HyperFrames update, use the documented project-upgrade flow and keep the
+new pin only if `npm run check` passes. Fix other errors and review warnings
+before handoff. PowerShell drops the `--` in `npm run dev -- --background`,
+so call the pinned CLI directly:
 
 ```powershell
-npx --yes hyperframes@0.8.184 preview --background
-npx --yes hyperframes@0.8.184 preview --status
-npx --yes hyperframes@0.8.184 preview --stop
+npx --yes hyperframes@0.9.70 preview --background
+npx --yes hyperframes@0.9.70 preview --status
+npx --yes hyperframes@0.9.70 preview --stop
 ```
 
 ## Render and publication

@@ -26,3 +26,6 @@ for (const clip of config.clips) {
   const result = spawnSync('ffmpeg', args, { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
+
+config.sourceMode = 'recorded';
+fs.writeFileSync(path.join(root, 'footage.json'), `${JSON.stringify(config, null, 2)}\n`);
