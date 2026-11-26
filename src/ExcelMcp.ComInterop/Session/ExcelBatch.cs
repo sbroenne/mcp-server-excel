@@ -23,6 +23,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState, IExcelBatchWindowControl
 {
+    private const int RpcCallCancelled = unchecked((int)0x80010002);
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
@@ -1727,7 +1728,8 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 {
                     lock (_statusLock)
                         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-                    var state = _operationTimedOut ? ReadRefreshState() : readRefreshState();
+                    var state = ReadRefreshStateWithCancellation(
+                        _operationTimedOut ? ReadRefreshState : readRefreshState);
                     if (state == WorkbookRefreshState.Ready)
                         _operationTimedOut = false;
                     return state;
@@ -1757,6 +1759,32 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         finally
         {
             _readinessLock.Exit();
+        }
+    }
+
+    private WorkbookRefreshState ReadRefreshStateWithCancellation(Func<WorkbookRefreshState> read)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        OleMessageFilter.SetPendingCancellationToken(deadline.Token);
+        // This scan reads metadata only. Defer reentrant event scans through COM's retry
+        // path, rather than dispatching callbacks that can retain workbook references.
+        OleMessageFilter.EnterLongOperation();
+        try
+        {
+            return read();
+        }
+        catch (COMException ex) when (deadline.IsCancellationRequested &&
+            (ex.HResult == RpcCallCancelled ||
+             ex.HResult == ResiliencePipelines.RPC_E_CALL_REJECTED ||
+             ex.HResult == ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER))
+        {
+            _logger.LogWarning("Excel refresh-state COM inspection was cancelled; readiness remains unknown");
+            return WorkbookRefreshState.Unknown;
+        }
+        finally
+        {
+            OleMessageFilter.ExitLongOperation();
+            OleMessageFilter.ClearPendingCancellationToken();
         }
     }
 

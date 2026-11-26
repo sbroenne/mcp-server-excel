@@ -16,6 +16,25 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public class OleMessageFilterTests
 {
     [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RetryRejectedCall_CancelledPendingCall_DoesNotRetry(int rejection)
+    {
+        using var cancellation = new CancellationTokenSource();
+        IOleMessageFilter filter = new OleMessageFilter();
+        OleMessageFilter.SetPendingCancellationToken(cancellation.Token);
+        try
+        {
+            cancellation.Cancel();
+            Assert.Equal(-1, filter.RetryRejectedCall(nint.Zero, 0, rejection));
+        }
+        finally
+        {
+            OleMessageFilter.ClearPendingCancellationToken();
+        }
+    }
+
+    [Theory]
     [InlineData(2, 0, 100)]
     [InlineData(2, 999, 100)]
     [InlineData(2, 1000, 200)]
